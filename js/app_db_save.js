@@ -3618,10 +3618,12 @@ ${suspectedDuplicates}
     }
     
     // Listen for auth state changes to refresh games table
+    console.log('📌 [app_db_save] Setting up authStateChanged listener');
     window.addEventListener('authStateChanged', (event) => {
-      console.log('🔐 Auth state changed, refreshing games table...', event.detail);
+      console.log('🔐 [app_db_save] authStateChanged received!', event.detail);
       
       // Always re-render games table on auth change
       // It's cheap and ensures buttons appear/disappear immediately
       renderGamesTable();
     });
+    console.log('✅ [app_db_save] authStateChanged listener added');
