@@ -2447,39 +2447,51 @@ ${suspectedDuplicates}
         // Clear all options except the first one
         selectElement.innerHTML = `<option value="">${defaultText}</option>`;
         
-        if (!(DB_AVAILABLE && DB)) return;
+        // Initialize dbAdapter if not already done
+        if (window.dbAdapter && !window.dbAdapter.isDbAvailable()) {
+          await window.dbAdapter.init();
+        }
         
         try {
-          // Reload all teams except the excluded one
-          const tx = DB.transaction(['teams'], 'readonly');
-          const store = tx.objectStore('teams');
+          // Get all teams from dbAdapter
+          const allTeams = await window.dbAdapter.getTeams();
           
-          await new Promise((resolve) => {
-            store.openCursor().onsuccess = e => {
-              const c = e.target.result;
-              if (!c) {
-                resolve();
-                return;
-              }
-              
-              const team = c.value;
-              
-              // Skip the excluded team
-              if (team.team_id === excludeTeamId) {
-                c.continue();
-                return;
-              }
-              
-              const teamName = team.name_he || team.name_en || 'Unknown Team';
-              const option = document.createElement('option');
-              option.value = team.team_id;
-              option.textContent = teamName;
-              selectElement.appendChild(option);
-              
-              c.continue();
-            };
+          if (!allTeams || allTeams.length === 0) {
+            console.log('No teams found for updating options');
+            return;
+          }
+          
+          // Collect unique teams in a Map
+          const teamsMap = new Map();
+          
+          for (const team of allTeams) {
+            const teamName = team.name_he || team.name_en || 'Unknown Team';
             
-            store.openCursor().onerror = () => resolve();
+            // Skip the excluded team
+            if (team.team_id === excludeTeamId) {
+              continue;
+            }
+            
+            // Use team_id as key to avoid duplicates
+            if (!teamsMap.has(team.team_id)) {
+              teamsMap.set(team.team_id, {
+                id: team.team_id,
+                name: teamName
+              });
+            }
+          }
+          
+          // Convert Map to array and sort alphabetically
+          const sortedTeams = Array.from(teamsMap.values()).sort((a, b) => {
+            return a.name.localeCompare(b.name, 'he');
+          });
+          
+          // Add options to select
+          sortedTeams.forEach(team => {
+            const option = document.createElement('option');
+            option.value = team.id;
+            option.textContent = team.name;
+            selectElement.appendChild(option);
           });
           
           // Restore the current selection if it's still valid
