@@ -3610,3 +3610,15 @@ ${suspectedDuplicates}
         showError('שגיאה בטעינת משחקים: ' + (error?.message || error));
       }
     }
+    
+    // Listen for auth state changes to refresh games table
+    window.addEventListener('authStateChanged', (event) => {
+      console.log('🔐 Auth state changed, refreshing games table...', event.detail);
+      
+      // Check if games view is currently visible
+      const gamesView = document.getElementById('view-games');
+      if (gamesView && !gamesView.classList.contains('hidden')) {
+        // Games table is visible, refresh it to show/hide admin buttons
+        renderGamesTable();
+      }
+    });

@@ -267,14 +267,9 @@
       authIndicator.style.display = isAuth ? 'inline-flex' : 'none';
     }
     
-    // Refresh games table to show/hide admin buttons (reload, delete)
-    const currentView = document.querySelector('#view-games');
-    if (currentView && !currentView.classList.contains('hidden')) {
-      // Games table is visible, refresh it
-      if (typeof window.App !== 'undefined' && typeof window.App.renderGamesTable === 'function') {
-        window.App.renderGamesTable();
-      }
-    }
+    // Trigger a custom event to refresh admin-dependent UI
+    // This will be caught by other modules that need to update
+    window.dispatchEvent(new CustomEvent('authStateChanged', { detail: { isAuthenticated: isAuth } }));
   }
 
   /**
