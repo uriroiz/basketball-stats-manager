@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>העברת נתונים ל-Supabase - Basketball Stats Manager</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    .log-entry {
+      font-family: 'Courier New', monospace;
+      font-size: 0.875rem;
+    }
+    .log-success { color: #10b981; }
+    .log-error { color: #ef4444; }
+    .log-warning { color: #f59e0b; }
+    .log-info { color: #3b82f6; }
+  </style>
+</head>
+<body class="bg-gray-100">
+  <div class="min-h-screen py-8 px-4">
+    <div class="max-w-4xl mx-auto">
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow-lg p-6 mb-6">
+        <h1 class="text-3xl font-bold text-white mb-2">🚀 כלי העברת נתונים ל-Supabase</h1>
+        <p class="text-blue-100">העבר את כל הנתונים המקומיים מ-IndexedDB אל Supabase בענן</p>
+      </div>
+
+      <!-- Configuration Card -->
+      <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">⚙️ הגדרות Supabase</h2>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Supabase URL</label>
+            <input 
+              type="text" 
+              id="supabaseUrl" 
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="https://xxxxx.supabase.co"
+              dir="ltr"
+            />
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Supabase Anon Key</label>
+            <input 
+              type="password" 
+              id="supabaseKey" 
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+              dir="ltr"
+            />
+            <p class="mt-1 text-xs text-gray-500">מצא את הערכים ב-Supabase Dashboard → Settings → API</p>
+          </div>
+
+          <button 
+            id="testConnectionBtn"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
+          >
+            🔌 בדוק חיבור
+          </button>
+        </div>
+      </div>
+
+      <!-- Migration Status -->
+      <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">📊 סטטוס העברה</h2>
+        
+        <div id="migrationStatus" class="space-y-2 mb-4">
+          <!-- Status will be populated here -->
+        </div>
+
+        <div class="flex gap-3">
+          <button 
+            id="startMigrationBtn"
+            class="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled
+          >
+            ▶️ התחל העברה
+          </button>
+          
+          <button 
+            id="clearSupabaseBtn"
+            class="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled
+          >
+            🗑️ נקה Supabase
+          </button>
+        </div>
+      </div>
+
+      <!-- Log Console -->
+      <div class="bg-gray-900 rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-bold text-white mb-4">📝 לוג</h2>
+        <div id="logConsole" class="bg-black rounded p-4 h-96 overflow-y-auto font-mono text-sm text-green-400">
+          <div>ממתין לחיבור...</div>
+        </div>
+      </div>
+
+      <!-- Instructions -->
+      <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mt-6">
+        <h3 class="text-lg font-bold text-yellow-900 mb-2">⚠️ הוראות חשובות</h3>
+        <ul class="list-disc list-inside space-y-2 text-yellow-800 text-sm">
+          <li>ודא שיש לך נתונים ב-IndexedDB המקומי (אותו דפדפן שבו השתמשת באפליקציה)</li>
+          <li>פתח קובץ זה באותו דפדפן בו עבדת עד כה</li>
+          <li>ודא שיצרת את הטבלאות ב-Supabase (הרץ את supabase_schema.sql)</li>
+          <li>העברה עלולה לקחת מספר דקות תלוי בכמות הנתונים</li>
+          <li>לאחר העברה מוצלחת, האפליקציה הראשית תעבור אוטומטית לעבוד עם Supabase</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let supabaseClient = null;
+    let localDB = null;
+
+    const statusEl = document.getElementById('migrationStatus');
+    const logEl = document.getElementById('logConsole');
+    const startBtn = document.getElementById('startMigrationBtn');
+    const clearBtn = document.getElementById('clearSupabaseBtn');
+    const testBtn = document.getElementById('testConnectionBtn');
+    const urlInput = document.getElementById('supabaseUrl');
+    const keyInput = document.getElementById('supabaseKey');
+
+    // Logging
+    function log(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString('he-IL');
+      const colors = {
+        success: 'text-green-400',
+        error: 'text-red-400',
+        warning: 'text-yellow-400',
+        info: 'text-blue-400'
+      };
+      const icons = {
+        success: '✅',
+        error: '❌',
+        warning: '⚠️',
+        info: 'ℹ️'
+      };
+      
+      const entry = document.createElement('div');
+      entry.className = colors[type] || colors.info;
+      entry.textContent = `[${timestamp}] ${icons[type]} ${message}`;
+      logEl.appendChild(entry);
+      logEl.scrollTop = logEl.scrollHeight;
+      
+      console.log(`[${type.toUpperCase()}]`, message);
+    }
+
+    function updateStatus(table, count, status) {
+      let statusRow = document.getElementById(`status-${table}`);
+      if (!statusRow) {
+        statusRow = document.createElement('div');
+        statusRow.id = `status-${table}`;
+        statusRow.className = 'flex justify-between items-center p-2 bg-gray-50 rounded';
+        statusEl.appendChild(statusRow);
+      }
+      
+      const statusColors = {
+        pending: 'text-gray-500',
+        progress: 'text-blue-600',
+        success: 'text-green-600',
+        error: 'text-red-600'
+      };
+      
+      statusRow.innerHTML = `
+        <span class="font-medium">${table}</span>
+        <span class="${statusColors[status]}">${count} פריטים - ${status === 'success' ? 'הושלם' : status === 'progress' ? 'מעביר...' : status === 'error' ? 'שגיאה' : 'ממתין'}</span>
+      `;
+    }
+
+    // Test Supabase connection
+    async function testConnection() {
+      const url = urlInput.value.trim();
+      const key = keyInput.value.trim();
+
+      if (!url || !key) {
+        alert('נא למלא את כל השדות');
+        return;
+      }
+
+      log('בודק חיבור ל-Supabase...', 'info');
+      testBtn.disabled = true;
+      testBtn.textContent = 'בודק...';
+
+      try {
+        supabaseClient = supabase.createClient(url, key);
+        
+        // Test query
+        const { data, error } = await supabaseClient
+          .from('games')
+          .select('count', { count: 'exact', head: true });
+
+        if (error) {
+          log(`שגיאה בחיבור: ${error.message}`, 'error');
+          alert('לא ניתן להתחבר ל-Supabase. ודא שה-URL וה-Key נכונים');
+          return;
+        }
+
+        log('חיבור ל-Supabase הצליח!', 'success');
+        startBtn.disabled = false;
+        clearBtn.disabled = false;
+        testBtn.textContent = '✓ מחובר';
+        testBtn.classList.add('bg-green-600');
+        
+      } catch (error) {
+        log(`שגיאה: ${error.message}`, 'error');
+        alert('שגיאה בחיבור: ' + error.message);
+      } finally {
+        testBtn.disabled = false;
+        if (!supabaseClient) {
+          testBtn.textContent = '🔌 בדוק חיבור';
+        }
+      }
+    }
+
+    // Open local IndexedDB
+    async function openLocalDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open('BasketballStatsDB', 10);
+
+        request.onsuccess = (e) => {
+          localDB = e.target.result;
+          log('IndexedDB מקומי נפתח בהצלחה', 'success');
+          resolve(localDB);
+        };
+
+        request.onerror = () => {
+          log('שגיאה בפתיחת IndexedDB המקומי', 'error');
+          reject(new Error('לא ניתן לפתוח את מסד הנתונים המקומי'));
+        };
+      });
+    }
+
+    // Get all data from IndexedDB store
+    async function getAllFromStore(storeName) {
+      return new Promise((resolve) => {
+        try {
+          const tx = localDB.transaction([storeName], 'readonly');
+          const store = tx.objectStore(storeName);
+          const request = store.getAll();
+
+          request.onsuccess = () => {
+            resolve(request.result || []);
+          };
+
+          request.onerror = () => {
+            log(`שגיאה בקריאת ${storeName}`, 'error');
+            resolve([]);
+          };
+        } catch (error) {
+          log(`שגיאה בגישה ל-${storeName}: ${error.message}`, 'error');
+          resolve([]);
+        }
+      });
+    }
+
+    // Migrate single table
+    async function migrateTable(tableName) {
+      updateStatus(tableName, 0, 'progress');
+      log(`מתחיל העברת ${tableName}...`, 'info');
+
+      try {
+        const data = await getAllFromStore(tableName);
+        log(`נמצאו ${data.length} פריטים ב-${tableName}`, 'info');
+
+        if (data.length === 0) {
+          updateStatus(tableName, 0, 'success');
+          return { success: true, count: 0 };
+        }
+
+        // Upload in batches
+        const batchSize = 100;
+        let successCount = 0;
+
+        for (let i = 0; i < data.length; i += batchSize) {
+          const batch = data.slice(i, i + batchSize);
+          
+          const { error } = await supabaseClient
+            .from(tableName)
+            .upsert(batch);
+
+          if (error) {
+            log(`שגיאה בהעלאת batch מ-${tableName}: ${error.message}`, 'error');
+            throw error;
+          }
+
+          successCount += batch.length;
+          log(`הועלו ${successCount}/${data.length} פריטים מ-${tableName}`, 'info');
+        }
+
+        updateStatus(tableName, successCount, 'success');
+        log(`✅ ${tableName} הועבר בהצלחה (${successCount} פריטים)`, 'success');
+        return { success: true, count: successCount };
+
+      } catch (error) {
+        updateStatus(tableName, 0, 'error');
+        log(`❌ שגיאה בהעברת ${tableName}: ${error.message}`, 'error');
+        return { success: false, count: 0, error: error.message };
+      }
+    }
+
+    // Start migration
+    async function startMigration() {
+      if (!supabaseClient) {
+        alert('נא לבדוק חיבור תחילה');
+        return;
+      }
+
+      if (!confirm('האם אתה בטוח שברצונך להעביר את כל הנתונים ל-Supabase? פעולה זו עלולה לקחת מספר דקות.')) {
+        return;
+      }
+
+      startBtn.disabled = true;
+      clearBtn.disabled = true;
+      testBtn.disabled = true;
+
+      log('=== מתחיל תהליך העברה ===', 'info');
+
+      try {
+        // Open local DB
+        await openLocalDB();
+
+        // Define tables to migrate (order matters for relationships)
+        const tables = [
+          'teams',
+          'player_mappings',
+          'games',
+          'players',
+          'player_aliases',
+          'appearances',
+          'player_stats',
+          'transfer_events',
+          'team_aliases'
+        ];
+
+        let totalSuccess = 0;
+        let totalErrors = 0;
+
+        for (const table of tables) {
+          const result = await migrateTable(table);
+          if (result.success) {
+            totalSuccess += result.count;
+          } else {
+            totalErrors++;
+          }
+        }
+
+        log('=== העברה הושלמה ===', 'success');
+        log(`✅ סה"כ פריטים שהועברו: ${totalSuccess}`, 'success');
+        
+        if (totalErrors > 0) {
+          log(`⚠️ ${totalErrors} טבלאות עם שגיאות`, 'warning');
+        }
+
+        alert(`העברה הושלמה!\nהועברו ${totalSuccess} פריטים\n\nכעת תוכל להשתמש באפליקציה הראשית עם Supabase.`);
+
+      } catch (error) {
+        log(`שגיאה כללית: ${error.message}`, 'error');
+        alert('שגיאה בתהליך ההעברה: ' + error.message);
+      } finally {
+        startBtn.disabled = false;
+        clearBtn.disabled = false;
+        testBtn.disabled = false;
+      }
+    }
+
+    // Clear Supabase (for testing)
+    async function clearSupabase() {
+      if (!supabaseClient) {
+        alert('נא לבדוק חיבור תחילה');
+        return;
+      }
+
+      if (!confirm('⚠️ פעולה זו תמחק את כל הנתונים מ-Supabase!\n\nהאם אתה בטוח?')) {
+        return;
+      }
+
+      if (!confirm('אישור שני: פעולה זו בלתי הפיכה. האם להמשיך?')) {
+        return;
+      }
+
+      clearBtn.disabled = true;
+      log('מנקה נתונים מ-Supabase...', 'warning');
+
+      try {
+        const tables = ['games', 'players', 'teams', 'player_mappings', 'player_aliases', 'appearances', 'player_stats', 'transfer_events', 'team_aliases'];
+
+        for (const table of tables) {
+          const { error } = await supabaseClient
+            .from(table)
+            .delete()
+            .neq('id', 0); // Delete all
+
+          if (error && !error.message.includes('No rows')) {
+            log(`שגיאה בניקוי ${table}: ${error.message}`, 'error');
+          } else {
+            log(`${table} נוקה`, 'success');
+          }
+        }
+
+        log('ניקוי הושלם', 'success');
+        alert('כל הנתונים נמחקו מ-Supabase');
+
+      } catch (error) {
+        log(`שגיאה בניקוי: ${error.message}`, 'error');
+        alert('שגיאה בניקוי: ' + error.message);
+      } finally {
+        clearBtn.disabled = false;
+      }
+    }
+
+    // Event listeners
+    testBtn.addEventListener('click', testConnection);
+    startBtn.addEventListener('click', startMigration);
+    clearBtn.addEventListener('click', clearSupabase);
+
+    // Initial log
+    log('כלי העברה נטען בהצלחה', 'success');
+    log('הכנס את פרטי ה-Supabase ולחץ "בדוק חיבור"', 'info');
+  </script>
+</body>
+</html>
+

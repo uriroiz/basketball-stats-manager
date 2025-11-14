@@ -1,0 +1,2795 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Basketball Stats Manager — IBBA Parser + DB</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+  
+
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-slate-100 text-gray-900">
+  <div class="max-w-7xl mx-auto p-4 md:p-6">
+    <div class="header-gradient rounded-lg p-4 mb-4 shadow-md">
+      <h1 class="text-2xl font-bold mb-1 text-center">Basketball Stats Manager</h1>
+      <p class="text-sm text-center text-blue-100">Parser IBBA • ניהול קבוצות • שמירה למסד • טאב משחקים/קבוצות/שחקנים</p>
+    </div>
+
+    <!-- Tabs -->
+    <nav id="tabs" class="flex flex-wrap items-center gap-2 justify-center mb-6">
+      <button class="tab active" data-tab="ingest">ייבוא וניתוח</button>
+      <button class="tab" data-tab="games">כל המשחקים</button>
+      <button class="tab" data-tab="teams">סטטיסטיקות קבוצתיות</button>
+      <button class="tab" data-tab="players">סטטיסטיקות שחקנים</button>
+      <button class="tab" data-tab="manageTeams">ניהול קבוצות</button>
+      <button class="tab" data-tab="managePlayers">ניהול שחקנים</button>
+      <button class="tab" data-tab="tools">כלים מתקדמים</button>
+    </nav>
+
+    <div id="alerts"></div>
+
+    <!-- ========== Ingest (view-ingest) ========== -->
+    <section id="view-ingest">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <!-- קלט JSON -->
+        <div class="md:col-span-3 card p-4">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <span class="text-sm font-medium">העלה קובץ JSON או הדבק כאן:</span>
+            <div class="flex gap-2">
+              <input id="file" type="file" accept=".json,application/json" class="hidden" />
+              <button id="chooseBtn" class="btn px-3 py-1.5 text-sm bg-blue-100 text-blue-800 rounded hover:bg-blue-200">בחר קובץ</button>
+              <button id="parseBtn" class="btn px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">פענח</button>
+            </div>
+          </div>
+          <div class="h-56 bg-white border border-blue-200 rounded-lg p-2 text-xs shadow-sm">
+            <textarea id="jsonTa" class="w-full h-full outline-none resize-none" placeholder="IBBA JSON (tm לקבוצות, pl לשחקנים)"></textarea>
+          </div>
+        </div>
+
+        <!-- אפשרויות -->
+        <div class="card p-4 space-y-4">
+          <h2 class="text-lg font-semibold mb-1 text-blue-900">הגדרות</h2>
+          <div>
+            <label class="block text-xs mb-1 text-gray-600">מזהה משחק (סידורי)</label>
+            <input id="gameId" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mono" readonly placeholder="1" />
+          </div>
+          <div>
+            <label class="block text-xs mb-1 text-gray-600">תאריך</label>
+            <input id="gameDate" type="date" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs mb-1 text-gray-600">מחזור</label>
+            <input id="gameCycle" type="number" min="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="הזן מספר מחזור" />
+          </div>
+          <div class="flex items-center justify-between border border-gray-200 rounded-lg p-3">
+            <label class="flex items-center gap-2 text-xs cursor-pointer">
+              <input id="toggleNonPlaying" type="checkbox" class="w-4 h-4">
+              <span>הצג שחקנים שלא שיחקו (0:00)</span>
+            </label>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <button id="saveToDbBtn" class="btn w-full text-sm bg-green-600 text-white rounded-lg px-3 py-2 hover:bg-green-700">שמור למסד</button>
+            <button id="resetBtn" class="btn w-full text-sm bg-red-100 text-red-700 rounded-lg px-3 py-2 hover:bg-red-200">איפוס</button>
+          </div>
+
+          <div class="border-t pt-3 mt-3">
+            <div class="flex items-start gap-3">
+              <button id="clearDbBtn" class="btn bg-red-600 text-white text-sm rounded px-3 py-2 hover:bg-red-700">נקה מסד נתונים</button>
+              <p class="text-xs text-gray-600 leading-5">
+                פעולה בלתי הפיכה. נדרש אישור כפול. מומלץ לרענן את העמוד לאחר הניקוי.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- פידבק מיפוי חסר -->
+      <div id="mappingWarn" class="hidden mt-4 p-3 bg-amber-100 text-amber-900 rounded border border-amber-200"></div>
+
+      <!-- תוצאות -->
+      <div id="results" class="mt-6 hidden">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <!-- סטטיסטיקות קבוצה ראשית -->
+          <div class="card p-4">
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="text-lg font-bold text-blue-900">סטטיסטיקות קבוצה</h2>
+              <span id="teamName" class="text-sm font-semibold px-3 py-1 bg-blue-100 text-blue-800 rounded-full"></span>
+            </div>
+            <div class="space-y-4">
+              <div class="bg-blue-50 p-3 rounded-lg border-l-4 border-blue-500">
+                <div class="flex justify-between mb-2">
+                  <div class="text-3xl font-bold text-blue-900"><span id="teamPoints">0</span> <span class="text-sm">נק'</span></div>
+                  <div class="flex gap-3">
+                    <div class="text-center"><div class="text-xl font-bold text-blue-700"><span id="teamRebounds">0</span></div><div class="text-xs text-gray-600">ריב'</div></div>
+                    <div class="text-center"><div class="text-xl font-bold text-blue-700"><span id="teamAssists">0</span></div><div class="text-xs text-gray-600">אס'</div></div>
+                    <div class="text-center"><div class="text-xl font-bold text-blue-700"><span id="teamSteals">0</span></div><div class="text-xs text-gray-600">חט'</div></div>
+                  </div>
+                </div>
+              </div>
+              <div class="grid grid-cols-3 gap-2 text-sm">
+                <div class="text-center p-2 bg-gray-50 rounded-lg"><div class="font-semibold text-gray-900"><span id="teamFGM">0</span>/<span id="teamFGA">0</span></div><div class="text-xs text-gray-600">זריקות משחק</div></div>
+                <div class="text-center p-2 bg-gray-50 rounded-lg"><div class="font-semibold text-gray-900"><span id="team3PM">0</span>/<span id="team3PA">0</span></div><div class="text-xs text-gray-600">זריקות 3</div></div>
+                <div class="text-center p-2 bg-gray-50 rounded-lg"><div class="font-semibold text-gray-900"><span id="teamFTM">0</span>/<span id="teamFTA">0</span></div><div class="text-xs text-gray-600">עונשין</div></div>
+              </div>
+              <div class="mt-4">
+                <h3 class="text-sm font-semibold mb-2 text-blue-800">התפלגות נקודות</h3>
+                <div class="h-48"><canvas id="pointsChart"></canvas></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- מובילים -->
+          <div class="card p-4">
+            <h2 class="text-lg font-bold mb-3 text-blue-900">שחקנים מובילים</h2>
+            <div class="space-y-4">
+              <div class="bg-blue-50 p-3 rounded-lg border-l-4 border-blue-500">
+                <div class="text-xs text-gray-500 mb-1">מוביל נקודות</div>
+                <div class="flex justify-between items-center">
+                  <div>
+                    <div class="font-bold text-lg" id="topScorerName">-</div>
+                    <div class="text-sm text-gray-600" id="topScorerJersey">#0</div>
+                  </div>
+                  <div class="text-3xl font-bold text-blue-700" id="topScorerPoints">0</div>
+                </div>
+              </div>
+              <div class="bg-blue-50 p-3 rounded-lg border-l-4 border-blue-500">
+                <div class="text-xs text-gray-500 mb-1">מוביל ריבאונדים</div>
+                <div class="flex justify-between items-center">
+                  <div>
+                    <div class="font-bold text-lg" id="topRebounderName">-</div>
+                    <div class="text-sm text-gray-600" id="topRebounderJersey">#0</div>
+                  </div>
+                  <div class="text-3xl font-bold text-blue-700" id="topRebounderRebounds">0</div>
+                </div>
+              </div>
+              <div class="bg-blue-50 p-3 rounded-lg border-l-4 border-blue-500">
+                <div class="text-xs text-gray-500 mb-1">מוביל אסיסטים</div>
+                <div class="flex justify-between items-center">
+                  <div>
+                    <div class="font-bold text-lg" id="topAssisterName">-</div>
+                    <div class="text-sm text-gray-600" id="topAssisterJersey">#0</div>
+                  </div>
+                  <div class="text-3xl font-bold text-blue-700" id="topAssisterAssists">0</div>
+                </div>
+              </div>
+              <div class="mt-4">
+                <h3 class="text-sm font-semibold mb-2 text-blue-800">יעילות שחקנים</h3>
+                <div class="h-48"><canvas id="efficiencyChart"></canvas></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- סיכום למשדר -->
+          <div class="card p-4">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-lg font-bold text-blue-900">סיכום למשדר</h3>
+              <button id="copyNotes" class="btn text-xs bg-blue-600 text-white rounded-lg px-3 py-1.5 hover:bg-blue-700">העתק</button>
+            </div>
+            <textarea id="notes" class="w-full h-48 border border-gray-300 rounded-lg text-xs p-3 shadow-inner" readonly></textarea>
+          </div>
+        </div>
+
+        <!-- שחקנים – מחולקים לקבוצות -->
+        <div id="playersByTeams" class="mt-6 space-y-6"></div>
+      </div>
+    </section>
+
+    <!-- ========== All Games (view-games) ========== -->
+    <section id="view-games" class="hidden">
+      <div class="card p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-bold text-blue-900">כל המשחקים</h2>
+          <input id="gamesSearch" class="px-3 py-2 border rounded text-sm" placeholder="חיפוש לפי מזהה/מחזור/תאריך/קבוצה">
+        </div>
+        <div class="overflow-auto rounded border">
+          <table class="stats w-full text-sm sticky-header">
+            <thead>
+              <tr>
+                <th class="px-3 py-2">מזהה משחק</th>
+                <th class="px-3 py-2">מחזור</th>
+                <th class="px-3 py-2">תאריך</th>
+                <th class="px-3 py-2">משחק</th>
+                <th class="px-3 py-2">תוצאה</th>
+                <th class="px-3 py-2">פעולות</th>
+              </tr>
+            </thead>
+            <tbody id="gamesTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== Teams Aggregate (view-teams) ========== -->
+    <section id="view-teams" class="hidden">
+      <div class="card p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-bold text-blue-900">סטטיסטיקות קבוצתיות מצטברות</h2>
+          <input id="teamsSearch" class="px-3 py-2 border rounded text-sm" placeholder="חפש קבוצה">
+        </div>
+        <div class="overflow-auto rounded border">
+          <table class="stats w-full text-sm sticky-header">
+            <thead>
+              <tr>
+                <th class="px-3 py-2" data-sort-field="team">קבוצה</th>
+                <th class="px-3 py-2" data-sort-field="games">משחקים</th>
+                <th class="px-3 py-2" data-sort-field="points">נק'</th>
+                <th class="px-3 py-2" data-sort-field="rebounds">ריב'</th>
+                <th class="px-3 py-2" data-sort-field="assists">אס'</th>
+                <th class="px-3 py-2" data-sort-field="steals">חט'</th>
+                <th class="px-3 py-2" data-sort-field="turnovers">איב'</th>
+                <th class="px-3 py-2" data-sort-field="shooting">מדדי קליעה</th>
+              </tr>
+            </thead>
+            <tbody id="teamsAggTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== Players DB (view-players) ========== -->
+    <section id="view-players" class="hidden">
+      <div class="card p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-bold text-blue-900">סטטיסטיקות שחקנים</h2>
+          <input id="playersSearch" class="px-3 py-2 border rounded text-sm" placeholder="חפש לפי שם/קבוצה/מס' חולצה/מזהה">
+        </div>
+        <div class="overflow-auto rounded border">
+          <table class="stats w-full text-sm sticky-header">
+            <thead>
+              <tr>
+                <th class="px-3 py-2" data-sort-field="id">מזהה</th>
+                <th class="px-3 py-2" data-sort-field="name">שחקן</th>
+                <th class="px-3 py-2" data-sort-field="jersey">מס' גופייה</th>
+                <th class="px-3 py-2" data-sort-field="team">קבוצה</th>
+                <th class="px-3 py-2" data-sort-field="games">משחקים</th>
+                <th class="px-3 py-2" data-sort-field="totalPoints">נק'</th>
+                <th class="px-3 py-2" data-sort-field="totalRebounds">ריב'</th>
+                <th class="px-3 py-2" data-sort-field="totalAssists">אס'</th>
+                <th class="px-3 py-2" data-sort-field="avgPoints">ממוצע נק'</th>
+              </tr>
+            </thead>
+            <tbody id="playersTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== Manage Teams (view-manageTeams) ========== -->
+    <section id="view-manageTeams" class="hidden">
+      <div class="card p-4 space-y-4">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-lg font-semibold text-blue-900">ניהול קבוצות</h2>
+          <div class="flex gap-2">
+            <button id="openTeamModal" class="btn text-sm bg-blue-600 text-white rounded px-3 py-2 hover:bg-blue-700">הוסף מיפוי</button>
+            <button id="exportTeamsBtn" class="btn text-sm bg-green-600 text-white rounded px-3 py-2 hover:bg-green-700">ייצא קבוצות</button>
+            <input id="importTeamsFile" type="file" accept=".json" class="hidden">
+            <button id="importTeamsBtn" class="btn text-sm bg-amber-500 text-white rounded px-3 py-2 hover:bg-amber-600">ייבא קבוצות</button>
+          </div>
+        </div>
+        <p class="text-xs text-gray-600">מיפוי שמות קבוצות מאנגלית לעברית. אם נתקל בשם לא ממופה, תופיע התרעה.</p>
+        <div id="teamsList" class="mt-2 overflow-auto rounded border border-gray-200" style="max-height:500px">
+          <table class="w-full text-xs stats">
+            <thead>
+              <tr>
+                <th class="px-2 py-2">team_id</th>
+                <th class="px-2 py-2">EN</th>
+                <th class="px-2 py-2">HE</th>
+                <th class="px-2 py-2">Aliases</th>
+                <th class="px-2 py-2">פעולות</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    
+<!-- ========== Manage Players (view-managePlayers) ========== -->
+<section id="view-managePlayers" class="hidden">
+  <div class="card p-4 space-y-4">
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="text-lg font-semibold text-blue-900">ניהול שחקנים</h2>
+      <div class="flex gap-2">
+        <button id="openPlayerModal" class="btn text-sm bg-blue-600 text-white rounded px-3 py-2 hover:bg-blue-700">הוסף מיפוי</button>
+        <button id="exportPlayersMapBtn" class="btn text-sm bg-green-600 text-white rounded px-3 py-2 hover:bg-green-700">ייצא שחקנים</button>
+        <input id="importPlayersMapFile" type="file" accept=".json" class="hidden">
+        <button id="importPlayersMapBtn" class="btn text-sm bg-amber-500 text-white rounded px-3 py-2 hover:bg-amber-600">ייבא שחקנים</button>
+      </div>
+    </div>
+    <p class="text-xs text-gray-600">
+      מיפוי שמות שחקנים לפי שמות באנגלית + מס' גופייה (אופציונלי) + קבוצה (אופציונלי) → לשמות בעברית.
+    </p>
+    <div id="playersMapList" class="mt-2 overflow-auto rounded border border-gray-200" style="max-height:500px">
+      <table class="w-full text-xs stats">
+        <thead>
+          <tr>
+            <th class="px-2 py-2 col-key">lookup_key</th>
+            <th class="px-2 py-2">EN First</th>
+            <th class="px-2 py-2">EN Family</th>
+            <th class="px-2 py-2">HE First</th>
+            <th class="px-2 py-2">HE Family</th>
+            <th class="px-2 py-2">Jersey</th>
+            <th class="px-2 py-2">Team EN</th>
+            <th class="px-2 py-2">פעולות</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+
+    <!-- ========== Advanced Tools (view-tools) ========== -->
+    <section id="view-tools" class="hidden">
+      <div class="card p-4 space-y-4">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-lg font-semibold text-blue-900">כלים מתקדמים</h2>
+        </div>
+        
+        <div class="border-t border-b py-4 my-4">
+          <h3 class="text-md font-semibold text-blue-800 mb-2">ניהול מאגר שחקנים</h3>
+          <div class="bg-amber-50 p-3 rounded-lg border border-amber-200 mb-3">
+            <p class="text-sm text-amber-800 mb-2">
+              <strong>שים לב:</strong> פעולה זו תסרוק את כל מאגר השחקנים ותמזג רשומות כפולות של אותו שחקן.
+              מומלץ לגבות את הנתונים לפני הפעלת הכלי.
+            </p>
+            <p class="text-xs text-amber-700">
+              הכלי יוצר מזהים חדשים לכל שחקן על בסיס השם, מספר הגופייה והקבוצה, וממזג את הסטטיסטיקות בהתאם.
+            </p>
+          </div>
+          <button id="migratePlayersBtn" class="btn bg-amber-500 text-white text-sm rounded px-3 py-2 hover:bg-amber-600">
+            מיגרציית מאגר שחקנים
+          </button>
+        </div>
+        
+        <div class="border-b py-4 my-4">
+          <h3 class="text-md font-semibold text-blue-800 mb-2">גיבוי ושחזור מסד נתונים</h3>
+          <div class="flex gap-3">
+            <button id="exportDbBtn" class="btn bg-green-600 text-white text-sm rounded px-3 py-2 hover:bg-green-700">
+              גיבוי מסד נתונים
+            </button>
+            <input id="importDbFile" type="file" accept=".json" class="hidden">
+            <button id="importDbBtn" class="btn bg-blue-600 text-white text-sm rounded px-3 py-2 hover:bg-blue-700">
+              שחזור מגיבוי
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Modal ניהול קבוצה -->
+  <div id="teamModal" class="fixed inset-0 bg-black/30 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-lg font-semibold">הוסף/עדכן קבוצה</h3>
+        <button id="closeTeamModal" class="text-gray-500 hover:text-gray-700">✕</button>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="col-span-2">
+          <label class="block text-xs text-gray-600 mb-1">team_id (אם ריק, יווצר אוטומטית)</label>
+          <input id="tm_teamId" class="w-full border rounded px-2 py-1.5 text-sm mono" placeholder="השאר ריק לייצור אוטומטי" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-600 mb-1">שם באנגלית (canonical)</label>
+          <input id="tm_nameEn" class="w-full border rounded px-2 py-1.5 text-sm" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-600 mb-1">שם בעברית (Display)</label>
+          <input id="tm_nameHe" class="w-full border rounded px-2 py-1.5 text-sm" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-600 mb-1">Short HE</label>
+          <input id="tm_shortHe" class="w-full border rounded px-2 py-1.5 text-sm" />
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs text-gray-600 mb-1">Aliases באנגלית (מופרד בֿ;)</label>
+          <input id="tm_aliases" class="w-full border rounded px-2 py-1.5 text-sm" />
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-4">
+        <button id="saveTeam" class="btn bg-blue-600 text-white rounded px-3 py-1.5 hover:bg-blue-700">שמור</button>
+        <button id="cancelTeam" class="btn bg-gray-100 rounded px-3 py-1.5 hover:bg-gray-200">ביטול</button>
+      </div>
+    </div>
+  </div>
+
+  
+
+  <div id="undoBar" style="display:none; position:fixed; left:16px; right:16px; bottom:16px; padding:12px; background:#1f2937; color:#fff; border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,.25); z-index:9999; direction:rtl;">
+    <span id="undoMsg">הפעולה בוצעה.</span>
+    <button id="undoBtn" style="margin-inline-start:12px; text-decoration:underline; background:transparent; border:none; color:#fca5a5; cursor:pointer;">בטל</button>
+  </div>
+
+  <!-- Modal ניהול שחקן -->
+<div id="playerModal" class="fixed inset-0 bg-black/30 hidden items-center justify-center p-4">
+  <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-4">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-lg font-semibold">הוסף/עדכן שחקן</h3>
+      <button id="closePlayerModal" class="text-gray-500 hover:text-gray-700">✕</button>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="block text-xs text-gray-600 mb-1">שם פרטי (EN)</label>
+        <input id="pm_firstEn" class="w-full border rounded px-2 py-1.5 text-sm" />
+      </div>
+      <div>
+        <label class="block text-xs text-gray-600 mb-1">שם משפחה (EN)</label>
+        <input id="pm_familyEn" class="w-full border rounded px-2 py-1.5 text-sm" />
+      </div>
+      <div>
+        <label class="block text-xs text-gray-600 mb-1">שם פרטי (HE)</label>
+        <input id="pm_firstHe" class="w-full border rounded px-2 py-1.5 text-sm" />
+      </div>
+      <div>
+        <label class="block text-xs text-gray-600 mb-1">שם משפחה (HE)</label>
+        <input id="pm_familyHe" class="w-full border rounded px-2 py-1.5 text-sm" />
+      </div>
+      <div>
+        <label class="block text-xs text-gray-600 mb-1">מס' גופייה (אופציונלי)</label>
+        <input id="pm_jersey" class="w-full border rounded px-2 py-1.5 text-sm" />
+      </div>
+      <div>
+        <label class="block text-xs text-gray-600 mb-1">Team EN (אופציונלי)</label>
+        <input id="pm_teamEn" class="w-full border rounded px-2 py-1.5 text-sm" placeholder="אנגלית קנונית/אליאס" />
+      </div>
+      <div class="col-span-2">
+        <label class="block text-xs text-gray-600 mb-1">lookup_key (נוצר אוטומטית, ניתן לעריכה)</label>
+        <input id="pm_lookupKey" class="w-full border rounded px-2 py-1.5 text-sm mono" />
+      </div>
+    </div>
+    <div class="flex justify-end gap-2 mt-4">
+      <button id="savePlayerMap" class="btn bg-blue-600 text-white rounded px-3 py-1.5 hover:bg-blue-700">שמור</button>
+      <button id="cancelPlayerMap" class="btn bg-gray-100 rounded px-3 py-1.5 hover:bg-gray-200">ביטול</button>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+    <script>
+/* ====== Inlined: app_utils.js ====== */
+// =========================
+    // Utilities
+    // =========================
+    const $ = (id) => document.getElementById(id);
+    const asInt = (v, d=0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
+    const played = (min) => !!min && min !== "0:00" && min !== "00:00";
+    const cap = (w) => w ? w.charAt(0).toUpperCase() + w.slice(1) : w;
+    const properCase = (s="") => {
+      const words = String(s).toLowerCase().split(" ");
+      const fixed = words.map((w) => {
+        const hy = w.split("-").map((seg) => {
+          const ap = seg.split("'").map(cap).join("'");
+          return cap(ap);
+        }).join("-");
+        return cap(hy);
+      });
+      return fixed.join(" ");
+    };
+    const fullName = (p) =>
+      [p.internationalFirstName, p.internationalFamilyName]
+        .filter(Boolean)
+        .map(properCase)
+        .join(" ")
+        .trim();
+
+    const formatPct = (made, attempted) => {
+      if (!attempted || attempted === 0) return "-";
+      return (made / attempted * 100).toFixed(1) + "%";
+    };
+
+    const sortByColumn = (players, column, direction='desc') =>
+      players.slice().sort((a,b)=>{
+        let aValue=a[column]||0, bValue=b[column]||0;
+        if (typeof aValue==='string' && !isNaN(parseFloat(aValue))) aValue=parseFloat(aValue);
+        if (typeof bValue==='string' && !isNaN(parseFloat(bValue))) bValue=parseFloat(bValue);
+        return direction==='desc'? bValue-aValue : aValue-bValue;
+      });
+
+    // -------- Hebrew gibberish detector & decoder (for mis-encoded UTF-8) --------
+    const looksGibberishHeb = (s) => /×/.test(String(s || ''));
+    const tryDecodeHeb = (s) => {
+      try { return decodeURIComponent(escape(String(s || ''))); }
+      catch { return s; }
+    };
+
+    // -------- Normalization helpers for player-lookup keys --------
+    function normalizeEn(s){
+      return String(s || "")
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .replace(/[^\w\s'-]/g, '')
+        .trim();
+    }
+    function normalizeJersey(j){ return String(j || '').trim(); }
+    function normalizeKey(firstEn, familyEn, jersey, teamEn){
+      const fe = normalizeEn(firstEn);
+      const fa = normalizeEn(familyEn);
+      const j  = normalizeJersey(jersey);
+      const te = normalizeEn(teamEn || '');
+      return `${fe}|${fa}|${j}|${te}`;
+    }
+
+    // =========================
+    // IndexedDB (with fallback for Guest/Private)
+    // =========================
+    const REQUIRED_DB_VERSION = 7; 
+    let DB = null;
+    let DB_AVAILABLE = true;
+
+// Diagnostics for DB availability
+let DB_ERROR_INFO = null;
+function getDbDiagnostics(){
+  try{
+    return {
+      protocol: location.protocol,
+      hostname: location.hostname,
+      userAgent: navigator.userAgent,
+      storageEstimateSupported: !!(navigator.storage && navigator.storage.estimate),
+      hasIndexedDB: typeof indexedDB !== 'undefined',
+      lastError: DB_ERROR_INFO
+    };
+  }catch(e){ return { error: String(e) }; }
+}
+
+// פונקציה חדשה: בקשת הרשאה לאחסון קבוע
+async function requestPersistentStorage() {
+    if (!navigator.storage || !navigator.storage.persist) {
+        return; // לא נתמך בדפדפן
+    }
+    try {
+        const isPersisted = await navigator.storage.persisted();
+        if (isPersisted) {
+            console.log("Storage is already persistent.");
+            return;
+        }
+        
+        const granted = await navigator.storage.persist();
+        if (granted) {
+            console.log("Successfully requested persistent storage.");
+        } else {
+            console.warn("Persistent storage request denied by user/browser.");
+        }
+    } catch (e) {
+        console.error("Error requesting persistent storage:", e);
+    }
+}
+
+
+function initDb() {
+  return new Promise(async (resolve) => { // הפך ל-async כדי להשתמש ב-await
+    try {
+      // נסה לבקש הרשאת שמירה קבועה לפני פתיחת המסד
+      await requestPersistentStorage();
+      
+      if (!('indexedDB' in window)) {
+        DB_AVAILABLE = false;
+        return resolve(null);
+      }
+      
+      const req1 = indexedDB.open("BasketballStatsDB", REQUIRED_DB_VERSION);
+      
+      req1.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        
+        const objectStoreNames = ['games', 'players', 'teams', 'player_mappings'];
+        objectStoreNames.forEach(name => {
+          if (!db.objectStoreNames.contains(name)) {
+            let options = {};
+            if (name === 'games') options = { keyPath: 'gameSerial' };
+            if (name === 'players') options = { keyPath: 'id' };
+            if (name === 'teams') options = { keyPath: 'team_id' };
+            if (name === 'player_mappings') options = { keyPath: 'lookup_key' };
+            
+            const store = db.createObjectStore(name, options);
+            
+            if (name === 'players') {
+              if (!store.indexNames.contains('nameIndex')) {
+                store.createIndex('nameIndex', 'name', { unique: false });
+              }
+              if (!store.indexNames.contains('teamIndex')) {
+                store.createIndex('teamIndex', 'team', { unique: false });
+              }
+              if (!store.indexNames.contains('jerseyIndex')) {
+                store.createIndex('jerseyIndex', 'jersey', { unique: false });
+              }
+            }
+          }
+        });
+      };
+      
+      req1.onsuccess = (e) => {
+        DB = e.target.result;
+        DB_AVAILABLE = true;
+        DB_ERROR_INFO = null;
+        resolve(DB);
+        
+        if (DB.version < REQUIRED_DB_VERSION) {
+          DB.close();
+          DB_AVAILABLE = false;
+          DB_ERROR_INFO = { 
+            name: "VersionError",
+            message: `The requested version (${DB.version}) is less than the existing version (${REQUIRED_DB_VERSION}).`,
+            code_fix_required: true
+          };
+          console.error("Database version mismatch detected.", getDbDiagnostics());
+          resolve(null);
+        }
+      };
+
+      req1.onerror = (e) => {
+        console.error("IndexedDB Open Error:", e.target.error);
+        DB = null;
+        DB_AVAILABLE = false;
+        DB_ERROR_INFO = e.target.error;
+        if(e.target.error.name === 'InvalidStateError' || e.target.error.name === 'SecurityError'){
+          DB_ERROR_INFO.message = "ייתכן שמסד הנתונים אינו זמין במצב אורח/פרטי";
+        }
+        resolve(null);
+      };
+      
+      req1.onblocked = () => {
+        DB = null;
+        DB_AVAILABLE = false;
+        DB_ERROR_INFO = { 
+            name: "BlockedError",
+            message: "המסד נחסם, ייתכן שחלון אחר מחזיק חיבור פתוח. סגור את כל החלונות ונסה שוב."
+        };
+        console.error("IndexedDB Open Blocked:", DB_ERROR_INFO);
+        resolve(null);
+      };
+      
+      setTimeout(() => {
+        if (DB === null && DB_AVAILABLE === true) {
+            DB_AVAILABLE = false;
+            DB_ERROR_INFO = DB_ERROR_INFO || { 
+              name: "SilentFailure",
+              message: "פתיחת מסד הנתונים נכשלה ללא הודעת שגיאה מפורשת. (ייתכן מצב אורח/פרטי)",
+            };
+            console.error("IndexedDB silent timeout failure.", getDbDiagnostics());
+            resolve(null);
+        }
+      }, 500);
+
+    } catch (e) {
+      console.error("IndexedDB Init Catch Error:", e);
+      DB = null;
+      DB_AVAILABLE = false;
+      DB_ERROR_INFO = { name: e.name, message: e.message };
+      resolve(null);
+    }
+  });
+}
+
+    // =========================
+    // Teams Index & Helpers
+    // =========================
+    let TEAM_INDEX = null; // { byNameEn: Map<string, team>, byAlias: Map<string, team> }
+    const TEAMS_MEM = []; // Fallback if DB is unavailable
+
+    async function loadTeamsIndex(){
+      TEAM_INDEX = null;
+      if(DB_AVAILABLE && DB){
+        const tx=DB.transaction(["teams"],"readonly");
+        const store=tx.objectStore("teams");
+        const byNameEn=new Map(); const byAlias=new Map();
+        await new Promise((resolve)=>{ const req=store.openCursor(); req.onsuccess=(e)=>{ const cur=e.target.result; if(!cur) return resolve(); const t=cur.value; if(t.name_en) byNameEn.set(normalizeEn(t.name_en), t); (t.aliases||[]).forEach(a=>byAlias.set(normalizeEn(a), t)); cur.continue(); }; });
+        TEAM_INDEX={byNameEn, byAlias};
+      } else {
+        const byNameEn=new Map(); const byAlias=new Map();
+        TEAMS_MEM.forEach(t=>{ if(t.name_en) byNameEn.set(normalizeEn(t.name_en), t); (t.aliases||[]).forEach(a=>byAlias.set(normalizeEn(a), t)); });
+        TEAM_INDEX={byNameEn, byAlias};
+      }
+    }
+
+    function resolveTeam(enName){ if(!TEAM_INDEX) return null; const key=normalizeEn(enName); return TEAM_INDEX.byNameEn.get(key) || TEAM_INDEX.byAlias.get(key) || null; }
+
+    async function upsertTeam(rec){
+      if(DB_AVAILABLE && DB){
+        const tx=DB.transaction(["teams"],"readwrite");
+        const store=tx.objectStore("teams");
+        await new Promise((res,rej)=>{ const rq=store.put(rec); rq.onsuccess=()=>res(); rq.onerror=()=>rej(rq.error); });
+        await loadTeamsIndex(); // רענון אינדקס הקבוצות
+      } else {
+        const idx = TEAMS_MEM.findIndex(t=>t.team_id===rec.team_id);
+        if(idx>=0) TEAMS_MEM[idx] = rec; else TEAMS_MEM.push(rec);
+      }
+    }
+</script>
+    <script>
+/* ====== Inlined: app_game_serial.js ====== */
+    // =========================
+    // Game serial helpers
+    // =========================
+    async function getMaxGameSerial(){
+      if(!(DB_AVAILABLE && DB)){ return 0; }
+      const tx = DB.transaction(["games"], "readonly");
+      const store = tx.objectStore("games");
+      let maxSerial = 0;
+      await new Promise((resolve)=>{
+        const req = store.openCursor();
+        req.onsuccess = (e)=>{
+          const cur = e.target.result;
+          if(!cur) return resolve();
+          const val = cur.value;
+          const serial = Number(val?.gameSerial || 0);
+          if(Number.isFinite(serial) && serial > maxSerial){ maxSerial = serial; }
+          cur.continue();
+        };
+      });
+      return maxSerial;
+    }
+
+    async function nextGameSerial(){ const maxS = await getMaxGameSerial(); return (maxS || 0) + 1; }
+    async function setNextGameSerialToUI(){ try{ const n = await nextGameSerial(); $("gameId").value = String(n); }catch(e){ console.error(e); } }
+
+</script>
+    <script>
+/* ====== Inlined: app_teams_ui.js ====== */
+    // =========================
+    // Teams list UI
+    // =========================
+    async function listTeams(){
+      const rows = [];
+      if(DB_AVAILABLE && DB){
+        const tx = DB.transaction(["teams"], "readonly");
+        const store = tx.objectStore("teams");
+        await new Promise((resolve)=>{
+          const req = store.openCursor();
+          req.onsuccess = (e)=>{
+            const cur = e.target.result; if(!cur) return resolve();
+            rows.push(cur.value); cur.continue();
+          };
+        });
+      } else {
+        rows.push(...TEAMS_MEM);
+      }
+      rows.sort((a,b)=> (a.name_he||a.name_en||"").localeCompare(b.name_he||b.name_en||"", 'he'));
+      renderTeamsList(rows);
+    }
+
+    function renderTeamsList(rows){
+      const tbody = document.querySelector('#teamsList tbody');
+      if(!tbody) return;
+      tbody.innerHTML = '';
+      if(!rows.length){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td class="px-2 py-2 text-center text-gray-500" colspan="5">אין קבוצות במערכת</td>`;
+        tbody.appendChild(tr); return;
+      }
+      for(const t of rows){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="px-2 py-2 whitespace-nowrap">${t.team_id}</td>
+          <td class="px-2 py-2">${t.name_en||''}</td>
+          <td class="px-2 py-2">${t.name_he||''}</td>
+          <td class="px-2 py-2">${(t.aliases||[]).join('; ')}</td>
+          <td class="px-2 py-2 whitespace-nowrap">
+            <button class="editTeam text-blue-700 hover:underline" data-id="${t.team_id}">ערוך</button>
+            <span class="mx-1">·</span>
+            <button class="delTeam text-red-700 hover:underline" data-id="${t.team_id}">מחק</button>
+          </td>`;
+        tbody.appendChild(tr);
+      }
+    }
+
+    async function deleteTeam(team_id){
+      if(DB_AVAILABLE && DB){
+        const tx = DB.transaction(["teams"], "readwrite");
+        await new Promise((res, rej)=>{ const r = tx.objectStore("teams").delete(team_id); r.onsuccess = ()=>res(); r.onerror = ()=>rej(r.error); });
+      } else {
+        TEAMS_MEM = TEAMS_MEM.filter(t=>t.team_id!==team_id);
+      }
+      await loadTeamsIndex();
+      await listTeams();
+    }
+
+    async function getTeam(team_id){
+      if(DB_AVAILABLE && DB){
+        const tx = DB.transaction(["teams"], "readonly");
+        return await new Promise((res, rej)=>{ const r = tx.objectStore("teams").get(team_id); r.onsuccess = ()=>res(r.result||null); r.onerror = ()=>rej(r.error); });
+      } else {
+        return TEAMS_MEM.find(t=>t.team_id===team_id) || null;
+      }
+    }
+
+    function openEditTeam(t){
+      $("teamModal").classList.remove('hidden'); $("teamModal").classList.add('flex');
+      $("tm_teamId").value = t?.team_id || '';
+      $("tm_nameEn").value = t?.name_en || '';
+      $("tm_nameHe").value = t?.name_he || '';
+      $("tm_shortHe").value = t?.short_he || '';
+      $("tm_aliases").value = (t?.aliases||[]).join('; ');
+    }
+
+    // פונקציות לייצוא ויבוא קבוצות
+    async function exportTeams() {
+      if(!(DB_AVAILABLE && DB)) { 
+        showError("מסד נתונים אינו זמין");
+        return;
+      }
+      
+      const teams = [];
+      const tx = DB.transaction(["teams"], "readonly");
+      const store = tx.objectStore("teams");
+      
+      await new Promise((resolve) => {
+        const req = store.openCursor();
+        req.onsuccess = (e) => {
+          const cur = e.target.result;
+          if(!cur) return resolve();
+          teams.push(cur.value);
+          cur.continue();
+        };
+      });
+      
+      // יצירת קובץ JSON להורדה
+      const dataStr = JSON.stringify(teams, null, 2);
+      const blob = new Blob([dataStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = url;
+      a.download = `teams_backup_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      window.setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }, 100);
+    }
+
+    // פונקציה ליבוא קבוצות
+    async function importTeams(file) {
+      if(!(DB_AVAILABLE && DB)) { 
+        showError("מסד נתונים אינו זמין");
+        return;
+      }
+      
+      try {
+        const text = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(reader.error);
+          reader.readAsText(file);
+        });
+        
+        const teams = JSON.parse(text);
+        if (!Array.isArray(teams)) {
+          showError("פורמט קובץ לא תקין - חייב להיות מערך של קבוצות");
+          return;
+        }
+        
+        const tx = DB.transaction(["teams"], "readwrite");
+        const store = tx.objectStore("teams");
+        
+        for (const team of teams) {
+          await new Promise((resolve, reject) => {
+            const req = store.put(team);
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+          });
+        }
+        
+        await loadTeamsIndex();
+        await listTeams();
+        showOk(`ייבוא הסתיים בהצלחה: ${teams.length} קבוצות נוספו/עודכנו`);
+      } catch (err) {
+        showError(`שגיאה בייבוא: ${err.message}`);
+      }
+    }
+// ============ Player mappings index ============
+let PLAYER_MAP_INDEX = new Map(); // key -> {first_he, family_he, first_en, family_en, jersey, team_en}
+
+async function loadPlayerMappingsIndex(){
+  PLAYER_MAP_INDEX = new Map();
+  if(!(DB_AVAILABLE && DB)) return;
+  const tx = DB.transaction(["player_mappings"], "readonly");
+  const store = tx.objectStore("player_mappings");
+  await new Promise((resolve)=>{
+    const req = store.openCursor();
+    req.onsuccess = (e)=>{
+      const cur = e.target.result; if(!cur) return resolve();
+      const v = cur.value; PLAYER_MAP_INDEX.set(v.lookup_key, v);
+      cur.continue();
+    };
+  });
+}
+
+async function upsertPlayerMapping(rec){
+  if(!(DB_AVAILABLE && DB)) { showError("מסד נתונים אינו זמין"); return; }
+  const tx = DB.transaction(["player_mappings"], "readwrite");
+  await new Promise((res,rej)=>{ const rq = tx.objectStore("player_mappings").put(rec); rq.onsuccess=()=>res(); rq.onerror=()=>rej(rq.error); });
+  await loadPlayerMappingsIndex();
+}
+
+async function deletePlayerMapping(lookup_key){
+  if(!(DB_AVAILABLE && DB)) { showError("מסד נתונים אינו זמין"); return; }
+  const tx = DB.transaction(["player_mappings"], "readwrite");
+  await new Promise((res)=>{ const rq = tx.objectStore("player_mappings").delete(lookup_key); rq.onsuccess=()=>res(); rq.onerror=()=>res(); });
+  await loadPlayerMappingsIndex();
+}
+
+// UI: list & modal helpers
+function renderPlayerMappingsList(rows){
+  const tbody = document.querySelector('#playersMapList tbody');
+  if(!tbody) return;
+  tbody.innerHTML = '';
+  if(!rows.length){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="px-2 py-2 text-center text-gray-500" colspan="8">אין מיפויי שחקנים</td>`;
+    tbody.appendChild(tr); return;
+  }
+  for(const r of rows){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="px-2 py-2 col-key">${r.lookup_key}</td>
+      <td class="px-2 py-2">${r.first_en||''}</td>
+      <td class="px-2 py-2">${r.family_en||''}</td>
+      <td class="px-2 py-2">${r.first_he||''}</td>
+      <td class="px-2 py-2">${r.family_he||''}</td>
+      <td class="px-2 py-2">${r.jersey||''}</td>
+      <td class="px-2 py-2">${r.team_en||''}</td>
+      <td class="px-2 py-2 whitespace-nowrap">
+        <button class="editPlayerMap text-blue-700 hover:underline" data-k="${r.lookup_key}">ערוך</button>
+        <span class="mx-1">·</span>
+        <button class="delPlayerMap text-red-700 hover:underline" data-k="${r.lookup_key}">מחק</button>
+      </td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+async function listPlayerMappings(){
+  const rows=[];
+  if(!(DB_AVAILABLE && DB)) { renderPlayerMappingsList(rows); return; }
+  const tx = DB.transaction(["player_mappings"], "readonly");
+  const store = tx.objectStore("player_mappings");
+  await new Promise((resolve)=>{
+    const req = store.openCursor();
+    req.onsuccess = (e)=>{ const c=e.target.result; if(!c) return resolve(); rows.push(c.value); c.continue(); };
+  });
+  rows.sort((a,b)=> a.family_he?.localeCompare(b.family_he,'he') || a.first_he?.localeCompare(b.first_he,'he') || 0);
+  renderPlayerMappingsList(rows);
+}
+
+function openEditPlayerMap(rec){
+  $("playerModal").classList.remove('hidden'); $("playerModal").classList.add('flex');
+  $("pm_firstEn").value   = rec?.first_en   || '';
+  $("pm_familyEn").value  = rec?.family_en  || '';
+  $("pm_firstHe").value   = rec?.first_he   || '';
+  $("pm_familyHe").value  = rec?.family_he  || '';
+  $("pm_jersey").value    = rec?.jersey     || '';
+  $("pm_teamEn").value    = rec?.team_en    || '';
+  $("pm_lookupKey").value = rec?.lookup_key || '';
+}
+function computeLookupFromModal(){
+  const fe = $("pm_firstEn").value;
+  const fa = $("pm_familyEn").value;
+  const j  = $("pm_jersey").value;
+  const te = $("pm_teamEn").value;
+  return normalizeKey(fe,fa,j,te);
+}
+
+    // =========================
+    // Parse & Render (ingest view)
+    // =========================
+    let RAW=null, TEAMMAP={}, PLAYERS=[], CHARTS={};
+
+    function resolvePlayerHeName(p, teamNameEn){
+  // Hebrew from payload if readable
+  const heFirstRaw = p.firstName; 
+  const heFamilyRaw = p.familyName;
+  const heFirst = looksGibberishHeb(heFirstRaw) ? null : heFirstRaw;
+  const heFamily = looksGibberishHeb(heFamilyRaw) ? null : heFamilyRaw;
+  if(heFirst && heFamily) return { first_he: heFirst, family_he: heFamily };
+
+  // Try mapping by EN + jersey + team
+  const fe = p.internationalFirstName || ''; 
+  const fa = p.internationalFamilyName || '';
+  const jersey = p.shirtNumber || '';
+  const key1 = normalizeKey(fe, fa, jersey, teamNameEn||'');
+  const key2 = normalizeKey(fe, fa, jersey, ''); 
+  const key3 = normalizeKey(fe, fa, '', teamNameEn||'');
+  const key4 = normalizeKey(fe, fa, '', '');
+  const cand = PLAYER_MAP_INDEX.get(key1) || PLAYER_MAP_INDEX.get(key2) || PLAYER_MAP_INDEX.get(key3) || PLAYER_MAP_INDEX.get(key4);
+  if(cand) return { first_he: cand.first_he, family_he: cand.family_he };
+
+  // Decode gibberish
+  if(looksGibberishHeb(heFirstRaw) || looksGibberishHeb(heFamilyRaw)){
+    const dFirst = tryDecodeHeb(heFirstRaw);
+    const dFam   = tryDecodeHeb(heFamilyRaw);
+    if(dFirst && dFam && !looksGibberishHeb(dFirst) && !looksGibberishHeb(dFam)){
+      return { first_he: dFirst, family_he: dFam };
+    }
+  }
+  return null;
+}
+// מזהה שחקן אחיד לכל המערכת (תואם לפורמט קיימים כמו: t-f12d813d77-#15-15)
+function makePlayerId({ teamId, teamNameEn, playerName, jersey }) {
+  // קידומת קבוצה: teamId אם קיים, אחרת קיצור של שם קבוצה EN
+  const teamPrefix = teamId || String(teamNameEn || '')
+    .substring(0, 10)
+    .replace(/\s+/g, '-');
+
+  // נרמול שם שחקן: אותיות קטנות, בלי תווים מיוחדים (למעט רווח/מקף)
+  const playerNameNormalized = String(playerName || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-#]/g, '')  // משאיר גם '#', כדי לאפשר '#15' כשאין שם
+    .replace(/\s+/g, ' ');
+
+  const jerseyStr = String(jersey || '').trim();
+
+  // אם אין שם (או שזה '#<מספר>') — משתמשים בתבנית עם '#<גופייה>' ואז '<גופייה>'
+  if (!playerNameNormalized || playerNameNormalized.startsWith('#')) {
+    return `${teamPrefix}-#${jerseyStr}-${jerseyStr}`;
+  }
+
+  // אחרת: שם מנורמל + '#<גופייה>' + '<גופייה>'
+  return `${teamPrefix}-${playerNameNormalized}-#${jerseyStr}-${jerseyStr}`;
+}
+
+
+    function extractPlayers(data) {
+  const rows = [], teamMap = {}, missing = [];
+  if (!data || !data.tm) return { rows, teamMap, missing };
+
+  for (const tKey of Object.keys(data.tm)) {
+    const t = data.tm[tKey];
+    if (!t) continue;
+
+    const teamNameEn = t.nameInternational || t.name || `Team ${tKey}`;
+    const resolved = resolveTeam(teamNameEn);
+    const teamNameHe = resolved?.name_he || teamNameEn; // fallback
+    const teamId = resolved?.team_id || null;
+
+    if (!resolved) missing.push(teamNameEn);
+    teamMap[teamNameHe] = { ...t, team_id: teamId, name_he: teamNameHe, name_en: teamNameEn };
+
+    if (t.pl) {
+      for (const pKey of Object.keys(t.pl)) {
+        const p = t.pl[pKey];
+        const min = p.sMinutes || "0:00";
+
+        // שם תצוגה: אם ריק — נשתמש ב-#<מספר חולצה>
+        let playerName = fullName(p);
+        if (!playerName || playerName.trim() === '') {
+          playerName = p.shirtNumber ? `#${p.shirtNumber}` : `Player-${pKey}`;
+        }
+
+        // נרמול מספר חולצה — כמחרוזת
+        const jersey = p.shirtNumber ? String(p.shirtNumber).trim() : "";
+
+        // יצירת מזהה אחיד (זהה לסטטיסטיקות) דרך makePlayerId
+        const uniqueId = makePlayerId({
+          teamId,
+          teamNameEn,
+          playerName,
+          jersey
+        });
+
+        // בדיקה אם השחקן שיחק בפועל לפני הוספה לרשימה
+        const didPlay = played(min);
+
+        rows.push({
+          id: uniqueId,
+          name: playerName,
+          team: teamNameHe,
+          jersey: jersey,
+          minutes: min,
+          points: asInt(p.sPoints),
+          rebounds: asInt(p.sReboundsTotal),
+          assists: asInt(p.sAssists),
+          steals: asInt(p.sSteals),
+          blocks: asInt(p.sBlocks),
+          isStarter: p.starter === 1,
+          playedMinutes: didPlay,
+          plusMinus: asInt(p.sPlusMinusPoints),
+          fouls: asInt(p.sFoulsPersonal),
+          foulsOn: asInt(p.sFoulsOn),
+          turnovers: asInt(p.sTurnovers),
+          fieldGoalsMade: asInt(p.sFieldGoalsMade),
+          fieldGoalsAttempted: asInt(p.sFieldGoalsAttempted),
+          threePointsMade: asInt(p.sThreePointersMade),
+          threePointsAttempted: asInt(p.sThreePointersAttempted),
+          freeThrowsMade: asInt(p.sFreeThrowsMade),
+          freeThrowsAttempted: asInt(p.sFreeThrowsAttempted),
+          efficiency: asInt(p.eff_1),
+          // מידע נוסף לצורך שיפור הזיהוי בעתיד
+          rawKey: pKey,
+          hasStats: didPlay && (
+            asInt(p.sPoints) > 0 ||
+            asInt(p.sReboundsTotal) > 0 ||
+            asInt(p.sAssists) > 0 ||
+            asInt(p.sFieldGoalsMade) > 0
+          )
+        });
+      }
+    }
+  }
+
+  return { rows, teamMap, missing: [...new Set(missing)] };
+}
+
+    function createCharts(team, players){
+      if(!team) return;
+      const pointsCtx=document.getElementById('pointsChart').getContext('2d');
+      const efficiencyCtx=document.getElementById('efficiencyChart').getContext('2d');
+      const top5Players=sortByColumn(players.filter(p=>p.playedMinutes),'points').slice(0,5);
+      const paintPoints=asInt(team.tot_sPointsInThePaint);
+      const fastBreakPoints=asInt(team.tot_sPointsFastBreak);
+      const secondChancePoints=asInt(team.tot_sPointsSecondChance);
+      const benchPoints=asInt(team.tot_sBenchPoints);
+      const freeThrowPoints=asInt(team.tot_sFreeThrowsMade);
+      if(CHARTS.pointsChart) CHARTS.pointsChart.destroy();
+      CHARTS.pointsChart=new Chart(pointsCtx,{
+        type:'doughnut',
+        data:{ labels:['נקודות בצבע','נקודות מעבר מהיר','סל שני','נקודות מהספסל','נקודות מעונשין'],
+               datasets:[{ data:[paintPoints, fastBreakPoints, secondChancePoints, benchPoints, freeThrowPoints] }]},
+        options:{ responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{ position:'right', labels:{ boxWidth:10, padding:10, font:{size:10} } } } }
+      });
+      if(CHARTS.efficiencyChart) CHARTS.efficiencyChart.destroy();
+      CHARTS.efficiencyChart=new Chart(efficiencyCtx,{
+        type:'bar',
+        data:{ labels: top5Players.map(p=>p.name), datasets:[{ label:'יעילות', data: top5Players.map(p=>p.efficiency||0) }]},
+        options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y', plugins:{ legend:{display:false} }, scales:{ x:{ beginAtZero:true } } }
+      });
+    }
+
+    function renderTeamTable(teamName, players){
+      const card=document.createElement('div'); card.className='card p-4';
+      card.innerHTML=`
+        <h2 class="text-lg font-bold mb-3 text-blue-900">${teamName} – שחקנים (<span class="teamCount">${players.length}</span>) <span class="text-sm text-gray-500 teamNote"></span></h2>
+        <div class="overflow-auto rounded-lg border border-gray-300 shadow">
+          <table class="stats w-full text-xs sticky-header">
+            <colgroup><col style="width:20%" /><col span="18" /></colgroup>
+            <thead>
+              <tr>
+                <th class="px-4 py-3">שחקן</th>
+                <th class="px-2 py-3">מס'</th>
+                <th class="px-2 py-3">דקות</th>
+                <th class="px-2 py-3">נק'</th>
+                <th class="px-2 py-3">שדה %</th>
+                <th class="px-2 py-3">ק2</th>
+                <th class="px-2 py-3">ק2 %</th>
+                <th class="px-2 py-3">3-מ</th>
+                <th class="px-2 py-3">3-מ %</th>
+                <th class="px-2 py-3">מהקו</th>
+                <th class="px-2 py-3">קו %</th>
+                <th class="px-2 py-3">ריב'</th>
+                <th class="px-2 py-3">אס'</th>
+                <th class="px-2 py-3">חט'</th>
+                <th class="px-2 py-3">חס'</th>
+                <th class="px-2 py-3">איב'</th>
+                <th class="px-2 py-3">עב'</th>
+                <th class="px-2 py-3">סחט</th>
+                <th class="px-2 py-3">+/-</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 bg-white"></tbody>
+          </table>
+        </div>`;
+      const tbody=card.querySelector('tbody');
+      const note=card.querySelector('.teamNote');
+      const showNon=$("toggleNonPlaying").checked;
+      if(!showNon) note.textContent='– מוצגים שחקנים ששיחקו בלבד';
+
+      const sorted=sortByColumn(showNon? players : players.filter(p=>p.playedMinutes), 'points');
+      sorted.forEach(p=>{
+        const tr=document.createElement('tr');
+        tr.className=`${p.isStarter? 'font-medium bg-blue-50':''} ${!p.playedMinutes? 'text-gray-500':''} hover:bg-gray-50`;
+        const twoMade = Math.max(0, (p.fieldGoalsMade||0) - (p.threePointsMade||0));
+        const twoAtt  = Math.max(0, (p.fieldGoalsAttempted||0) - (p.threePointsAttempted||0));
+        const fgPct   = formatPct(p.fieldGoalsMade, p.fieldGoalsAttempted);
+        const twoPct  = formatPct(twoMade, twoAtt);
+        const tpPct   = formatPct(p.threePointsMade, p.threePointsAttempted);
+        const ftPct   = formatPct(p.freeThrowsMade, p.freeThrowsAttempted);
+        tr.innerHTML=`
+          <td class="px-4 py-2.5 whitespace-nowrap font-medium">${p.name}</td>
+          <td class="px-2 py-2.5 whitespace-nowrap">${p.jersey}</td>
+          <td class="px-2 py-2.5 whitespace-nowrap">${p.minutes}</td>
+          <td class="px-2 py-2.5 whitespace-nowrap font-bold">${p.points}</td>
+          <td class="px-2 py-2.5 whitespace-nowrap">${fgPct}</td>
+          <td class="px-2 py-2.5 whitespace-nowrap">${twoMade}-${twoAtt}</td>
+          <td class="px-2 py-2.5 whitespace-nowrap">${twoPct}</td>
+          <td class="px-2 py-2.5 whitespace-nowrap">${p.threePointsMade}-${p.threePointsAttempted}</td>
+          <td class="px-2 py-2.5 whitespace-nowrap">${tpPct}</td>
+          <td class="px-2 py-2.5 whitespace-nowrap">${p.freeThrowsMade}-${p.freeThrowsAttempted}</td>
+          <td class="px-2 py-2.5 whitespace-nowrap">${ftPct}</td>
+          <td class="px-2 py-2.5 whitespace-nowrap">${p.rebounds}</td>
+          <td class="px-2 py-2.5 whitespace-nowrap">${p.assists}</td>
+          <td class="px-2 py-2.5 whitespace-nowrap">${p.steals}</td>
+          <td class="px-2 py-2.5 whitespace-nowrap">${p.blocks}</td>
+          <td class="px-2 py-2.5 whitespace-nowrap">${p.turnovers}</td>
+          <td class="px-2 py-2.5 whitespace-nowrap">${p.fouls}</td>
+          <td class="px-2 py-2.5 whitespace-nowrap">${p.foulsOn}</td>
+          <td class="px-2 py-2.5 whitespace-nowrap ${p.plusMinus>0? 'text-green-600': p.plusMinus<0? 'text-red-600':'text-gray-600'}">${p.plusMinus>0? '+':''}${p.plusMinus}</td>`;
+        tbody.appendChild(tr);
+      });
+      return card;
+    }
+
+    function render(){
+      const showNon=$("toggleNonPlaying").checked;
+      const filtered= showNon? PLAYERS : PLAYERS.filter(p=>p.playedMinutes);
+      const container=$("playersByTeams");
+      container.innerHTML='';
+      const teams=Object.keys(TEAMMAP);
+
+      const firstTeam=teams[0];
+      if(firstTeam){
+        const t=TEAMMAP[firstTeam];
+        const fgM=t.tot_sFieldGoalsMade, fgA=t.tot_sFieldGoalsAttempted;
+        const tpM=t.tot_sThreePointersMade, tpA=t.tot_sThreePointersAttempted;
+        const ftM=t.tot_sFreeThrowsMade, ftA=t.tot_sFreeThrowsAttempted;
+        const pct=(m,a)=> (a&&a>0&&typeof m==="number")? ((m/a*100).toFixed(1)+"%") : "-";
+        const byPoints=sortByColumn(filtered.filter(p=>p.team===firstTeam),'points')[0]||{};
+        const byRebounds=sortByColumn(filtered.filter(p=>p.team===firstTeam),'rebounds')[0]||{};
+        const byAssists=sortByColumn(filtered.filter(p=>p.team===firstTeam),'assists')[0]||{};
+        $("teamName").textContent=firstTeam;
+        $("teamPoints").textContent=t.tot_sPoints||0;
+        $("teamRebounds").textContent=t.tot_sReboundsTotal||0;
+        $("teamAssists").textContent=t.tot_sAssists||0;
+        $("teamSteals").textContent=t.tot_sSteals||0;
+        $("teamFGM").textContent=fgM||0; $("teamFGA").textContent=fgA||0;
+        $("team3PM").textContent=tpM||0; $("team3PA").textContent=tpA||0;
+        $("teamFTM").textContent=ftM||0; $("teamFTA").textContent=ftA||0;
+        $("topScorerName").textContent=byPoints.name||'-'; $("topScorerJersey").textContent="#"+(byPoints.jersey||0); $("topScorerPoints").textContent=byPoints.points||0;
+        $("topRebounderName").textContent=byRebounds.name||'-'; $("topRebounderJersey").textContent="#"+(byRebounds.jersey||0); $("topRebounderRebounds").textContent=byRebounds.rebounds||0;
+        $("topAssisterName").textContent=byAssists.name||'-'; $("topAssisterJersey").textContent="#"+(byAssists.jersey||0); $("topAssisterAssists").textContent=byAssists.assists||0;
+        createCharts(t, filtered.filter(p=>p.team===firstTeam));
+        $("notes").value=`${firstTeam}: ${t.tot_sPoints ?? filtered.reduce((s,p)=>s+p.points,0)} נק', ${t.tot_sReboundsTotal ?? filtered.reduce((s,p)=>s+p.rebounds,0)} ריב', ${t.tot_sAssists ?? filtered.reduce((s,p)=>s+p.assists,0)} אס', ${t.tot_sSteals ?? filtered.reduce((s,p)=>s+p.steals,0)} חט'
+קליעות: משחק ${fgM ?? "-"}-${fgA ?? "-"} (${pct(fgM,fgA)}), שלשות ${tpM ?? "-"}-${tpA ?? "-"} (${pct(tpM,tpA)}), עונשין ${ftM ?? "-"}-${ftA ?? "-"} (${pct(ftM,ftA)})
+מוביל בנקודות: ${byPoints.name||"-"} (${byPoints.points||0} נק')
+מוביל בריבאונדים: ${byRebounds.name||"-"} (${byRebounds.rebounds||0} ריב')
+מוביל באסיסטים: ${byAssists.name||"-"} (${byAssists.assists||0} אס')`;
+      }
+
+      teams.forEach(teamName=>{
+        const teamPlayers=PLAYERS.filter(p=>p.team===teamName);
+        const card=renderTeamTable(teamName, teamPlayers);
+        container.appendChild(card);
+      });
+
+      $("results").classList.remove('hidden');
+    }
+
+</script>
+    <script>
+/* ====== Inlined: app_db_save.js ====== */
+    // =========================
+    // Save to DB
+    // =========================
+    async function checkForDuplicateGame(date, cycle, teams) {
+      if(!(DB_AVAILABLE && DB)) return null;
+      
+      try {
+        // נוודא שיש לנו נתונים תקינים לבדיקה
+        if(!date || !cycle || !teams || !teams.length) {
+          return null;
+        }
+        
+        const tx = DB.transaction(["games"], "readonly");
+        const store = tx.objectStore("games");
+        const duplicates = [];
+        
+        // נוודא שצוות הקבוצות מסודר (כדי להשוות בקלות)
+        const sortedTeams = [...teams].sort();
+        
+        await new Promise(resolve => {
+          const req = store.openCursor();
+          req.onsuccess = e => {
+            const cur = e.target.result;
+            if(!cur) return resolve();
+            
+            const game = cur.value;
+            
+            // השוואת תאריך ומחזור
+            const sameDate = game.date === date;
+            const sameCycle = String(game.cycle) === String(cycle);
+            
+            // בדיקה אם מדובר באותן קבוצות (ללא התחשבות בסדר)
+            let sameTeams = false;
+            if(game.teams && game.teams.length > 0) {
+              const gameSortedTeams = [...game.teams].sort();
+              // בדיקה אם יש זהות מלאה בין הרשימות
+              sameTeams = JSON.stringify(gameSortedTeams) === JSON.stringify
+              (sortedTeams);
+              
+              // בדיקה נוספת אם יש חפיפה משמעותית
+              if(!sameTeams && sortedTeams.length > 0 && gameSortedTeams.length > 0) {
+                const commonTeams = sortedTeams.filter(t => gameSortedTeams.includes(t));
+                // אם יש לפחות קבוצה אחת משותפת, נחשיב כחשוד לכפילות
+                if(commonTeams.length > 0) {
+                  duplicates.push({
+                    gameId: game.gameSerial || game.id,
+                    date: game.date,
+                    cycle: game.cycle,
+                    teams: game.teams,
+                    exactMatch: false,
+                    commonTeams: commonTeams
+                  });
+                }
+              }
+            }
+            
+            // אם נמצאה התאמה מדויקת
+            if(sameDate && sameCycle && sameTeams) {
+              duplicates.push({
+                gameId: game.gameSerial || game.id,
+                date: game.date,
+                cycle: game.cycle,
+                teams: game.teams,
+                exactMatch: true
+              });
+            }
+            
+            cur.continue();
+          };
+        });
+        
+        return duplicates;
+      } catch(err) {
+        console.error("שגיאה בבדיקת כפילויות:", err);
+        return null;
+      }
+    }
+
+    async function saveToDatabase(){
+      if(!(DB_AVAILABLE && DB)){
+        // ניסיון אתחול אוטומטי לאחר ניקוי או בתחילת שימוש
+        try{
+          await initDb();
+          await loadTeamsIndex();
+          if(!(DB_AVAILABLE && DB)){
+            showError("מסד נתונים אינו זמין במצב הנוכחי (ייתכן מצב אורח/פרטי). השמירה הושבתה." + (typeof getDbDiagnostics==="function" ? "\nפרטים: "+JSON.stringify(getDbDiagnostics()) : ""));
+            return;
+          }
+        }catch(e){
+          showError("לא ניתן לאתחל מסד נתונים: " + (e?.message||e));
+          return;
+        }
+      }
+      
+      if(!PLAYERS.length){ 
+        showError("אין נתונים לשמירה"); 
+        return; 
+      }
+      
+      // בדיקה האם מולא שדה מספר מחזור
+      const gameCycle = $("gameCycle").value || null;
+      if(!gameCycle) {
+        showError("יש למלא מספר מחזור לפני שמירה למסד");
+        // הדגשת השדה החסר
+        $("gameCycle").classList.add("border-red-500", "bg-red-50");
+        setTimeout(() => {
+          $("gameCycle").classList.remove("border-red-500", "bg-red-50");
+        }, 3000);
+        return;
+      }
+      
+      const gameDate = $("gameDate").value || (new Date()).toISOString().slice(0,10);
+      const teams = Object.keys(TEAMMAP);
+      
+      // בדיקת כפילויות
+      const duplicates = await checkForDuplicateGame(gameDate, gameCycle, teams);
+      if(duplicates && duplicates.length > 0) {
+        // מצאנו התאמה מדויקת - משחק זהה קיים כבר
+        const exactMatches = duplicates.filter(d => d.exactMatch);
+        if(exactMatches.length > 0) {
+          const match = exactMatches[0];
+          const confirmSave = confirm(
+            `נמצא משחק זהה במסד הנתונים!
+מזהה משחק: ${match.gameId}
+תאריך: ${match.date}
+מחזור: ${match.cycle}
+קבוצות: ${match.teams.join(' - ')}
+
+האם אתה בטוח שברצונך לשמור את המשחק הנוכחי?`
+          );
+          if(!confirmSave) {
+            return; // המשתמש ביטל את השמירה
+          }
+        }
+        // התרעה על חשד לכפילות (יש קבוצות משותפות)
+        else if(duplicates.length > 0) {
+          const suspectedDuplicates = duplicates.map(d => 
+            `משחק ${d.gameId}: ${d.date}, מחזור ${d.cycle}, קבוצות: ${d.teams.join(' - ')}`
+          ).join('\n');
+          
+          const confirmSave = confirm(
+            `שים לב - נמצאו משחקים דומים במסד הנתונים:
+${suspectedDuplicates}
+
+האם אתה בטוח שברצונך להמשיך בשמירה?`
+          );
+          if(!confirmSave) {
+            return; // המשתמש ביטל את השמירה
+          }
+        }
+      }
+      
+      try{
+        const currentSerial = await nextGameSerial();
+        $("gameId").value = String(currentSerial);
+        const tx=DB.transaction(["games","players"],"readwrite");
+        const gameStore=tx.objectStore("games");
+        const playerStore=tx.objectStore("players");
+        const gameToAdd = { 
+          gameSerial: currentSerial, 
+          date: gameDate, 
+          cycle: gameCycle,
+          teams: teams, 
+          timestamp: new Date().toISOString()
+        };
+        await new Promise((resolve,reject)=>{ const req=gameStore.add(gameToAdd); req.onsuccess=()=>resolve(); req.onerror=()=>reject(req.error); });
+
+        for(const player of PLAYERS){
+          if(!player.playedMinutes) continue;
+          const existingPlayer=await new Promise((resolve)=>{ const req=playerStore.get(player.id); req.onsuccess=()=>resolve(req.result); req.onerror=()=>resolve(null); });
+          const gameEntry = {
+            gameId: currentSerial, date:gameDate, team:player.team, minutes:player.minutes,
+            points:player.points, rebounds:player.rebounds, assists:player.assists,
+            steals:player.steals, blocks:player.blocks, turnovers:player.turnovers,
+            fouls:player.fouls, plusMinus:player.plusMinus,
+            fieldGoalsMade:player.fieldGoalsMade, fieldGoalsAttempted:player.fieldGoalsAttempted,
+            threePointsMade:player.threePointsMade, threePointsAttempted:player.threePointsAttempted,
+            freeThrowsMade:player.freeThrowsMade, freeThrowsAttempted:player.freeThrowsAttempted
+          };
+          if(existingPlayer){
+            existingPlayer.games=existingPlayer.games||[];
+            const idx = existingPlayer.games.findIndex(g => g.gameId===currentSerial);
+            if(idx>=0) existingPlayer.games[idx] = gameEntry; else existingPlayer.games.push(gameEntry);
+            const totalGames=existingPlayer.games.length;
+            existingPlayer.totalPoints=existingPlayer.games.reduce((s,g)=>s+g.points,0);
+            existingPlayer.totalRebounds=existingPlayer.games.reduce((s,g)=>s+g.rebounds,0);
+            existingPlayer.totalAssists=existingPlayer.games.reduce((s,g)=>s+g.assists,0);
+            existingPlayer.avgPoints=(existingPlayer.totalPoints/totalGames).toFixed(1);
+            existingPlayer.avgRebounds=(existingPlayer.totalRebounds/totalGames).toFixed(1);
+            existingPlayer.avgAssists=(existingPlayer.totalAssists/totalGames).toFixed(1);
+            await new Promise((resolve,reject)=>{ const req=playerStore.put(existingPlayer); req.onsuccess=()=>resolve(); req.onerror=()=>reject(req.error); });
+          } else {
+            const newPlayer={
+              id:player.id, name:player.name, team:player.team, jersey:player.jersey,
+              games:[gameEntry],
+              totalPoints:player.points, totalRebounds:player.rebounds, totalAssists:player.assists,
+              avgPoints:player.points.toFixed(1), avgRebounds:player.rebounds.toFixed(1), avgAssists:player.assists.toFixed(1)
+            };
+            await new Promise((resolve,reject)=>{ const req=playerStore.add(newPlayer); req.onsuccess=()=>resolve(); req.onerror=()=>reject(req.error); });
+          }
+        }
+        const nextSerial = currentSerial + 1; $("gameId").value = String(nextSerial);
+        
+        // איפוס שדה המחזור לאחר שמירה מוצלחת
+        $("gameCycle").value = "";
+        
+        showOk(`הנתונים נשמרו בהצלחה! שחקנים שהשתתפו: ${PLAYERS.filter(p=>p.playedMinutes).length}`);
+        renderGamesTable && renderGamesTable();
+
+      } catch(err){ showError(`שגיאה בשמירת הנתונים: ${err.message}`); }
+    }
+
+    // פונקציית מיגרציה לשחקנים
+    async function migratePlayerDatabase() {
+      if (!(DB_AVAILABLE && DB)) {
+        showError("מסד נתונים אינו זמין במצב הנוכחי");
+        return;
+      }
+      
+      if (!confirm("האם אתה בטוח שברצונך להריץ את תהליך המיגרציה? מומלץ לגבות את הנתונים לפני כן.")) {
+        return;
+      }
+      
+      try {
+        showOk("מתחיל מיגרציה...");
+        
+        // Step 1: טעינת כל השחקנים הקיימים
+        const allPlayers = [];
+        const tx = DB.transaction(["players"], "readonly");
+        const store = tx.objectStore("players");
+        
+        await new Promise(resolve => {
+          const req = store.openCursor();
+          req.onsuccess = e => {
+            const cursor = e.target.result;
+            if (!cursor) return resolve();
+            allPlayers.push(cursor.value);
+            cursor.continue();
+          };
+          req.onerror = () => resolve();
+        });
+        
+        // Step 2: קיבוץ שחקנים לפי שם, מספר גופייה וקבוצה
+        const playerGroups = {};
+        let emptyNamesCount = 0;
+        
+        for (const player of allPlayers) {
+          if (!player.name || player.name === "-" || player.name.startsWith("#")) {
+            // שחקנים ללא שם - לא להכליל אלא אם יש להם סטטיסטיקה משמעותית
+            const hasSignificantStats = (player.totalPoints > 5 || player.totalRebounds > 5 || player.totalAssists > 3);
+            if (!hasSignificantStats) {
+              emptyNamesCount++;
+              continue; // דילוג על שחקנים ריקים ללא סטטיסטיקה
+            }
+          }
+          
+          // יצירת מזהה משופר
+          const name = (player.name || "").toLowerCase().trim();
+          const jersey = (player.jersey || "").trim();
+          const team = player.team || "";
+          
+          // חיפוש team_id אם קיים
+          const resolvedTeam = resolveTeam(team);
+          const teamId = resolvedTeam?.team_id || team;
+          
+          // יצירת מזהה משופר ויותר קריא
+          let newId;
+          if (!name || name === "#" || name.startsWith('#')) {
+            newId = `${teamId}-jersey${jersey}`;
+          } else {
+            // ניקוי שם משחקן
+            const cleanName = name.replace(/[^\w\s-]/g, '').trim();
+            newId = `${teamId}-${cleanName}-${jersey}`;
+          }
+          
+          if (!playerGroups[newId]) {
+            playerGroups[newId] = [];
+          }
+          playerGroups[newId].push(player);
+        }
+        
+        // Step 3: מיזוג סטטיסטיקות ויצירת רשומות חדשות
+        const wtx = DB.transaction(["players"], "readwrite");
+        const wstore = wtx.objectStore("players");
+        
+        // מחיקת כל השחקנים הנוכחיים
+        await new Promise(resolve => {
+          const req = wstore.clear();
+          req.onsuccess = () => resolve();
+          req.onerror = () => resolve();
+        });
+        
+        // הוספת שחקנים ממוזגים
+        let migratedCount = 0;
+        let mergedCount = 0;
+        let skippedCount = 0;
+        
+        for (const newId in playerGroups) {
+          const players = playerGroups[newId];
+          
+          if (players.length === 0) continue;
+          
+          // בדיקה לשחקנים חסרי ערך - לדלג אם אין סטטיסטיקה משמעותית
+          const hasZeroStats = players.every(p => 
+            (!p.games || p.games.length === 0) && 
+            (!p.totalPoints || p.totalPoints === 0) && 
+            (!p.totalRebounds || p.totalRebounds === 0) && 
+            (!p.totalAssists || p.totalAssists === 0)
+          );
+          
+          if (hasZeroStats) {
+            skippedCount++;
+            continue; // לדלג על שחקנים ללא סטטיסטיקה
+          }
+          
+          // אם יש רק שחקן אחד עם מזהה זה, רק לעדכן את המזהה
+          if (players.length === 1) {
+            const player = players[0];
+            player.id = newId; // הגדרת פורמט מזהה חדש
+            
+            // בדיקה נוספת שיש משחקים בכלל
+            if (player.games && player.games.length > 0) {
+              await new Promise((resolve, reject) => {
+                const req = wstore.add(player);
+                req.onsuccess = () => resolve();
+                req.onerror = () => reject(req.error);
+              });
+              migratedCount++;
+            } else {
+              skippedCount++;
+            }
+            continue;
+          }
+          
+          // מיזוג מספר שחקנים עם אותו מידע מזהה
+          mergedCount++;
+          
+          // בחירת השם הטוב ביותר מבין האפשרויות
+          const bestPlayer = players.reduce((best, current) => {
+            // העדפת שחקנים עם שם מלא על פני שחקנים עם שם קצר או ריק
+            if (!best.name || best.name === "-" || best.name.startsWith("#")) return current;
+            if (current.name && current.name.length > best.name.length) return current;
+            return best;
+          }, players[0]);
+          
+          const mergedPlayer = {
+            id: newId,
+            name: bestPlayer.name,
+            team: bestPlayer.team,
+            jersey: bestPlayer.jersey,
+            games: [],
+            totalPoints: 0,
+            totalRebounds: 0,
+            totalAssists: 0
+          };
+          
+          // שילוב כל סטטיסטיקות המשחקים
+          for (const player of players) {
+            if (Array.isArray(player.games)) {
+              // בדיקת כפילויות משחקים לפי gameId
+              for (const game of player.games) {
+                const existingGameIndex = mergedPlayer.games.findIndex(g => g.gameId === game.gameId);
+                
+                if (existingGameIndex === -1) {
+                  mergedPlayer.games.push(game);
+                } else {
+                  // אם המשחק כבר קיים, להשתמש בערך עם יותר סטטיסטיקה
+                  const existing = mergedPlayer.games[existingGameIndex];
+                  const sumStats = existing.points + existing.rebounds + existing.assists;
+                  const newSumStats = game.points + game.rebounds + game.assists;
+                  
+                  if (newSumStats > sumStats) {
+                    mergedPlayer.games[existingGameIndex] = game;
+                  }
+                }
+              }
+            }
+          }
+          
+          // חישוב סך הכל מחדש
+          const totalGames = mergedPlayer.games.length;
+          
+          // אם אין משחקים, לדלג על שחקן זה
+          if (totalGames === 0) {
+            skippedCount++;
+            continue;
+          }
+          
+          mergedPlayer.totalPoints = mergedPlayer.games.reduce((s, g) => s + (g.points || 0), 0);
+          mergedPlayer.totalRebounds = mergedPlayer.games.reduce((s, g) => s + (g.rebounds || 0), 0);
+          mergedPlayer.totalAssists = mergedPlayer.games.reduce((s, g) => s + (g.assists || 0), 0);
+          
+          // חישוב ממוצעים
+          mergedPlayer.avgPoints = totalGames ? (mergedPlayer.totalPoints / totalGames).toFixed(1) : "0.0";
+          mergedPlayer.avgRebounds = totalGames ? (mergedPlayer.totalRebounds / totalGames).toFixed(1) : "0.0";
+          mergedPlayer.avgAssists = totalGames ? (mergedPlayer.totalAssists / totalGames).toFixed(1) : "0.0";
+          
+          // שמירת השחקן הממוזג
+          await new Promise((resolve, reject) => {
+            const req = wstore.add(mergedPlayer);
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+          });
+        }
+        
+        showOk(`המיגרציה הושלמה בהצלחה! ${migratedCount} שחקנים עודכנו, ${mergedCount} שחקנים מוזגו, ${skippedCount} שחקנים ריקים הוסרו.`);
+        
+        // רענון תצוגת השחקנים אם נמצאים בה כרגע
+        if (!$("view-players").classList.contains("hidden")) {
+          renderPlayersTable();
+        }
+      } catch (err) {
+        showError("שגיאה במיגרציה: " + (err?.message || err));
+      }
+    }
+
+    // ייצוא מסד נתונים מלא
+    async function exportFullDatabase() {
+      if(!(DB_AVAILABLE && DB)) { 
+        showError("מסד נתונים אינו זמין");
+        return;
+      }
+      
+      try {
+        const backup = {
+          teams: [],
+          players: [],
+          games: [],
+          version: (typeof REQUIRED_DB_VERSION !== "undefined" ? REQUIRED_DB_VERSION : 1),
+          timestamp: new Date().toISOString(),
+          appName: "BasketballStatsDB"
+        };
+        
+        // Export teams
+        const teamsTransaction = DB.transaction(["teams"], "readonly");
+        const teamsStore = teamsTransaction.objectStore("teams");
+        await new Promise(resolve => {
+          const req = teamsStore.openCursor();
+          req.onsuccess = e => {
+            const cur = e.target.result;
+            if(!cur) return resolve();
+            backup.teams.push(cur.value);
+            cur.continue();
+          };
+        });
+        
+        // Export players
+        const playersTransaction = DB.transaction(["players"], "readonly");
+        const playersStore = playersTransaction.objectStore("players");
+        await new Promise(resolve => {
+          const req = playersStore.openCursor();
+          req.onsuccess = e => {
+            const cur = e.target.result;
+            if(!cur) return resolve();
+            backup.players.push(cur.value);
+            cur.continue();
+          };
+        });
+        
+        // Export games
+        const gamesTransaction = DB.transaction(["games"], "readonly");
+        const gamesStore = gamesTransaction.objectStore("games");
+        await new Promise(resolve => {
+          const req = gamesStore.openCursor();
+          req.onsuccess = e => {
+            const cur = e.target.result;
+            if(!cur) return resolve();
+            backup.games.push(cur.value);
+            cur.continue();
+          };
+        });
+        
+        // Create download file
+        const dataStr = JSON.stringify(backup, null, 2);
+        const blob = new Blob([dataStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.style.display = "none";
+        a.href = url;
+        a.download = `basketball_db_backup_${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        window.setTimeout(() => {
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+        }, 100);
+        
+        showOk(`גיבוי מסד הנתונים הסתיים: ${backup.teams.length} קבוצות, ${backup.players.length} שחקנים, ${backup.games.length} משחקים`);
+      } catch(err) {
+        showError(`שגיאה בגיבוי מסד הנתונים: ${err.message}`);
+      }
+    }
+    
+    // שחזור מסד נתונים מגיבוי
+    async function importFullDatabase(file) {
+      if(!(DB_AVAILABLE && DB)) { 
+        showError("מסד נתונים אינו זמין");
+        return;
+      }
+      
+      if(!confirm("שים לב: פעולת השחזור תמחק את כל המידע הנוכחי במערכת ותחליף אותו בנתונים מהגיבוי. האם להמשיך?")) {
+        return;
+      }
+      
+      try {
+        const text = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(reader.error);
+          reader.readAsText(file);
+        });
+        
+        const backup = JSON.parse(text);
+        
+        if(!backup || !backup.appName || backup.appName !== "BasketballStatsDB") {
+          showError("קובץ הגיבוי אינו תקין או אינו מתאים למערכת זו");
+          return;
+        }
+        
+        // Clear all current data
+        const clearTeams = DB.transaction(["teams"], "readwrite").objectStore("teams").clear();
+        const clearPlayers = DB.transaction(["players"], "readwrite").objectStore("players").clear();
+        const clearGames = DB.transaction(["games"], "readwrite").objectStore("games").clear();
+        
+        await new Promise(resolve => {
+          clearTeams.onsuccess = clearPlayers.onsuccess = clearGames.onsuccess = () => resolve();
+        });
+        
+        // Import teams
+        const teamsTx = DB.transaction(["teams"], "readwrite");
+        const teamsStore = teamsTx.objectStore("teams");
+        for(const team of backup.teams) {
+          await new Promise(resolve => {
+            const req = teamsStore.add(team);
+            req.onsuccess = () => resolve();
+            req.onerror = () => resolve(); // Continue even on error
+          });
+        }
+        
+        // Import players
+        const playersTx = DB.transaction(["players"], "readwrite");
+        const playersStore = playersTx.objectStore("players");
+        for(const player of backup.players) {
+          await new Promise(resolve => {
+            const req = playersStore.add(player);
+            req.onsuccess = () => resolve();
+            req.onerror = () => resolve(); // Continue even on error
+          });
+        }
+        
+        // Import games
+        const gamesTx = DB.transaction(["games"], "readwrite");
+        const gamesStore = gamesTx.objectStore("games");
+        for(const game of backup.games) {
+          await new Promise(resolve => {
+            const req = gamesStore.add(game);
+            req.onsuccess = () => resolve();
+            req.onerror = () => resolve(); // Continue even on error
+          });
+        }
+        
+        // Reload indices and UI
+        await loadTeamsIndex();
+        await setNextGameSerialToUI();
+        showOk(`שחזור מסד הנתונים הסתיים: ${backup.teams.length} קבוצות, ${backup.players.length} שחקנים, ${backup.games.length} משחקים`);
+        
+        // Reload current view
+        const currentView = document.querySelector('#tabs .tab.active');
+        if(currentView) {
+          switchTab(currentView.dataset.tab);
+        }
+      } catch(err) {
+        showError(`שגיאה בשחזור מסד הנתונים: ${err.message}`);
+      }
+    }
+
+    function initFormValidation() {
+      const gameCycle = $("gameCycle");
+      if (gameCycle) {
+        gameCycle.addEventListener("input", function() {
+          // הסרת הדגשת שגיאה כאשר המשתמש מתחיל להקליד
+          this.classList.remove("border-red-500", "bg-red-50");
+        });
+      }
+    }
+
+    // =========================
+    // Views: Games / Teams agg / Players DB / Manage Teams
+    // =========================
+    async function getGameListWithTeamTotals(){
+      const games = [];
+      if(!(DB_AVAILABLE && DB)) return games;
+      const rows = [];
+      const gTx = DB.transaction(['games'], 'readonly');
+      const gStore = gTx.objectStore('games');
+      await new Promise(res=>{ const req = gStore.openCursor(); req.onsuccess = e => { const c=e.target.result; if(!c) return res(); rows.push(c.value); c.continue(); }; });
+
+      const totalsByGame = new Map();
+      const pTx = DB.transaction(['players'], 'readonly');
+      const pStore = pTx.objectStore('players');
+      await new Promise(res=>{
+        const req = pStore.openCursor();
+        req.onsuccess = e => {
+          const c = e.target.result; if(!c) return res();
+          const pl = c.value;
+          for(const g of (pl.games||[])){
+            const key = g.gameId;
+            if(!totalsByGame.has(key)) totalsByGame.set(key, {});
+            const byTeam = totalsByGame.get(key);
+            if(!byTeam[g.team]) byTeam[g.team] = { points:0 };
+            byTeam[g.team].points += g.points||0;
+          }
+          c.continue();
+        };
+      });
+
+      for(const g of rows){
+        games.push({
+          id: g.gameSerial,
+          date: g.date,
+          cycle: g.cycle || null,
+          teams: g.teams || [],
+          totals: totalsByGame.get(g.gameSerial) || {}
+        });
+      }
+      games.sort((a,b)=> (b.id||0)-(a.id||0));
+      return games;
+    }
+
+    async function getTeamsAggregate(){
+      if(!(DB_AVAILABLE && DB)) return [];
+      const agg = {};
+      const pTx = DB.transaction(['players'], 'readonly');
+      const pStore = pTx.objectStore('players');
+      await new Promise(res=>{
+        const req = pStore.openCursor();
+        req.onsuccess = e => {
+          const c = e.target.result; if(!c) return res();
+          const pl = c.value;
+          for(const g of (pl.games||[])){
+            if(!agg[g.team]) agg[g.team] = { games:new Set(), points:0, rebounds:0, assists:0, steals:0, turnovers:0, fgm:0, fga:0, tpm:0, tpa:0, ftm:0, fta:0 };
+            const t = agg[g.team];
+            t.games.add(g.gameId);
+            t.points += g.points||0; t.rebounds += g.rebounds||0; t.assists += g.assists||0; t.steals += g.steals||0; t.turnovers += g.turnovers||0;
+            t.fgm += g.fieldGoalsMade||0; t.fga += g.fieldGoalsAttempted||0;
+            t.tpm += g.threePointsMade||0; t.tpa += g.threePointsAttempted||0;
+            t.ftm += g.freeThrowsMade||0; t.fta += g.freeThrowsAttempted||0;
+          }
+          c.continue();
+        };
+      });
+      return Object.entries(agg).map(([team,t])=>({
+        team,
+        games: t.games.size,
+        points: t.points, rebounds: t.rebounds, assists: t.assists, steals: t.steals, turnovers: t.turnovers,
+        fgm: t.fgm, fga: t.fga, tpm: t.tpm, tpa: t.tpa, ftm: t.ftm, fta: t.fta
+      })).sort((a,b)=> a.team.localeCompare(b.team,'he'));
+    }
+
+    // 1. עדכון פונקצית renderTeamsAggregate כדי לתמוך במיון
+    async function renderTeamsAggregate(sortField = 'team', sortDirection = 'asc'){
+      const tbody = $("teamsAggTbody"); if(!tbody) return;
+      const q = ($("teamsSearch")?.value||'').trim().toLowerCase();
+      
+      // השגת הנתונים מהמסד
+      const rows = (await getTeamsAggregate()).filter(r=> !q || r.team.toLowerCase().includes(q));
+      
+      // מיון הנתונים
+      if (sortField) {
+        rows.sort((a, b) => {
+          let aVal, bVal;
+          
+          // טיפול מיוחד בשדות שונים
+          switch(sortField) {
+            case 'team':
+              aVal = a.team || '';
+              bVal = b.team || '';
+              // מיון עברית
+              if (sortDirection === 'asc') {
+                return aVal.localeCompare(bVal, 'he');
+              } else {
+                return bVal.localeCompare(aVal, 'he');
+              }
+              break;
+            case 'shooting':
+              // לצורך מיון על פי קליעה, נשתמש באחוזי קליעה משדה
+              aVal = a.fga > 0 ? (a.fgm / a.fga) : 0;
+              bVal = b.fga > 0 ? (b.fgm / b.fga) : 0;
+              break;
+            default:
+              // שדות מספריים אחרים
+              aVal = a[sortField] || 0;
+              bVal = b[sortField] || 0;
+          }
+          
+          // מיון מספרי רגיל
+          if (sortDirection === 'asc') {
+            return aVal - bVal;
+          } else {
+            return bVal - aVal;
+          }
+        });
+      }
+      
+      // עדכון כותרות עם סמני מיון
+      updateTeamsTableHeaders(sortField, sortDirection);
+      
+      // הצגת השורות
+      tbody.innerHTML = '';
+      const pct = (m,a)=> a? ((m/a*100).toFixed(1)+'%'):'-';
+      for(const r of rows){
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="px-3 py-2 font-medium">${r.team}</td>
+          <td class="px-3 py-2">${r.games}</td>
+          <td class="px-3 py-2">${r.points}</td>
+          <td class="px-3 py-2">${r.rebounds}</td>
+          <td class="px-3 py-2">${r.assists}</td>
+          <td class="px-3 py-2">${r.steals}</td>
+          <td class="px-3 py-2">${r.turnovers}</td>
+          <td class="px-3 py-2">FG ${r.fgm}-${r.fga} (${pct(r.fgm,r.fga)}), 3:${r.tpm}-${r.tpa}, FT:${r.ftm}-${r.fta}</td>`;
+        tbody.appendChild(tr);
+      }
+    }
+
+    // 2. פונקציה לעדכון כותרות עם אינדיקטורים של מיון
+    function updateTeamsTableHeaders(sortField, sortDirection) {
+      // מיפוי בין העמודות המוצגות לשדות הנתונים
+      const headerMap = {
+        0: 'team',
+        1: 'games', 
+        2: 'points',
+        3: 'rebounds',
+        4: 'assists',
+        5: 'steals',
+        6: 'turnovers',
+        7: 'shooting' // מיוחד לעמודת מדדי קליעה
+      };
+      
+      const headers = document.querySelectorAll('#view-teams thead th');
+      headers.forEach((header, index) => {
+        const field = headerMap[index];
+        
+        // ניקוי אינדיקטורים קיימים
+        header.textContent = header.textContent.replace(' ▲', '').replace(' ▼', '');
+        
+        // הוספת אינדיקטור אם זה שדה המיון הפעיל
+        if (field === sortField) {
+          header.textContent += sortDirection === 'asc' ? ' ▲' : ' ▼';
+        }
+        
+        // הפיכת הכותרות לניתנות ללחיצה
+        header.style.cursor = 'pointer';
+        header.onclick = function() {
+          // החלפת כיוון המיון אם כבר ממוין לפי שדה זה
+          const newDirection = (field === sortField && sortDirection === 'desc') ? 'asc' : 'desc';
+          renderTeamsAggregate(field, newDirection);
+        };
+      });
+    }
+
+    // 3. אתחול כותרות בעת טעינת התצוגה
+    function initTeamsTableSort() {
+      if (document.querySelector('#view-teams thead th')) {
+        updateTeamsTableHeaders('team', 'asc'); // מיון ברירת מחדל
+      }
+    }
+
+    async function renderPlayersTable(sortField = null, sortDirection = 'desc'){
+      const tbody = $("playersTbody"); 
+      if (!tbody) return;
+      
+      const q = ($("playersSearch")?.value || "").trim().toLowerCase();
+      const rows = [];
+      
+      if (!(DB_AVAILABLE && DB)) { 
+        tbody.innerHTML = ''; 
+        return; 
+      }
+      
+      const pTx = DB.transaction(['players'], 'readonly');
+      const pStore = pTx.objectStore('players');
+      
+      await new Promise(res => {
+        const req = pStore.openCursor();
+        req.onsuccess = e => {
+          const c = e.target.result; 
+          if (!c) return res();
+          
+          const pl = c.value;
+          
+          // דילוג על שחקנים ללא משחקים או סטטיסטיקה (זה יכול לקרות בגלל אופן הטעינה)
+          if (!pl.games || pl.games.length === 0 || 
+              (pl.totalPoints === 0 && pl.totalRebounds === 0 && pl.totalAssists === 0)) {
+            c.continue();
+            return;
+          }
+          
+          // חיפוש
+          const hay = [
+            pl.name || '', 
+            pl.team || '', 
+            pl.jersey || '', 
+            pl.id || ''
+          ].join(' ').toLowerCase();
+          
+          if (!q || hay.includes(q)) { 
+            rows.push(pl); 
+          }
+          
+          c.continue();
+        };
+      });
+      
+      // טעינת מיפויי קבוצות להצגת שמות מתורגמים
+      const teamMappings = {};
+      const tTx = DB.transaction(['teams'], 'readonly');
+      const tStore = tTx.objectStore('teams');
+      
+      await new Promise(res => {
+        const req = tStore.openCursor();
+        req.onsuccess = e => {
+          const c = e.target.result; 
+          if (!c) return res();
+          const team = c.value;
+          // שמירת מיפויים קנוניים ואליאסים
+          if (team.name_en) teamMappings[normalizeEn(team.name_en)] = team.name_he;
+          (team.aliases || []).forEach(alias => {
+            teamMappings[normalizeEn(alias)] = team.name_he;
+          });
+          c.continue();
+        };
+      });
+      
+      // פונקציית עזר לקבלת שם קבוצה בעברית
+      const getTeamHeName = (teamName) => {
+        if (!teamName) return '-';
+        const normalizedName = normalizeEn(teamName);
+        return teamMappings[normalizedName] || teamName; // חזרה למקור אם אין מיפוי
+      };
+      
+      // מיון
+      if (sortField) {
+        rows.sort((a, b) => {
+          let aVal, bVal;
+          
+          // טיפול מיוחד בשדות מסוימים
+          switch (sortField) {
+            case 'team':
+              aVal = getTeamHeName(a.team || '');
+              bVal = getTeamHeName(b.team || '');
+              break;
+            case 'games':
+              aVal = (a.games || []).length;
+              bVal = (b.games || []).length;
+              break;
+            case 'totalPoints':
+            case 'totalRebounds':
+            case 'totalAssists':
+              aVal = a[sortField] || 0;
+              bVal = b[sortField] || 0;
+              break;
+            case 'avgPoints':
+              aVal = parseFloat(a.avgPoints || '0');
+              bVal = parseFloat(b.avgPoints || '0');
+              break;
+            default:
+              aVal = a[sortField] || '';
+              bVal = b[sortField] || '';
+          }
+          
+          // השוואת מחרוזות לשדות טקסט
+          if (typeof aVal === 'string' && typeof bVal === 'string') {
+            if (sortDirection === 'asc') {
+              return aVal.localeCompare(bVal, 'he');
+            } else {
+              return bVal.localeCompare(aVal, 'he');
+            }
+          }
+          
+          // השוואה מספרית
+          if (sortDirection === 'asc') {
+            return aVal - bVal;
+          } else {
+            return bVal - aVal;
+          }
+        });
+      } else {
+        // מיון ברירת מחדל לפי שם אם לא צוין מיון
+        rows.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'he'));
+      }
+      
+      // עדכון כותרות הטבלה להצגת מחווני מיון
+      updateSortHeaders(sortField, sortDirection);
+      
+      tbody.innerHTML = '';
+      
+      // הוספת כותרת אם אין שחקנים
+      if (rows.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="9" class="px-3 py-2 text-center text-gray-500">לא נמצאו שחקנים${q ? ' עבור החיפוש' : ''}</td>`;
+        tbody.appendChild(tr);
+        return;
+      }
+      
+      // הצגת השחקנים
+      for (const p of rows) {
+        const tr = document.createElement('tr');
+        // טיפול במזהים ארוכים - קיצור והצגה בצורה נוחה יותר
+        const displayId = (p.id || '').length > 20 
+          ? (p.id || '').substring(0, 18) + '...'
+          : p.id || '';
+          
+        tr.innerHTML = `
+          <td class="px-3 py-2 mono text-xs" title="${p.id || ''}">${displayId}</td>
+          <td class="px-3 py-2 font-medium">${p.name || '-'}</td>
+          <td class="px-3 py-2">${p.jersey || '-'}</td>
+          <td class="px-3 py-2">${getTeamHeName(p.team)}</td>
+          <td class="px-3 py-2">${(p.games || []).length}</td>
+          <td class="px-3 py-2">${p.totalPoints || 0}</td>
+          <td class="px-3 py-2">${p.totalRebounds || 0}</td>
+          <td class="px-3 py-2">${p.totalAssists || 0}</td>
+          <td class="px-3 py-2">${p.avgPoints || '0.0'}</td>`;
+        tbody.appendChild(tr);
+      }
+    }
+
+    function updateSortHeaders(sortField, sortDirection) {
+      // Define the mapping between displayed columns and data fields
+      const headerMap = {
+        0: 'id',
+        1: 'name', 
+        2: 'jersey',
+        3: 'team',
+        4: 'games',
+        5: 'totalPoints',
+        6: 'totalRebounds',
+        7: 'totalAssists',
+        8: 'avgPoints'
+      };
+      
+      const headers = document.querySelectorAll('#view-players thead th');
+      headers.forEach((header, index) => {
+        const field = headerMap[index];
+        
+        // Clear any existing indicators
+        header.textContent = header.textContent.replace(' ▲', '').replace(' ▼', '');
+        
+        // Add sort indicator if this is the active sort field
+        if (field === sortField) {
+          header.textContent += sortDirection === 'asc' ? ' ▲' : ' ▼';
+        }
+        
+        // Make headers clickable
+        header.style.cursor = 'pointer';
+        header.onclick = function() {
+          // Toggle direction if already sorted by this field
+          const newDirection = (field === sortField && sortDirection === 'desc') ? 'asc' : 'desc';
+          renderPlayersTable(field, newDirection);
+        };
+      });
+    }
+
+    function initPlayerTableSort() {
+      if (document.querySelector('#view-players thead th')) {
+        updateSortHeaders('name', 'asc'); // Default sort
+      }
+    }
+
+    function switchTab(name){
+      document.querySelectorAll('#tabs .tab').forEach(b=>{
+        b.classList.toggle('active', b.dataset.tab===name);
+      });
+      const VIEWS = { 
+        ingest: $("view-ingest"), 
+        games: $("view-games"), 
+        teams: $("view-teams"), 
+        players: $("view-players"), 
+        manageTeams: $("view-manageTeams"),
+        managePlayers: $("view-managePlayers"),   // ← חדש
+        tools: $("view-tools")
+      };
+      Object.entries(VIEWS).forEach(([k,el])=> el && el.classList.toggle('hidden', k!==name));
+
+      if (name === 'games')   renderGamesTable();
+      if (name === 'teams') { renderTeamsAggregate('team', 'asc'); initTeamsTableSort(); }
+      if (name === 'players'){ renderPlayersTable('name', 'asc');   initPlayerTableSort(); }
+      if (name === 'manageTeams')   listTeams();
+      if (name === 'managePlayers') listPlayerMappings();           // ← חדש
+    }
+
+    
+    $("teamsSearch")?.addEventListener('input', () => {
+      // שמירה על המיון האחרון בעת חיפוש
+      const currentSortField = 
+        document.querySelector('#view-teams thead th[textContent*="▲"], #view-teams thead th[textContent*="▼"]')?.getAttribute('data-sort-field') || 'team';
+      const currentSortDirection = 
+        document.querySelector('#view-teams thead th[textContent*="▲"]') ? 'asc' : 'desc';
+      
+      renderTeamsAggregate(currentSortField, currentSortDirection);
+    });
+
+    // ===== Undo Helpers =====
+    window.__undoState = null;
+    function showUndoBar(message, onUndo){
+      const bar = document.getElementById('undoBar');
+      const msg = document.getElementById('undoMsg');
+      const btn = document.getElementById('undoBtn');
+      if(!bar || !msg || !btn) return;
+      msg.textContent = message || 'בוצע.';
+      bar.style.display = 'block';
+      const deadline = Date.now() + 10000; // 10s
+      window.__undoState = { onUndo, deadline, t: setTimeout(hideUndoBar, 10000) };
+      btn.onclick = async ()=>{
+        const st = window.__undoState;
+        hideUndoBar();
+        if(st && st.onUndo && Date.now() <= st.deadline){
+          try{ await st.onUndo(); showOk && showOk('הפעולה בוטלה'); }catch(e){ console.error(e); showError && showError('ביטול נכשל'); }
+        }else{
+          showError && showError('זמן הביטול חלף');
+        }
+      };
+    }
+    function hideUndoBar(){
+      const bar = document.getElementById('undoBar');
+      if(bar) bar.style.display = 'none';
+      if(window.__undoState?.t) clearTimeout(window.__undoState.t);
+      window.__undoState = null;
+    }
+    
+    async function renderGamesTable(){
+      // מחיקה בלחיצה על כפתור "מחק" בתוך הטבלה
+      const _tbody = document.getElementById("gamesTbody");
+      if(_tbody){
+        _tbody.onclick = async (ev)=>{
+          const btn = ev.target.closest("button[data-del]");
+          if(!btn) return;
+          const id = btn.getAttribute("data-del");
+          if(!id) return;
+          if(confirm(`למחוק את המשחק ${id}?`)){
+            await deleteGameById(id);
+            await renderGamesTable();
+            if(typeof renderTeamsAggregate === "function"){ await renderTeamsAggregate(); }
+          }
+        };
+      }
+
+      const tbody = $("gamesTbody"); if(!tbody) return;
+      const q = ($("gamesSearch")?.value || "").trim().toLowerCase();
+
+      const games = await getGameListWithTeamTotals();
+
+      const filtered = games.filter(g=>{
+        const hay = [
+          String(g.id||""),
+          String(g.cycle||""),
+          String(g.date||""),
+          (g.teams||[]).join(" ")
+        ].join(" ").toLowerCase();
+        return !q || hay.includes(q);
+      });
+
+      tbody.innerHTML = "";
+      if(!filtered.length){
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td class="px-3 py-2 text-center text-gray-500" colspan="6">אין משחקים להצגה</td>`;
+        tbody.appendChild(tr);
+        return;
+      }
+
+      for(const g of filtered){
+        const home = g.teams?.[0] || "";
+        const away = g.teams?.[1] || "";
+        const totals = g.totals || {};
+        const homePts = (totals[home]?.points ?? null);
+        const awayPts = (totals[away]?.points ?? null);
+
+        const result = (homePts===null || awayPts===null) ? "–" : `${awayPts}:${homePts}`;
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="px-3 py-2 mono">${g.id}</td>
+          <td class="px-3 py-2">${g.cycle ?? "-"}</td>
+          <td class="px-3 py-2">${g.date || "-"}</td>
+          <td class="px-3 py-2">${home || "-"} - ${away || "-"}</td>
+          <td class="px-3 py-2 font-semibold">${result}</td>
+          <td class="px-3 py-2">
+            <button class="text-red-700 hover:underline" data-del="${g.id}">מחק</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    async function deleteGameById(gameId){
+      if(!(typeof DB_AVAILABLE!=='undefined' && DB_AVAILABLE && typeof DB!=='undefined' && DB)) return;
+
+      // גיבוי המשחק והשחקנים לפני מחיקה
+      let backupGame = null;
+      let backupPlayers = [];
+
+      try{
+        backupGame = await new Promise((resolve)=>{
+          const tx = DB.transaction(['games'], 'readonly');
+          const store = tx.objectStore('games');
+          const req = store.get(Number(gameId));
+          req.onsuccess = ()=>resolve(req.result||null);
+          req.onerror = ()=>resolve(null);
+        });
+      }catch(e){ backupGame = null; }
+
+      try{
+        await new Promise((resolve)=>{
+          const tx = DB.transaction(['players'], 'readonly');
+          const store = tx.objectStore('players');
+          const req = store.openCursor();
+          req.onsuccess = (ev)=>{
+            const cur = ev.target.result;
+            if(cur){
+              const v = cur.value||{};
+              const games = Array.isArray(v.games) ? v.games : [];
+              if(games.some(g => String(g.gameId) === String(gameId))){
+                backupPlayers.push(v);
+              }
+              cur.continue();
+            }else{
+              resolve();
+            }
+          };
+          req.onerror = ()=>resolve();
+        });
+      }catch(e){}
+
+      // מחיקה ממסד
+      try{
+        await new Promise((resolve, reject)=>{
+          const tx = DB.transaction(['games'], 'readwrite');
+          const store = tx.objectStore('games');
+          const req = store.delete(Number(gameId));
+          req.onsuccess = ()=>resolve();
+          req.onerror = ()=>reject(req.error);
+        });
+      }catch(e){
+        console.error('delete games error', e);
+        showError && showError('מחיקת המשחק נכשלה (games)');
+        return;
+      }
+
+      try{
+        await new Promise((resolve)=>{
+          const tx = DB.transaction(['players'], 'readwrite');
+          const store = tx.objectStore('players');
+          const req = store.openCursor();
+          req.onsuccess = (ev)=>{
+            const cur = ev.target.result;
+            if(cur){
+              const v = cur.value||{};
+              const games = Array.isArray(v.games) ? v.games : [];
+              const before = games.length;
+              const filtered = games.filter(g => String(g.gameId) !== String(gameId));
+              if(filtered.length !== before){
+                v.games = filtered;
+                // עדכון סיכומים לשחקן
+                const totalGames = v.games.length || 0;
+                v.totalPoints = v.games.reduce((s,g)=>s+(g.points||0),0);
+                v.totalRebounds = v.games.reduce((s,g)=>s+(g.rebounds||0),0);
+                v.totalAssists = v.games.reduce((s,g)=>s+(g.assists||0),0);
+                v.avgPoints = totalGames ? (v.totalPoints/totalGames).toFixed(1) : "0.0";
+                v.avgRebounds = totalGames ? (v.totalRebounds/totalGames).toFixed(1) : "0.0";
+                v.avgAssists = totalGames ? (v.totalAssists/totalGames).toFixed(1) : "0.0";
+                cur.update(v);
+              }
+              cur.continue();
+            }else{
+              resolve();
+            }
+          };
+          req.onerror = ()=>resolve();
+        });
+      }catch(e){}
+
+      showOk && showOk('המשחק נמחק בהצלחה');
+
+      // הצעת Undo ל-10 שניות
+      showUndoBar && showUndoBar('המשחק נמחק. לבטל?', async ()=>{
+        // שחזור משחק
+        if(backupGame){
+          await new Promise((resolve, reject)=>{
+            const tx = DB.transaction(['games'], 'readwrite');
+            const store = tx.objectStore('games');
+            const req = store.put(backupGame);
+            req.onsuccess = ()=>resolve();
+            req.onerror = ()=>reject(req.error);
+          });
+        }
+        // שחזור שחקנים
+        if(backupPlayers && backupPlayers.length){
+          await new Promise((resolve)=>{
+            const tx = DB.transaction(['players'], 'readwrite');
+            const store = tx.objectStore('players');
+            let i = 0;
+            const next = ()=>{
+              if(i>=backupPlayers.length){ resolve(); return; }
+              const rec = backupPlayers[i++];
+              const req = store.put(rec);
+              req.onsuccess = next;
+              req.onerror = next;
+            };
+            next();
+          });
+        }
+        await renderGamesTable();
+        if(typeof renderTeamsAggregate === "function"){ await renderTeamsAggregate(); }
+      });
+    }
+
+    function showOk(msg){ $("alerts").innerHTML = `<div class="p-3 rounded-lg bg-green-100 text-green-800 mb-3 shadow-sm">${msg}</div>`; }
+    function showError(msg){ $("alerts").innerHTML = `<div class="p-3 rounded-lg bg-red-100 text-red-800 mb-3 shadow-sm">${msg}</div>`; }
+
+    async function parseNow(){
+      $("alerts").innerHTML=""; $("mappingWarn").classList.add('hidden');
+      try{
+        RAW=JSON.parse($("jsonTa").value||"{}");
+        const {rows, teamMap, missing}=extractPlayers(RAW);
+        PLAYERS=rows; TEAMMAP=teamMap;
+        $("gameId").value = String(await nextGameSerial());
+        $("gameDate").value=(new Date()).toISOString().slice(0,10);
+        showOk(`נותח בהצלחה: ${Object.keys(TEAMMAP).length} קבוצה/ות, ${PLAYERS.length} שחקנים`);
+        if(missing.length){
+          $("mappingWarn").textContent = `לשמות הקבוצות הבאים אין מיפוי לעברית: ${missing.join(' | ')}. הוסף מיפוי בלחיצה על "הוסף מיפוי".`;
+          $("mappingWarn").classList.remove('hidden');
+        }
+        render();
+      }catch(e){
+        showError("JSON לא תקין: "+(e?.message||e));
+      }
+    }
+
+</script>
+    <script>
+/* ====== Inlined: app_events.fixed.js ====== */
+// SAFE DOM-READY EVENT WIRING (patched)
+(function(){ 
+  function byId(id){ return document.getElementById(id); }
+  function on(el, ev, fn){ if(el) el.addEventListener(ev, fn, false); }
+  function setOnClick(id, fn){ const el = byId(id); if(el && typeof fn==='function') el.onclick = fn; }
+  function getSwitchTab(){ 
+    if (typeof switchTab === 'function') return switchTab; 
+    if (window.App && typeof window.App.switchTab === 'function') return window.App.switchTab; 
+    return null; 
+  }
+
+  function wire(){ 
+    try {
+      const _switchTab = getSwitchTab();
+      if (_switchTab) {
+        document.querySelectorAll('#tabs .tab').forEach(b => on(b, 'click', () => _switchTab(b.dataset.tab)));
+      }
+
+      setOnClick('chooseBtn', () => byId('file') && byId('file').click());
+      const fileEl = byId('file');
+      if (fileEl) {
+        on(fileEl, 'change', () => {
+          const f = fileEl.files && fileEl.files[0];
+          if(!f) return;
+          const r = new FileReader();
+          r.onload = () => { const ta = byId('jsonTa'); if(ta) ta.value = String(r.result||''); if (typeof parseNow === 'function') parseNow(); };
+          r.onerror = () => (typeof showError === 'function' && showError('שגיאה בקריאת הקובץ'));
+          r.readAsText(f);
+        });
+      }
+
+      setOnClick('parseBtn', () => (typeof parseNow === 'function' && parseNow()));
+      const tnp = byId('toggleNonPlaying');
+      if (tnp) on(tnp, 'change', () => (typeof render === 'function' && render()));
+
+      setOnClick('resetBtn', () => { if (typeof listTeams === 'function') { 
+        try{ 
+          window.RAW=null; window.TEAMMAP={}; window.PLAYERS=[]; 
+          const ta = byId('jsonTa'); if(ta) ta.value='';
+          ['gameId','gameDate','gameCycle'].forEach(id=>{ const el=byId(id); if(el) el.value=''; });
+          const res = byId('results'); if(res) res.classList.add('hidden');
+          const alerts = byId('alerts'); if(alerts) alerts.innerHTML='';
+          if (window.CHARTS && window.CHARTS.pointsChart) { window.CHARTS.pointsChart.destroy(); window.CHARTS.pointsChart=null; }
+          if (window.CHARTS && window.CHARTS.efficiencyChart) { window.CHARTS.efficiencyChart.destroy(); window.CHARTS.efficiencyChart=null; }
+          const pbt = byId('playersByTeams'); if(pbt) pbt.innerHTML='';
+          const mw = byId('mappingWarn'); if(mw) mw.classList.add('hidden');
+          listTeams();
+        }catch(e){ console.error(e); }
+      }});
+
+      setOnClick('copyNotes', async () => {
+        try { await navigator.clipboard.writeText((byId('notes')||{}).value||''); typeof showOk==='function' && showOk('הסיכום הועתק ללוח'); setTimeout(()=>{ const a=byId('alerts'); if(a) a.innerHTML=''; },1500); }
+        catch(e){ typeof showError==='function' && showError('העתקה ללוח לא נתמכת במצב זה'); }
+      });
+
+      setOnClick('openTeamModal', () => (typeof openEditTeam==='function' && openEditTeam(null)));
+      setOnClick('closeTeamModal', () => { const m=byId('teamModal'); if(m) m.classList.add('hidden'); });
+      setOnClick('cancelTeam', () => { const m=byId('teamModal'); if(m) m.classList.add('hidden'); });
+      setOnClick('saveToDbBtn', () => (typeof saveToDatabase==='function' && saveToDatabase()));
+
+      const ps = byId('playersSearch'); if (ps) on(ps, 'input', () => (typeof renderPlayersTable==='function' && renderPlayersTable()));
+      const gs = byId('gamesSearch'); if (gs) on(gs, 'input', () => (typeof renderGamesTable==='function' && renderGamesTable()));
+
+      setOnClick('saveTeam', async () => {
+        const teamId = (byId('tm_teamId')?.value||'').trim() || `t-${Math.random().toString(16).substring(2, 12)}`;
+        const nameEn = (byId('tm_nameEn')?.value||'').trim();
+        const nameHe = (byId('tm_nameHe')?.value||'').trim();
+        const shortHe = (byId('tm_shortHe')?.value||'').trim();
+        const aliases = (byId('tm_aliases')?.value||'').split(';').map(a => a.trim()).filter(Boolean);
+        try {
+          if (typeof upsertTeam === 'function') {
+            await upsertTeam({ team_id: teamId, name_en: nameEn, name_he: nameHe, short_he: shortHe, aliases, league: 'IL-National-League', season: '2024-25' });
+          }
+          const m=byId('teamModal'); if(m) m.classList.add('hidden');
+          if (typeof listTeams === 'function') await listTeams();
+          if (window.RAW && byId('jsonTa') && typeof parseNow==='function') { typeof showOk==='function' && showOk('קבוצה נשמרה. מרענן ניתוח...'); setTimeout(()=>{ parseNow(); }, 500); }
+          else { typeof showOk==='function' && showOk('קבוצה נשמרה בהצלחה'); }
+        } catch(err) { typeof showError==='function' && showError('שגיאה בשמירת קבוצה: ' + (err?.message || err)); }
+      });
+
+      on(document, 'click', async (e) => {
+        const editBtn = e.target.closest('button.editTeam');
+        const delBtn  = e.target.closest('button.delTeam');
+        if(editBtn && typeof getTeam==='function' && typeof openEditTeam==='function'){
+          const id = editBtn.dataset.id; const t = await getTeam(id); openEditTeam(t);
+        }
+        if(delBtn && typeof deleteTeam==='function'){
+          const id = delBtn.dataset.id; if(confirm('למחוק קבוצה?')){ await deleteTeam(id); typeof showOk==='function' && showOk('קבוצה נמחקה'); }
+        }
+      });
+
+      // Manage Players modal
+      setOnClick('openPlayerModal', () => (typeof openEditPlayerMap==='function' && openEditPlayerMap(null)));
+      setOnClick('closePlayerModal', () => { const m=byId('playerModal'); if(m) m.classList.add('hidden'); });
+      setOnClick('cancelPlayerMap', () => { const m=byId('playerModal'); if(m) m.classList.add('hidden'); });
+
+      setOnClick('savePlayerMap', async () => {
+        const rec = {
+          first_en:  (byId('pm_firstEn')?.value||'').trim(),
+          family_en: (byId('pm_familyEn')?.value||'').trim(),
+          first_he:  (byId('pm_firstHe')?.value||'').trim(),
+          family_he: (byId('pm_familyHe')?.value||'').trim(),
+          jersey:    (byId('pm_jersey')?.value||'').trim(),
+          team_en:   (byId('pm_teamEn')?.value||'').trim()
+        };
+        const suggested = (typeof computeLookupFromModal==='function'&&computeLookupFromModal()) || '';
+        const keyEl = byId('pm_lookupKey');
+        const key = (keyEl && keyEl.value ? keyEl.value : suggested).trim();
+        if(!rec.first_en || !rec.family_en || !rec.first_he || !rec.family_he){ typeof showError==='function' && showError('יש למלא אנגלית + עברית (שם פרטי + משפחה)'); return; }
+        rec.lookup_key = key;
+        try {
+          if (typeof upsertPlayerMapping === 'function') await upsertPlayerMapping(rec);
+          const m=byId('playerModal'); if(m) m.classList.add('hidden');
+          if (typeof listPlayerMappings === 'function') await listPlayerMappings();
+          typeof showOk==='function' && showOk('מיפוי שחקן נשמר בהצלחה');
+        } catch(err) { typeof showError==='function' && showError('שגיאה בשמירת מיפוי: ' + (err?.message||err)); }
+      });
+
+      on(document, 'click', async (e)=>{
+        const editPM = e.target.closest('button.editPlayerMap');
+        const delPM  = e.target.closest('button.delPlayerMap');
+        if(editPM){
+          const key = editPM.dataset.k;
+          if (window.DB_AVAILABLE && window.DB) {
+            const rec = await new Promise((res)=>{
+              const tx = DB.transaction(['player_mappings'], 'readonly');
+              const st = tx.objectStore('player_mappings');
+              const rq = st.get(key);
+              rq.onsuccess = ()=>res(rq.result||null);
+              rq.onerror   = ()=>res(null);
+            });
+            if (typeof openEditPlayerMap==='function') openEditPlayerMap(rec);
+          }
+        }
+        if(delPM && typeof deletePlayerMapping==='function' && typeof listPlayerMappings==='function'){
+          const key = delPM.dataset.k;
+          if(confirm('למחוק מיפוי?')){ await deletePlayerMapping(key); await listPlayerMappings(); typeof showOk==='function' && showOk('המיפוי נמחק'); }
+        }
+      });
+
+      // Export / Import
+      setOnClick('exportPlayersMapBtn', async () => {
+        if(!(window.DB_AVAILABLE && window.DB)) { typeof showError==='function' && showError('מסד נתונים אינו זמין'); return; }
+        const rows=[];
+        await new Promise(res=>{
+          const tx = DB.transaction(['player_mappings'], 'readonly');
+          const st = tx.objectStore('player_mappings');
+          const rq = st.openCursor();
+          rq.onsuccess = (e)=>{ const c=e.target.result; if(!c) return res(); rows.push(c.value); c.continue(); };
+        });
+        const dataStr = JSON.stringify(rows, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display='none'; a.href=url; a.download=`player_mappings_${new Date().toISOString().slice(0,10)}.json`;
+        document.body.appendChild(a); a.click();
+        setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+      });
+
+      setOnClick('importPlayersMapBtn', () => { const el=byId('importPlayersMapFile'); if(el) el.click(); });
+      const ipf = byId('importPlayersMapFile');
+      if (ipf) on(ipf, 'change', async (e)=>{
+        const file = e.target.files && e.target.files[0];
+        e.target.value = '';
+        if(!file) return;
+        try{
+          const text = await file.text();
+          const rows = JSON.parse(text);
+          if(!Array.isArray(rows)) { typeof showError==='function' && showError('קובץ חייב להכיל מערך של מיפויים'); return; }
+          const tx = DB.transaction(['player_mappings'], 'readwrite');
+          const st = tx.objectStore('player_mappings');
+          for(const r of rows){
+            if(!r.lookup_key && typeof normalizeKey==='function'){
+              r.lookup_key = normalizeKey(r.first_en||'', r.family_en||'', r.jersey||'', r.team_en||'');
+            }
+            await new Promise((res)=>{ const rq = st.put(r); rq.onsuccess=()=>res(); rq.onerror=()=>res(); });
+          }
+          if (typeof loadPlayerMappingsIndex==='function') await loadPlayerMappingsIndex();
+          if (typeof listPlayerMappings==='function') await listPlayerMappings();
+          typeof showOk==='function' && showOk(`יובאו ${rows.length} מיפויים`);
+        }catch(err){ typeof showError==='function' && showError('שגיאה בייבוא מיפויים: '+(err?.message||err)); }
+      });
+
+      setOnClick('migratePlayersBtn', () => (typeof migratePlayerDatabase==='function' && migratePlayerDatabase()));
+      setOnClick('exportDbBtn', () => (typeof exportFullDatabase==='function' && exportFullDatabase()));
+      setOnClick('importDbBtn', () => { const el=byId('importDbFile'); if(el) el.click(); });
+      const idf = byId('importDbFile');
+      if (idf) on(idf, 'change', (e) => { const file = e.target.files && e.target.files[0]; if (file && typeof importFullDatabase==='function') importFullDatabase(file); e.target.value=''; });
+
+      setOnClick('exportTeamsBtn', () => (typeof exportTeams==='function' && exportTeams()));
+      setOnClick('importTeamsBtn', () => { const el=byId('importTeamsFile'); if(el) el.click(); });
+      const itf = byId('importTeamsFile');
+      if (itf) on(itf, 'change', (e) => { const file = e.target.files && e.target.files[0]; if (file && typeof importTeams==='function') importTeams(file); e.target.value=''; });
+
+      // Games delete handler re-wire (in case original didn't bind)
+      const gamesTbody = byId('gamesTbody');
+      if (gamesTbody && typeof deleteGameById==='function') {
+        on(gamesTbody, 'click', async (ev)=>{
+          const btn = ev.target.closest('button[data-del]');
+          if(!btn) return;
+          const id = btn.getAttribute('data-del');
+          if(!id) return;
+          if(confirm(`למחוק את המשחק ${id}?`)){
+            await deleteGameById(id);
+            if (typeof renderGamesTable==='function') await renderGamesTable();
+            if (typeof renderTeamsAggregate==='function') await renderTeamsAggregate();
+          }
+        });
+      }
+    } catch(err) { console.error('Event wiring error:', err); }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', wire, false);
+  } else {
+    wire();
+  }
+})();
+
+</script>
+    <script>
+/* ====== Inlined: app_bootstrap.js ====== */
+// Bootstrap: ensure DB and indices are ready before any save attempts
+window.addEventListener('load', async () => {
+  try {
+    if (typeof initDb === 'function') {
+      await initDb();
+    }
+    if (typeof loadTeamsIndex === 'function') {
+      await loadTeamsIndex();
+    }
+    if (typeof loadPlayerMappingsIndex === 'function') {
+      await loadPlayerMappingsIndex();
+    }
+    if (typeof listTeams === 'function') {
+      await listTeams();
+    }
+    if (typeof setNextGameSerialToUI === 'function') {
+      await setNextGameSerialToUI();
+    }
+    if (typeof initFormValidation === 'function') {
+      initFormValidation();
+    }
+
+    // Small visual cue
+    if (typeof DB_AVAILABLE !== 'undefined' && !DB_AVAILABLE) {
+      typeof showError === 'function' && showError("מסד הנתונים המקומי אינו זמין (ייתכן חלון פרטי/אורח).");
+    }
+  } catch (err) {
+    console.error('Bootstrap init error:', err);
+    if (typeof showError === 'function') {
+      showError('שגיאה באתחול: ' + (err && err.message ? err.message : err));
+    }
+  }
+});
+
+</script>
+    <script>
+/* ====== Inlined: app_expose.js ====== */
+// --- Stage 1/2: stable namespace exposure to avoid broken globals ---
+(function(){
+  try {
+    var _App = (window.App && typeof window.App==='object') ? window.App : {};
+    Object.defineProperty(_App, 'DB_AVAILABLE', { get: function(){ try { return DB_AVAILABLE; } catch(e){ return false; } } });
+    if (typeof initDb !== 'undefined') _App['initDb'] = initDb;
+    if (typeof loadTeamsIndex !== 'undefined') _App['loadTeamsIndex'] = loadTeamsIndex;
+    if (typeof loadPlayerMappingsIndex !== 'undefined') _App['loadPlayerMappingsIndex'] = loadPlayerMappingsIndex;
+    if (typeof setNextGameSerialToUI !== 'undefined') _App['setNextGameSerialToUI'] = setNextGameSerialToUI;
+    if (typeof listTeams !== 'undefined') _App['listTeams'] = listTeams;
+    if (typeof initFormValidation !== 'undefined') _App['initFormValidation'] = initFormValidation;
+    if (typeof renderTeamsAggregate !== 'undefined') _App['renderTeamsAggregate'] = renderTeamsAggregate;
+    if (typeof renderPlayersTable !== 'undefined') _App['renderPlayersTable'] = renderPlayersTable;
+    if (typeof renderGamesTable !== 'undefined') _App['renderGamesTable'] = renderGamesTable;
+    if (typeof switchTab !== 'undefined') _App['switchTab'] = switchTab;
+    if (typeof showOk !== 'undefined') _App['showOk'] = showOk;
+    if (typeof showError !== 'undefined') _App['showError'] = showError;
+    window.App = Object.freeze(_App);
+  } catch(e) {
+    console && console.warn && console.warn('App namespace exposure failed:', e);
+  }
+})();
+
+</script>
+
+</body>
+</html>

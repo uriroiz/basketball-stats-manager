@@ -1,0 +1,838 @@
+body {
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background-color: #f8fafc;
+    }
+
+    textarea {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono";
+    }
+
+    /* Old sticky-header rule removed - using new implementation */
+
+    .card {
+      background-color: white;
+      border-radius: 0.75rem;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08),
+                  0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      transition: all 0.3s ease;
+      overflow: hidden;
+    }
+
+    /* Optimize card spacing for better space utilization */
+    .card {
+      margin-bottom: 1rem;
+    }
+    
+    /* Ensure card doesn't constrain table width */
+    #view-players .card {
+      max-width: none;
+      width: 100%;
+      margin-bottom: 0.5rem;
+    }
+
+    .card:hover {
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08),
+                  0 4px 6px -2px rgba(0, 0, 0, 0.04);
+    }
+
+    .header-gradient {
+      background: linear-gradient(to right, #1e3a8a, #1e40af);
+      color: white;
+    }
+
+    .btn {
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .stats {
+      table-layout: fixed;
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+
+    .stats th,
+    .stats td {
+      border-bottom: 1px solid #e5e7eb;
+      padding: 0.75rem 0.5rem;
+      font-variant-numeric: tabular-nums;
+      vertical-align: middle;
+      height: 2.5rem;
+    }
+
+    .stats th:first-child,
+    .stats td:first-child {
+      text-align: right;
+    }
+
+    .stats td {
+      white-space: nowrap;
+    }
+
+    /* Optimized table wrapper for better space utilization */
+    #view-players .stats-wrap {
+      width: 100%;
+      max-height: 80vh;
+      overflow: auto;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.5rem;
+      box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Simple table styling */
+    #view-players .stats-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: auto;
+      font-family: system-ui, Arial, sans-serif;
+      direction: rtl;
+      font-variant-numeric: tabular-nums;
+      font-size: 0.85rem;
+    }
+
+    #view-players .stats-table th,
+    #view-players .stats-table td {
+      padding: 6px 10px;
+      border-bottom: 1px solid #e5e7eb;
+      background: #fff;
+      white-space: nowrap;
+    }
+
+    /* Compact header styling */
+    #view-players .stats-table thead th {
+      background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+      color: #fff;
+      height: 38px;
+      line-height: 38px;
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.025em;
+      box-shadow: 0 1px 0 0 #e5e7eb;
+    }
+
+    /* Header content (label + sort icon) stays on one line */
+    #view-players .stats-table thead th .th-inner {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    /* Alignment rules */
+    #view-players .stats-table th,
+    #view-players .stats-table td.num {             /* numeric cells default */
+      text-align: center;
+    }
+    #view-players .stats-table td.pct {             /* percentages */
+      direction: ltr;                 /* ensure 50.0% renders correctly in RTL table */
+      unicode-bidi: bidi-override;
+    }
+    #view-players .stats-table td.col-name,
+    #view-players .stats-table td.col-team {
+      text-align: right;              /* RTL-friendly for Hebrew/English names */
+    }
+
+    /* Zebra + hover for readability */
+    #view-players .stats-table tbody tr:nth-child(odd) { 
+      background: rgba(0,0,0,.015); 
+    }
+    #view-players .stats-table tbody tr:hover { 
+      background: rgba(30, 64, 175, 0.06); 
+    }
+
+    /* Keep borders and rounded header tabs looking clean */
+    #view-players .stats-table thead th:first-child { 
+      border-top-right-radius: 8px; 
+    }
+    #view-players .stats-table thead th:last-child  { 
+      border-top-left-radius: 8px;  
+    }
+
+    /* All numbers in black - removed color coding */
+    #view-players .stats-table td.pct { /* FG%, 3P%, FT% */
+      color: #000000;
+      font-weight: 500;
+    }
+
+    #view-players .stats-table td.num.efficiency { /* Efficiency */
+      color: #000000;
+      font-weight: 600;
+      direction: ltr; /* Fix minus sign position for negative numbers */
+      unicode-bidi: bidi-override;
+    }
+
+    #view-players .stats-table td.num.avg-points { /* Avg Points */
+      color: #000000;
+      font-weight: 600;
+    }
+
+    /* Main stats highlighting */
+    #view-players .stats-table td.num.points,
+    #view-players .stats-table td.num.rebounds,
+    #view-players .stats-table td.num.assists {
+      font-weight: 600;
+    }
+
+    /* Colgroup rules removed - using dynamic column sizing */
+
+    /* Sort indicators for new table structure */
+    #view-players .stats-table th[data-sort-field] {
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+
+    #view-players .stats-table th[data-sort-field]:hover {
+      background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+    }
+
+    #view-players .stats-table th[data-sort-field]::after {
+      content: '↕';
+      position: absolute;
+      right: 0.25rem;
+      opacity: 0.5;
+      font-size: 0.7rem;
+    }
+
+    #view-players .stats-table th[data-sort-field].sort-asc::after {
+      content: '↑';
+      opacity: 1;
+    }
+
+    #view-players .stats-table th[data-sort-field].sort-desc::after {
+      content: '↓';
+      opacity: 1;
+    }
+
+    /* Responsive design for mobile */
+    @media (max-width: 768px) {
+      #view-players .stats-table {
+        font-size: 0.75rem;
+      }
+
+      #view-players .stats-table thead th {
+        height: 36px;
+        line-height: 36px;
+        padding: 0 6px;
+        font-size: 0.7rem;
+      }
+
+      #view-players .stats-table tbody td {
+        padding: 6px 6px;
+        height: 32px;
+      }
+
+      /* Adjust column widths for mobile */
+      #view-players .stats-table th.col-name, #view-players .stats-table td.col-name {
+        min-width: 140px;
+        max-width: 180px;
+      }
+
+      #view-players .stats-table th.col-jersey, #view-players .stats-table td.col-jersey {
+        width: 50px;
+      }
+
+      #view-players .stats-table th.col-team, #view-players .stats-table td.col-team {
+        min-width: 100px;
+        max-width: 140px;
+      }
+
+      #view-players .stats-table th.col-games, #view-players .stats-table td.col-games {
+        width: 50px;
+      }
+
+      /* Slightly smaller numeric columns on mobile */
+      #view-players .stats-table td.num, #view-players .stats-table th.num {
+        min-width: 60px;
+      }
+
+      /* Percentage columns on mobile */
+      #view-players .stats-table td.pct, #view-players .stats-table th.pct {
+        min-width: 70px;
+      }
+    }
+
+    /* Extra small screens */
+    @media (max-width: 480px) {
+      #view-players .stats-table {
+        font-size: 0.7rem;
+      }
+
+      #view-players .stats-table thead th {
+        height: 32px;
+        line-height: 32px;
+        padding: 0 4px;
+        font-size: 0.65rem;
+      }
+
+      #view-players .stats-table tbody td {
+        padding: 4px 4px;
+        height: 28px;
+      }
+
+      /* Further reduce column widths for very small screens */
+      #view-players .stats-table th.col-name, #view-players .stats-table td.col-name {
+        min-width: 120px;
+        max-width: 160px;
+      }
+
+      #view-players .stats-table th.col-team, #view-players .stats-table td.col-team {
+        min-width: 80px;
+        max-width: 120px;
+      }
+
+      #view-players .stats-table th.col-jersey, #view-players .stats-table td.col-jersey,
+      #view-players .stats-table th.col-games, #view-players .stats-table td.col-games {
+        width: 45px;
+      }
+    }
+
+    /* Duplicate scroll container styling removed - using main implementation above */
+
+    /* Custom scrollbar styling */
+    #view-players .stats-wrap::-webkit-scrollbar {
+      height: 8px;
+    }
+
+    #view-players .stats-wrap::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 4px;
+    }
+
+    #view-players .stats-wrap::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+
+    #view-players .stats-wrap::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    /* Search bar styling */
+    #playersSearch {
+      border: 1px solid #d1d5db;
+      border-radius: 0.375rem;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.875rem;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      background-color: #ffffff;
+      width: 300px;
+      min-width: 250px;
+    }
+
+    #playersSearch:focus {
+      outline: none;
+      border-color: #1e40af;
+      box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+    }
+
+    /* Section header styling - REMOVED: Let all headers use consistent Tailwind classes */
+
+    /* Loading state styling */
+    #view-players .stats-table tbody tr.loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    /* Empty state styling */
+    #view-players .stats-table tbody tr.empty-state td {
+      text-align: center;
+      padding: 2rem;
+      color: #64748b;
+      font-style: italic;
+    }
+
+    .tab {
+      background: #e2e8f0;
+      color: #1e293b;
+      border-radius: 999px;
+      padding: 0.3rem 0.7rem;
+      font-size: 0.8rem;
+    }
+
+    .tab.active {
+      background: #1e40af;
+      color: #fff;
+    }
+
+    .muted {
+      color: #64748b;
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono";
+    }
+
+    /* Old ID column hiding rule removed - using new table structure */
+
+    /* Manage Players table wider first col */
+#playersMapList table .col-key {
+  direction: ltr;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono";
+  font-size: 12px;
+}
+
+    /* =========================================================
+       Teams Statistics Table - Same styling as Players Table
+       ========================================================= */
+
+    /* Teams table wrapper with scrolling */
+    #view-teams .stats-wrap {
+      width: 100%;
+      max-height: 80vh;
+      overflow: auto;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.5rem;
+      box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Teams stats table */
+    #view-teams .stats-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: auto;
+      font-family: system-ui, Arial, sans-serif;
+      direction: rtl;
+      font-variant-numeric: tabular-nums;
+      font-size: 0.85rem;
+    }
+
+    #view-teams .stats-table th,
+    #view-teams .stats-table td {
+      padding: 6px 10px;
+      border-bottom: 1px solid #e5e7eb;
+      background: #fff;
+      white-space: nowrap;
+    }
+
+    /* Teams table header styling */
+    #view-teams .stats-table thead th {
+      background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+      color: #fff;
+      height: 38px;
+      line-height: 38px;
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.025em;
+      box-shadow: 0 1px 0 0 #e5e7eb;
+    }
+
+    /* Header content styling */
+    #view-teams .stats-table thead th .th-inner {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    /* Alignment rules for teams table */
+    #view-teams .stats-table th,
+    #view-teams .stats-table td.num {
+      text-align: center;
+    }
+    
+    #view-teams .stats-table td.pct {
+      direction: ltr;
+      unicode-bidi: bidi-override;
+      text-align: center;
+    }
+    
+    #view-teams .stats-table td.col-team {
+      text-align: right;
+    }
+
+    /* Zebra striping and hover for teams table */
+    #view-teams .stats-table tbody tr:nth-child(odd) { 
+      background: rgba(0,0,0,.015); 
+    }
+    #view-teams .stats-table tbody tr:hover { 
+      background: rgba(30, 64, 175, 0.06); 
+    }
+
+    /* Sort indicators for teams table */
+    #view-teams .stats-table th[data-sort-field] {
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+
+    #view-teams .stats-table th[data-sort-field]:hover {
+      background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+    }
+
+    #view-teams .stats-table th[data-sort-field]::after {
+      content: '↕';
+      position: absolute;
+      right: 0.25rem;
+      opacity: 0.5;
+      font-size: 0.7rem;
+    }
+
+    #view-teams .stats-table th[data-sort-field].sort-asc::after {
+      content: '↑';
+      opacity: 1;
+    }
+
+    #view-teams .stats-table th[data-sort-field].sort-desc::after {
+      content: '↓';
+      opacity: 1;
+    }
+
+    /* All numbers in black - removed color coding */
+    #view-teams .stats-table td.pct {
+      color: #000000;
+      font-weight: 500;
+    }
+
+    #view-teams .stats-table td.num.col-pts {
+      color: #000000;
+      font-weight: 600;
+    }
+
+    /* Main stats highlighting for teams table */
+    #view-teams .stats-table td.num.col-reb,
+    #view-teams .stats-table td.num.col-ast,
+    #view-teams .stats-table td.num.col-stl {
+      font-weight: 600;
+    }
+
+    /* Responsive design for teams table */
+    @media (max-width: 768px) {
+      #view-teams .stats-table {
+        font-size: 0.75rem;
+      }
+
+      #view-teams .stats-table thead th {
+        height: 36px;
+        line-height: 36px;
+        padding: 0 6px;
+        font-size: 0.7rem;
+      }
+
+      #view-teams .stats-table tbody td {
+        padding: 6px 6px;
+        height: 32px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      #view-teams .stats-table {
+        font-size: 0.7rem;
+      }
+
+      #view-teams .stats-table thead th {
+        height: 32px;
+        line-height: 32px;
+        padding: 0 4px;
+        font-size: 0.65rem;
+      }
+
+      #view-teams .stats-table tbody td {
+        padding: 4px 4px;
+        height: 28px;
+      }
+    }
+
+    /* =========================================================
+       Universal Table Styling - Apply to ALL tables
+       ========================================================= */
+
+    /* Universal table wrapper with scrolling */
+    .stats-wrap {
+      width: 100%;
+      max-height: 80vh;
+      overflow: auto;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.5rem;
+      box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Universal stats table */
+    .stats-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: auto;
+      font-family: system-ui, Arial, sans-serif;
+      direction: rtl;
+      font-variant-numeric: tabular-nums;
+      font-size: 0.85rem;
+    }
+
+    .stats-table th,
+    .stats-table td {
+      padding: 6px 10px;
+      border-bottom: 1px solid #e5e7eb;
+      background: #fff;
+      white-space: nowrap;
+    }
+
+    /* Universal table header styling */
+    .stats-table thead th {
+      background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+      color: #fff;
+      height: 38px;
+      line-height: 38px;
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.025em;
+      box-shadow: 0 1px 0 0 #e5e7eb;
+    }
+
+    /* Header content styling */
+    .stats-table thead th .th-inner {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    /* Universal alignment rules */
+    .stats-table th,
+    .stats-table td.num {
+      text-align: center;
+    }
+    
+    .stats-table td.pct {
+      direction: ltr;
+      unicode-bidi: bidi-override;
+      text-align: center;
+    }
+    
+    .stats-table td.col-team,
+    .stats-table td.col-name {
+      text-align: right;
+    }
+
+    /* Universal zebra striping and hover */
+    .stats-table tbody tr:nth-child(odd) { 
+      background: rgba(0,0,0,.015); 
+    }
+    .stats-table tbody tr:hover { 
+      background: rgba(30, 64, 175, 0.06); 
+    }
+
+    /* Universal sort indicators */
+    .stats-table th[data-sort-field] {
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+
+    .stats-table th[data-sort-field]:hover {
+      background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+    }
+
+    .stats-table th[data-sort-field]::after {
+      content: '↕';
+      position: absolute;
+      right: 0.25rem;
+      opacity: 0.5;
+      font-size: 0.7rem;
+    }
+
+    .stats-table th[data-sort-field].sort-asc::after {
+      content: '↑';
+      opacity: 1;
+    }
+
+    .stats-table th[data-sort-field].sort-desc::after {
+      content: '↓';
+      opacity: 1;
+    }
+
+    /* All numbers in black - removed color coding */
+    .stats-table td.pct {
+      color: #000000;
+      font-weight: 500;
+    }
+
+    .stats-table td.num.efficiency {
+      color: #000000;
+      font-weight: 600;
+      direction: ltr; /* Fix minus sign position for negative numbers */
+      unicode-bidi: bidi-override;
+    }
+
+    .stats-table td.num.avg-points {
+      color: #000000;
+      font-weight: 600;
+    }
+
+    /* Universal main stats highlighting */
+    .stats-table td.num.points,
+    .stats-table td.num.rebounds,
+    .stats-table td.num.assists {
+      font-weight: 600;
+    }
+
+    /* Universal responsive design */
+    @media (max-width: 768px) {
+      .stats-table {
+        font-size: 0.75rem;
+      }
+
+      .stats-table thead th {
+        height: 36px;
+        line-height: 36px;
+        padding: 0 6px;
+        font-size: 0.7rem;
+      }
+
+      .stats-table tbody td {
+        padding: 6px 6px;
+        height: 32px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .stats-table {
+        font-size: 0.7rem;
+      }
+
+      .stats-table thead th {
+        height: 32px;
+        line-height: 32px;
+        padding: 0 4px;
+        font-size: 0.65rem;
+      }
+
+      .stats-table tbody td {
+        padding: 4px 4px;
+        height: 28px;
+      }
+    }
+
+    /* Universal scrollbar styling */
+    .stats-wrap::-webkit-scrollbar {
+      height: 8px;
+    }
+
+    .stats-wrap::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 4px;
+    }
+
+    .stats-wrap::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+
+    .stats-wrap::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    /* Update Mode Indicator */
+    #saveToDbBtn.update-mode {
+      background: linear-gradient(to right, #ea580c, #f97316) !important;
+      border-color: #ea580c !important;
+      animation: pulse-orange 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-orange {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.4);
+      }
+      50% {
+        box-shadow: 0 0 0 8px rgba(249, 115, 22, 0);
+      }
+    }
+
+    /* RTL Table Fixes - Better alignment for Hebrew stats tables */
+    
+    /* Plus/Minus column: Force LTR to keep +/- on the correct side */
+    .plusminus-col {
+      direction: ltr !important;
+      text-align: center !important;
+      font-variant-numeric: tabular-nums;
+    }
+    
+    /* Ensure all numeric columns are centered and use monospace numbers */
+    .numeric-col,
+    .time-col,
+    .pct-col {
+      text-align: center !important;
+      font-variant-numeric: tabular-nums;
+    }
+    
+    /* Player name column stays right-aligned for RTL */
+    .player-name-col {
+      text-align: right !important;
+    }
+    
+    /* Improve overall table styling for better readability */
+    .stats thead th {
+      background-color: #f8fafc;
+      font-weight: 600;
+      border-bottom: 2px solid #e2e8f0;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    
+    .stats tbody tr {
+      transition: background-color 0.15s ease;
+    }
+    
+    .stats tbody tr:hover {
+      background-color: #f1f5f9 !important;
+    }
+    
+    /* Ensure numbers don't break in RTL context */
+    .stats td.numeric-col,
+    .stats td.time-col,
+    .stats td.pct-col,
+    .stats td.plusminus-col {
+      font-feature-settings: 'tnum' 1;
+      letter-spacing: 0.025em;
+    }
+    
+    /* Better visual separation for percentage columns */
+    .stats .pct-col {
+      font-size: 0.85em;
+      color: #000000;
+    }
+    
+    /* Highlight points column */
+    .stats tbody td:nth-child(4) {
+      background-color: #eff6ff;
+      font-weight: 700;
+    }
+    
+    /* RTL fixes for other stats tables (teams, players aggregate) */
+    .stats-table th.num,
+    .stats-table td.num,
+    .stats-table th.pct,
+    .stats-table td.pct {
+      text-align: center !important;
+      font-variant-numeric: tabular-nums;
+    }
+    
+    .stats-table th.col-name,
+    .stats-table td.col-name,
+    .stats-table th.col-team,
+    .stats-table td.col-team {
+      text-align: right !important;
+    }
+    
+    /* Ensure jersey numbers and other numeric fields are centered */
+    .stats-table th.col-jersey,
+    .stats-table td.col-jersey,
+    .stats-table th.col-games,
+    .stats-table td.col-games {
+      text-align: center !important;
+      font-variant-numeric: tabular-nums;
+    }
+

@@ -1,0 +1,832 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Basketball Stats Manager — IBBA Parser + DB</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+  
+  <!-- Supabase Client Library -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <link rel="stylesheet" href="css/styles.css?v=21">
+    
+    <!-- Environment Configuration -->
+    <script src="env.js"></script>
+</head>
+<body class="bg-slate-100 text-gray-900">
+  <div class="max-w-none mx-auto px-2 md:px-4 py-4">
+    <div class="header-gradient rounded-lg p-3 mb-3 shadow-md">
+      <h1 class="text-2xl font-bold mb-1 text-center">Basketball Stats Manager</h1>
+      <p class="text-sm text-center text-blue-100">Parser IBBA • ניהול קבוצות • שמירה למסד • טאב משחקים/קבוצות/שחקנים</p>
+      <div class="text-xs text-center text-blue-200 mt-2 flex items-center justify-center gap-3">
+        <span class="version-display bg-blue-800/30 px-2 py-1 rounded-full">v1.0.0+20250117.001</span>
+        <button id="loginBtn" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-full text-xs font-medium transition-colors">
+          🔐 כניסת מנהל
+        </button>
+        <button id="logoutBtn" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-full text-xs font-medium transition-colors" style="display: none;">
+          🚪 יציאה
+        </button>
+        <span id="authIndicator" class="bg-green-500/20 text-green-200 px-2 py-1 rounded-full text-xs" style="display: none;">
+          👤 מנהל מחובר
+        </span>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <nav id="tabs" class="flex flex-wrap items-center gap-2 justify-center mb-4">
+      <button class="tab active" data-tab="ingest">ייבוא וניתוח</button>
+      <button class="tab" data-tab="games">כל המשחקים</button>
+      <button class="tab" data-tab="teams">סטטיסטיקות קבוצתיות</button>
+      <button class="tab" data-tab="players">סטטיסטיקות שחקנים</button>
+      <button class="tab" data-tab="manageTeams">ניהול קבוצות</button>
+      <button class="tab" data-tab="managePlayers">ניהול שחקנים</button>
+      <button class="tab" data-tab="transfers">ניהול העברות</button>
+      <button class="tab" data-tab="gamePrep">הכנה למשחק</button>
+      <button class="tab" data-tab="tools">כלים מתקדמים</button>
+    </nav>
+
+    <div id="alerts"></div>
+
+    <!-- ========== Ingest (view-ingest) ========== -->
+    <section id="view-ingest">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <!-- קלט JSON -->
+        <div class="md:col-span-3 card p-4">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <span class="text-sm font-medium">העלה קובץ JSON או הדבק כאן:</span>
+            <div class="flex gap-2">
+              <input id="file" type="file" accept=".json,application/json" class="hidden" />
+              <button id="chooseBtn" class="btn px-3 py-1.5 text-sm bg-blue-100 text-blue-800 rounded hover:bg-blue-200">בחר קובץ</button>
+              <button id="parseBtn" class="btn px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">פענח</button>
+            </div>
+          </div>
+          <div class="mb-3">
+            <div class="flex gap-2">
+              <input type="text" id="gameUrlInput" placeholder="הכנס קישור למשחק (למשל: https://fibalivestats.dcd.shared.geniussports.com/data/2733003/data.json)" class="flex-1 px-3 py-2 border border-gray-300 rounded text-sm">
+              <button id="loadFromUrlBtn" class="btn bg-purple-500 text-white text-sm rounded px-3 py-2 hover:bg-purple-600">
+                טען מהקישור
+              </button>
+              <button id="copyUrlBtn" class="btn bg-gray-500 text-white text-sm rounded px-3 py-2 hover:bg-gray-600 hidden">
+                העתק קישור לדוגמה
+              </button>
+              <button id="pasteDataBtn" class="btn bg-green-500 text-white text-sm rounded px-3 py-2 hover:bg-green-600">
+                הדבק נתונים
+              </button>
+              <button id="openUrlBtn" class="btn bg-orange-500 text-white text-sm rounded px-3 py-2 hover:bg-orange-600">
+                פתח קישור
+              </button>
+            </div>
+            <div class="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <div class="text-xs text-amber-800 mb-2">
+                <strong>💡 פתרון בעיות CORS:</strong>
+              </div>
+              <div class="text-xs text-amber-700 space-y-1">
+                <div>• אם הטעינה נכשלת, נסה את הפתרונות הבאים:</div>
+                <div>• <strong>פתח קישור:</strong> לחץ על "פתח קישור" והעתק את הנתונים ידנית</div>
+                <div>• <strong>הרחבה:</strong> התקן "CORS Unblock" או "CORS Everywhere"</div>
+                <div>• <strong>דפדפן:</strong> פתח עם <code>--disable-web-security</code></div>
+                <div>• <strong>פרוקסי:</strong> האתר מנסה מספר שרתי פרוקסי אוטומטית</div>
+              </div>
+            </div>
+          </div>
+          <div class="h-56 bg-white border border-blue-200 rounded-lg p-2 text-xs shadow-sm">
+            <textarea id="jsonTa" class="w-full h-full outline-none resize-none" placeholder="IBBA JSON (tm לקבוצות, pl לשחקנים)"></textarea>
+          </div>
+        </div>
+
+        <!-- אפשרויות -->
+        <div class="card p-4 space-y-4">
+          <h2 class="text-lg font-semibold mb-1 text-blue-900">הגדרות</h2>
+          <!-- Hidden field to track update mode -->
+          <input type="hidden" id="updateModeGameId" value="">
+          <div>
+            <label class="block text-xs mb-1 text-gray-600">מזהה משחק (סידורי)</label>
+            <input id="gameId" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mono" readonly placeholder="1" />
+          </div>
+          <div>
+            <label class="block text-xs mb-1 text-gray-600">תאריך</label>
+            <input id="gameDate" type="date" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs mb-1 text-gray-600">מחזור</label>
+            <input id="gameCycle" type="number" min="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="הזן מספר מחזור" />
+          </div>
+          <div class="flex items-center justify-between border border-gray-200 rounded-lg p-3">
+            <label class="flex items-center gap-2 text-xs cursor-pointer">
+              <input id="toggleNonPlaying" type="checkbox" class="w-4 h-4">
+              <span>הצג שחקנים שלא שיחקו (0:00)</span>
+            </label>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <button id="saveToDbBtn" class="btn w-full text-sm bg-green-600 text-white rounded-lg px-3 py-2 hover:bg-green-700">שמור למסד</button>
+            <button id="cleanupOldSystemBtn" class="btn w-full text-sm bg-red-600 text-white rounded-lg px-3 py-2 hover:bg-red-700 mt-2 hidden">נקה מערכת ישנה</button>
+            <button id="closeDbConnectionBtn" class="btn w-full text-sm bg-gray-600 text-white rounded-lg px-3 py-2 hover:bg-gray-700 mt-2 hidden">סגור קשרי מסד נתונים</button>
+            <button id="resetBtn" class="btn w-full text-sm bg-red-100 text-red-700 rounded-lg px-3 py-2 hover:bg-red-200">איפוס</button>
+          </div>
+
+          <div class="border-t pt-3 mt-3">
+            <div class="flex items-start gap-3">
+              <button id="clearDbBtn" class="btn bg-red-600 text-white text-sm rounded px-3 py-2 hover:bg-red-700">נקה מסד נתונים</button>
+              <p class="text-xs text-gray-600 leading-5">
+                פעולה בלתי הפיכה. נדרש אישור כפול. מומלץ לרענן את העמוד לאחר הניקוי.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- פידבק מיפוי חסר -->
+      <div id="mappingWarn" class="hidden mt-4 p-3 bg-amber-100 text-amber-900 rounded border border-amber-200"></div>
+
+      <!-- תוצאות -->
+      <div id="results" class="mt-6 hidden">
+        <!-- שחקנים – מחולקים לקבוצות -->
+        <div id="playersByTeams" class="space-y-6"></div>
+      </div>
+    </section>
+
+    <!-- ========== All Games (view-games) ========== -->
+    <section id="view-games" class="hidden">
+      <div class="card p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-bold text-blue-900">כל המשחקים</h2>
+          <input id="gamesSearch" class="px-3 py-2 border rounded text-sm" placeholder="חיפוש לפי מזהה/מחזור/תאריך/קבוצה (חיפוש אוטומטי)">
+        </div>
+        <div class="stats-wrap">
+          <table class="stats-table w-full text-sm">
+            <thead>
+              <tr>
+                <th class="col-team" data-sort-field="gameId">מזהה משחק</th>
+                <th class="num" data-sort-field="cycle">מחזור</th>
+                <th class="num" data-sort-field="date">תאריך</th>
+                <th class="col-team" data-sort-field="game">משחק</th>
+                <th class="col-team" data-sort-field="result">תוצאה</th>
+                <th class="col-team">פעולות</th>
+              </tr>
+            </thead>
+            <tbody id="gamesTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== Teams Aggregate (view-teams) ========== -->
+    <section id="view-teams" class="hidden">
+      <div class="card p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-bold text-blue-900">סטטיסטיקות קבוצתיות מצטברות (<span id="teamsCount">0</span>)</h2>
+          <input id="teamsSearch" class="px-3 py-2 border rounded text-sm w-64" placeholder="חפש קבוצה">
+        </div>
+        <div class="stats-wrap">
+          <table class="stats-table w-full text-sm">
+            <thead>
+              <tr>
+                <th class="col-team" data-sort-field="team">קבוצה</th>
+                <th class="num" data-sort-field="games">מש'</th>
+                <th class="num" data-sort-field="points">נק'</th>
+                <th class="num" data-sort-field="rebounds">ריב'</th>
+                <th class="num" data-sort-field="assists">אס'</th>
+                <th class="num" data-sort-field="steals">חט'</th>
+                <th class="num" data-sort-field="blocks">חס'</th>
+                <th class="num" data-sort-field="turnovers">איב'</th>
+                <th class="num" data-sort-field="fouls">עב'</th>
+                <th class="pct" data-sort-field="fgp">FG%</th>
+                <th class="pct" data-sort-field="tpp">3PT%</th>
+                <th class="pct" data-sort-field="ftp">FT%</th>
+                <th class="num" data-sort-field="efficiency">יעילות</th>
+              </tr>
+            </thead>
+            <tbody id="teamsAggTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== Players DB (view-players) ========== -->
+    <section id="view-players" class="hidden">
+      <div class="card p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-bold text-blue-900">סטטיסטיקות שחקנים (<span id="playersCount">0</span>)</h2>
+          <input id="playersSearch" class="px-3 py-2 border rounded text-sm" placeholder="חפש לפי שם/קבוצה/מס' חולצה/מזהה (חיפוש אוטומטי)">
+        </div>
+        <div class="stats-wrap">
+          <table class="stats-table" dir="rtl">
+            <thead>
+              <tr>
+        <th class="col-name" data-sort-field="name">
+          <div class="th-inner">שחקן</div>
+        </th>
+        <th class="col-jersey" data-sort-field="jersey">
+          <div class="th-inner">מס'</div>
+        </th>
+        <th class="col-team" data-sort-field="team">
+          <div class="th-inner">קבוצה</div>
+        </th>
+                <th class="col-games" data-sort-field="games">
+                  <div class="th-inner">מש'</div>
+                </th>
+                <th class="num points" data-sort-field="totalPoints">
+                  <div class="th-inner">נק'</div>
+                </th>
+                <th class="num rebounds" data-sort-field="totalRebounds">
+                  <div class="th-inner">ריב'</div>
+                </th>
+                <th class="num assists" data-sort-field="totalAssists">
+                  <div class="th-inner">אס'</div>
+                </th>
+                <th class="num" data-sort-field="totalSteals">
+                  <div class="th-inner">חט'</div>
+                </th>
+                <th class="num" data-sort-field="totalBlocks">
+                  <div class="th-inner">חס'</div>
+                </th>
+                <th class="num" data-sort-field="totalTurnovers">
+                  <div class="th-inner">איב'</div>
+                </th>
+                <th class="num" data-sort-field="totalFouls">
+                  <div class="th-inner">עב'</div>
+                </th>
+                <th class="num" data-sort-field="totalFoulsDrawn">
+                  <div class="th-inner">סחט'</div>
+                </th>
+                <th class="num pct" data-sort-field="fgPercentage">
+                  <div class="th-inner">FG%</div>
+                </th>
+                <th class="num pct" data-sort-field="threePointPercentage">
+                  <div class="th-inner">3PT%</div>
+                </th>
+                <th class="num pct" data-sort-field="ftPercentage">
+                  <div class="th-inner">FT%</div>
+                </th>
+                <th class="num efficiency" data-sort-field="avgEfficiency">
+                  <div class="th-inner">יעילות</div>
+                </th>
+                <th class="num avg-points" data-sort-field="avgPoints">
+                  <div class="th-inner">ממוצע נק'</div>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="playersTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== Manage Teams (view-manageTeams) ========== -->
+    <section id="view-manageTeams" class="hidden">
+      <div class="card p-4 space-y-4">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-lg font-bold text-blue-900">ניהול קבוצות (<span id="manageTeamsCount">0</span>)</h2>
+          <div class="flex gap-2">
+            <button id="openTeamModal" class="btn text-sm bg-blue-600 text-white rounded px-3 py-2 hover:bg-blue-700">הוסף מיפוי</button>
+            <button id="exportTeamsBtn" class="btn text-sm bg-green-600 text-white rounded px-3 py-2 hover:bg-green-700">ייצא קבוצות</button>
+            <input id="importTeamsFile" type="file" accept=".json" class="hidden">
+            <button id="importTeamsBtn" class="btn text-sm bg-amber-500 text-white rounded px-3 py-2 hover:bg-amber-600">ייבא קבוצות</button>
+          </div>
+        </div>
+        <p class="text-xs text-gray-600">מיפוי שמות קבוצות מאנגלית לעברית. אם נתקל בשם לא ממופה, תופיע התרעה.</p>
+        <div id="teamsList" class="mt-2 stats-wrap" style="max-height:500px">
+          <table class="w-full text-xs stats-table">
+            <thead>
+              <tr>
+                <th class="col-team" data-sort-field="teamId">team_id</th>
+                <th class="col-team" data-sort-field="nameEn">EN</th>
+                <th class="col-team" data-sort-field="nameHe">HE</th>
+                <th class="col-team" data-sort-field="aliases">Aliases</th>
+                <th class="col-team">פעולות</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    
+<!-- ========== Manage Players (view-managePlayers) ========== -->
+<section id="view-managePlayers" class="hidden">
+  <div class="card p-4 space-y-4">
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="text-lg font-bold text-blue-900">ניהול שחקנים</h2>
+      <div class="flex gap-2">
+        <button id="openPlayerModal" class="btn text-sm bg-blue-600 text-white rounded px-3 py-2 hover:bg-blue-700">הוסף מיפוי</button>
+        <button id="exportPlayersMapBtn" class="btn text-sm bg-green-600 text-white rounded px-3 py-2 hover:bg-green-700">ייצא שחקנים</button>
+        <input id="importPlayersMapFile" type="file" accept=".json" class="hidden">
+        <button id="importPlayersMapBtn" class="btn text-sm bg-amber-500 text-white rounded px-3 py-2 hover:bg-amber-600">ייבא שחקנים</button>
+      </div>
+    </div>
+    <p class="text-xs text-gray-600">
+      מיפוי שמות שחקנים לפי שמות באנגלית + מס' גופייה (אופציונלי) + קבוצה (אופציונלי) → לשמות בעברית.
+    </p>
+    <div id="playersMapList" class="mt-2 stats-wrap" style="max-height:500px" >
+      <div class="table-scroll">
+
+      <table class="w-full text-xs stats-table">
+        <thead>
+          <tr>
+            <th class="col-key" data-sort-field="lookupKey">lookup_key</th>
+            <th class="col-team" data-sort-field="firstNameHe">HE First</th>
+            <th class="col-team" data-sort-field="familyNameHe">HE Family</th>
+            <th class="num" data-sort-field="jersey">Jersey</th>
+            <th class="col-team" data-sort-field="teamEn">Team EN</th>
+            <th class="col-team">פעולות</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+    <!-- ========== Transfers (view-transfers) ========== -->
+    <section id="view-transfers" class="hidden">
+      <div class="card p-4 space-y-4">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-lg font-bold text-blue-900">ניהול העברות</h2>
+          <div class="flex gap-2">
+            <button id="refreshTransfersBtn" class="btn text-sm bg-blue-600 text-white rounded px-3 py-2 hover:bg-blue-700">רענן</button>
+            <button id="clearProcessedTransfersBtn" class="btn text-sm bg-red-600 text-white rounded px-3 py-2 hover:bg-red-700">נקה מוכנים</button>
+          </div>
+        </div>
+        
+        <p class="text-xs text-gray-600">
+          ניהול העברות שזוהו אוטומטית. המערכת מזהה העברות כשחקן מופיע בקבוצה אחרת.
+        </p>
+
+        <!-- Transfer Status Tabs -->
+        <div class="flex border-b border-gray-200">
+          <button id="transfersPendingTab" class="px-4 py-2 text-sm font-medium text-blue-600 border-b-2 border-blue-600">ממתינים (<span id="pendingCount">0</span>)</button>
+          <button id="transfersConfirmedTab" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700">מאושרים (<span id="confirmedCount">0</span>)</button>
+          <button id="transfersDismissedTab" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700">נדחו (<span id="dismissedCount">0</span>)</button>
+        </div>
+
+        <!-- Transfers List -->
+        <div id="transfersList" class="mt-4">
+          <!-- Transfers will be loaded here -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== Advanced Tools (view-tools) ========== -->
+    <section id="view-tools" class="hidden">
+      <div class="card p-4 space-y-4">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-lg font-bold text-blue-900">כלים מתקדמים</h2>
+        </div>
+        
+        <div class="border-t border-b py-4 my-4">
+          <h3 class="text-md font-semibold text-blue-800 mb-2">ניהול מאגר שחקנים</h3>
+          <div class="bg-amber-50 p-3 rounded-lg border border-amber-200 mb-3">
+            <p class="text-sm text-amber-800 mb-2">
+              <strong>שים לב:</strong> פעולה זו תסרוק את כל מאגר השחקנים ותמזג רשומות כפולות של אותו שחקן.
+              מומלץ לגבות את הנתונים לפני הפעלת הכלי.
+            </p>
+            <p class="text-xs text-amber-700">
+              הכלי יוצר מזהים חדשים לכל שחקן על בסיס השם, מספר הגופייה והקבוצה, וממזג את הסטטיסטיקות בהתאם.
+            </p>
+          </div>
+          <div class="flex gap-3">
+            <button id="migratePlayersBtn" class="btn bg-amber-500 text-white text-sm rounded px-3 py-2 hover:bg-amber-600">
+              מיגרציית מאגר שחקנים
+            </button>
+            <button id="recalcStatsBtn" class="btn bg-blue-500 text-white text-sm rounded px-3 py-2 hover:bg-blue-600">
+              רענון חישוב סטטיסטיקות
+            </button>
+            <button id="clearAllBtn" class="btn bg-red-500 text-white text-sm rounded px-3 py-2 hover:bg-red-600">
+              ניקוי מלא של מסד הנתונים
+            </button>
+          </div>
+        </div>
+        
+        <div class="border-b py-4 my-4">
+          <h3 class="text-md font-semibold text-blue-800 mb-2">מיזוג קבוצות</h3>
+          <div class="bg-blue-50 p-3 rounded-lg border border-blue-200 mb-3">
+            <p class="text-sm text-blue-800 mb-2">
+              <strong>מיזוג כינויים של קבוצות:</strong> כלי זה מזהה קבוצות עם שמות דומים ומאפשר למזג אותן לקבוצה אחת.
+            </p>
+            <p class="text-xs text-blue-700">
+              זה פותר בעיות של קבוצות שמופיעות בשמות שונים במשחקים שונים (למשל: "Hapoel Haifa" vs "Hapoel Neve Sha'anan Haifa").
+            </p>
+          </div>
+          <div class="flex gap-3 flex-wrap">
+            <button id="scanTeamAliasesBtn" class="btn bg-purple-500 text-white text-sm rounded px-3 py-2 hover:bg-purple-600">
+              סרוק כינויים של קבוצות
+            </button>
+            <button id="mergeTeamsBtn" class="btn bg-orange-500 text-white text-sm rounded px-3 py-2 hover:bg-orange-600" disabled>
+              מיזוג קבוצות נבחרות
+            </button>
+            <button id="fixTeamNamesBtn" class="btn bg-blue-500 text-white text-sm rounded px-3 py-2 hover:bg-blue-600">
+              🔧 תיקון שמות קבוצות בשחקנים
+            </button>
+          </div>
+          
+          <!-- Team Aliases Results -->
+          <div id="teamAliasesResults" class="hidden mt-4">
+            <h4 class="text-sm font-semibold text-gray-700 mb-3">כינויים שזוהו:</h4>
+            <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <table class="w-full text-sm">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-700">קבוצה יעד</th>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-700">כינויים למיזוג</th>
+                    <th class="px-3 py-2 text-center text-xs font-medium text-gray-700">פעולות</th>
+                  </tr>
+                </thead>
+                <tbody id="teamAliasesTableBody" class="divide-y divide-gray-200">
+                  <!-- Team aliases will be populated here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        
+        <div class="border-b py-4 my-4">
+          <h3 class="text-md font-semibold text-blue-800 mb-2">מיזוג שחקנים</h3>
+          <div class="bg-green-50 p-3 rounded-lg border border-green-200 mb-3">
+            <p class="text-sm text-green-800 mb-2">
+              <strong>מיזוג שחקנים כפולים:</strong> כלי זה מזהה שחקנים עם שמות דומים באותה קבוצה ומספר ומאפשר למזג אותם לשחקן אחד.
+            </p>
+            <p class="text-xs text-green-700">
+              דוגמה: "ברנדון אדוארדס" ו"ברנדון אדווארדס" עם שגיאת כתיב יזוהו ויאוחדו. כל הסטטיסטיקות וההופעות ימוזגו לשחקן אחד.
+            </p>
+          </div>
+          <div class="flex gap-3">
+            <button id="scanPlayerAliasesBtn" class="btn bg-teal-500 text-white text-sm rounded px-3 py-2 hover:bg-teal-600">
+              🔍 סרוק שחקנים כפולים
+            </button>
+            <button id="mergePlayersBtn" class="btn bg-emerald-500 text-white text-sm rounded px-3 py-2 hover:bg-emerald-600" disabled>
+              ✅ מזג שחקנים נבחרים
+            </button>
+          </div>
+          
+          <!-- Player Aliases Results -->
+          <div id="playerAliasesResults" class="hidden mt-4">
+            <h4 class="text-sm font-semibold text-gray-700 mb-3">שחקנים כפולים שזוהו:</h4>
+            <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <table class="w-full text-sm">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-3 py-2 text-center text-xs font-medium text-gray-700">בחר</th>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-700">שחקן יעד</th>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-700">קבוצה</th>
+                    <th class="px-3 py-2 text-center text-xs font-medium text-gray-700">מספר</th>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-700">שמות כפולים</th>
+                    <th class="px-3 py-2 text-center text-xs font-medium text-gray-700">כמות</th>
+                  </tr>
+                </thead>
+                <tbody id="playerAliasesTableBody" class="divide-y divide-gray-200">
+                  <!-- Player aliases will be populated here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        
+        <div class="border-b py-4 my-4">
+          <h3 class="text-md font-semibold text-blue-800 mb-2">גיבוי ושחזור מסד נתונים</h3>
+          <div class="flex gap-3 flex-wrap">
+            <button id="exportDbBtn" class="btn bg-green-600 text-white text-sm rounded px-3 py-2 hover:bg-green-700">
+              גיבוי מסד נתונים
+            </button>
+            <input id="importDbFile" type="file" accept=".json" class="hidden">
+            <button id="importDbBtn" class="btn bg-blue-600 text-white text-sm rounded px-3 py-2 hover:bg-blue-700">
+              שחזור מגיבוי
+            </button>
+            <button id="reloadAllGamesBtn" class="btn bg-purple-600 text-white text-sm rounded px-3 py-2 hover:bg-purple-700">
+              🔄 טעינה מחדש של כל המשחקים
+            </button>
+          </div>
+          <div class="mt-3 bg-purple-50 p-3 rounded-lg border border-purple-200">
+            <p class="text-xs text-purple-800">
+              <strong>טעינה מחדש של כל המשחקים:</strong> כלי זה יעבד מחדש את כל המשחקים השמורים וישחזר את נתוני השחקנים מה-JSON המקורי.
+              שימושי אחרי שחזור גיבוי או כאשר נתוני שחקנים חסרים.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Modal ניהול קבוצה -->
+  <div id="teamModal" class="fixed inset-0 bg-black/30 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-lg font-semibold">הוסף/עדכן קבוצה</h3>
+        <button id="closeTeamModal" class="text-gray-500 hover:text-gray-700">✕</button>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="col-span-2">
+          <label class="block text-xs text-gray-600 mb-1">team_id (אם ריק, יווצר אוטומטית)</label>
+          <input id="tm_teamId" class="w-full border rounded px-2 py-1.5 text-sm mono" placeholder="השאר ריק לייצור אוטומטי" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-600 mb-1">שם באנגלית (canonical)</label>
+          <input id="tm_nameEn" class="w-full border rounded px-2 py-1.5 text-sm" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-600 mb-1">שם בעברית (Display)</label>
+          <input id="tm_nameHe" class="w-full border rounded px-2 py-1.5 text-sm" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-600 mb-1">Short HE</label>
+          <input id="tm_shortHe" class="w-full border rounded px-2 py-1.5 text-sm" />
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs text-gray-600 mb-1">Aliases באנגלית (מופרד בֿ;)</label>
+          <input id="tm_aliases" class="w-full border rounded px-2 py-1.5 text-sm" />
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-4">
+        <button id="saveTeam" class="btn bg-blue-600 text-white rounded px-3 py-1.5 hover:bg-blue-700">שמור</button>
+        <button id="cancelTeam" class="btn bg-gray-100 rounded px-3 py-1.5 hover:bg-gray-200">ביטול</button>
+      </div>
+    </div>
+  </div>
+
+  
+
+  <div id="undoBar" style="display:none; position:fixed; left:16px; right:16px; bottom:16px; padding:12px; background:#1f2937; color:#fff; border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,.25); z-index:9999; direction:rtl;">
+    <span id="undoMsg">הפעולה בוצעה.</span>
+    <button id="undoBtn" style="margin-inline-start:12px; text-decoration:underline; background:transparent; border:none; color:#fca5a5; cursor:pointer;">בטל</button>
+  </div>
+
+  <!-- Modal ניהול שחקן -->
+<div id="playerModal" class="fixed inset-0 bg-black/30 hidden items-center justify-center p-4">
+  <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-4">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-lg font-semibold">הוסף/עדכן שחקן</h3>
+      <button id="closePlayerModal" class="text-gray-500 hover:text-gray-700">✕</button>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="block text-xs text-gray-600 mb-1">שם פרטי (EN)</label>
+        <input id="pm_firstEn" class="w-full border rounded px-2 py-1.5 text-sm" />
+      </div>
+      <div>
+        <label class="block text-xs text-gray-600 mb-1">שם משפחה (EN)</label>
+        <input id="pm_familyEn" class="w-full border rounded px-2 py-1.5 text-sm" />
+      </div>
+      <div>
+        <label class="block text-xs text-gray-600 mb-1">שם פרטי (HE)</label>
+        <input id="pm_firstHe" class="w-full border rounded px-2 py-1.5 text-sm" />
+      </div>
+      <div>
+        <label class="block text-xs text-gray-600 mb-1">שם משפחה (HE)</label>
+        <input id="pm_familyHe" class="w-full border rounded px-2 py-1.5 text-sm" />
+      </div>
+      <div>
+        <label class="block text-xs text-gray-600 mb-1">מס' גופייה (אופציונלי)</label>
+        <input id="pm_jersey" class="w-full border rounded px-2 py-1.5 text-sm" />
+      </div>
+      <div>
+        <label class="block text-xs text-gray-600 mb-1">Team EN (אופציונלי)</label>
+        <input id="pm_teamEn" class="w-full border rounded px-2 py-1.5 text-sm" placeholder="אנגלית קנונית/אליאס" />
+      </div>
+      <div class="col-span-2">
+        <label class="block text-xs text-gray-600 mb-1">lookup_key (נוצר אוטומטית, ניתן לעריכה)</label>
+        <input id="pm_lookupKey" class="w-full border rounded px-2 py-1.5 text-sm mono" />
+      </div>
+    </div>
+    <div class="flex justify-end gap-2 mt-4">
+      <button id="savePlayerMap" class="btn bg-blue-600 text-white rounded px-3 py-1.5 hover:bg-blue-700">שמור</button>
+      <button id="cancelPlayerMap" class="btn bg-gray-100 rounded px-3 py-1.5 hover:bg-gray-200">ביטול</button>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+    <!-- ========== Game Preparation (view-gamePrep) ========== -->
+    <section id="view-gamePrep" class="hidden">
+      <div class="card p-4">
+        <h2 class="text-lg font-bold mb-4 text-blue-900">הכנה למשחק הבא</h2>
+        
+        <!-- Team Selection -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 overflow-hidden">
+          <h3 class="font-semibold text-blue-800 mb-3">בחירת קבוצות</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">קבוצת בית</label>
+              <select id="homeTeamSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">בחר קבוצת בית...</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">קבוצת חוץ</label>
+              <select id="awayTeamSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">בחר קבוצת חוץ...</option>
+              </select>
+            </div>
+          </div>
+          <button id="analyzeGame" class="mt-4 w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+            <span class="text-lg">📊 נתח משחק</span>
+          </button>
+        </div>
+
+        <!-- Analysis Results -->
+        <div id="gameAnalysis" class="hidden">
+          <!-- Player Comparison (Top Priority) -->
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <h3 class="font-semibold text-blue-800 mb-3">השוואת שחקנים</h3>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <!-- Player 1 Selection -->
+              <div class="space-y-3">
+                <label class="block text-sm font-medium text-gray-700">שחקן ראשון</label>
+                <select id="player1Select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" disabled>
+                  <option value="">בחר שחקן ראשון...</option>
+                </select>
+                <div id="player1Stats" class="hidden bg-white border border-gray-200 rounded-lg p-3">
+                  <!-- Player 1 stats will be populated here -->
+                </div>
+              </div>
+
+              <!-- Player 2 Selection -->
+              <div class="space-y-3">
+                <label class="block text-sm font-medium text-gray-700">שחקן שני</label>
+                <select id="player2Select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" disabled>
+                  <option value="">בחר שחקן שני...</option>
+                </select>
+                <div id="player2Stats" class="hidden bg-white border border-gray-200 rounded-lg p-3">
+                  <!-- Player 2 stats will be populated here -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Comparison Results -->
+            <div id="playerComparison" class="hidden mt-6">
+              <h4 class="font-semibold text-blue-800 mb-3">תוצאות השוואה</h4>
+              <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                <table class="w-full">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">סטטיסטיקה</th>
+                      <th id="player1Name" class="px-4 py-3 text-center text-sm font-medium text-gray-700">שחקן 1</th>
+                      <th id="player2Name" class="px-4 py-3 text-center text-sm font-medium text-gray-700">שחקן 2</th>
+                    </tr>
+                  </thead>
+                  <tbody id="comparisonTableBody" class="divide-y divide-gray-200">
+                    <!-- Comparison rows will be populated here -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Top Row: Averages & Last 5 Games Side by Side -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <!-- Team Averages & Rankings -->
+            <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h3 class="font-semibold text-green-800 mb-3">ממוצעים ודירוגים</h3>
+              <div id="teamAverages" class="grid grid-cols-1 gap-4">
+                <!-- Will be populated by JavaScript -->
+              </div>
+            </div>
+
+            <!-- Last 5 Games -->
+            <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
+              <h3 class="font-semibold text-orange-800 mb-3">5 משחקים אחרונים</h3>
+              <div id="lastFiveGames" class="grid grid-cols-1 gap-4">
+                <!-- Will be populated by JavaScript -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Head-to-Head History (Full Width) -->
+          <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <h3 class="font-semibold text-purple-800 mb-3">מפגשים ישירים בעונה</h3>
+            <div id="headToHead" class="overflow-x-auto">
+              <!-- Will be populated by JavaScript -->
+            </div>
+          </div>
+
+          <!-- Advanced Game Analysis (Full Width) -->
+          <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+            <h3 class="font-semibold text-indigo-800 mb-3">ניתוח מתקדם</h3>
+            <div id="advancedAnalysis" class="hidden">
+              <!-- Advanced metrics will be populated here -->
+            </div>
+            <div id="noAnalysisData" class="text-center text-gray-500 py-4">
+              בחר קבוצות ונתח משחק כדי לראות ניתוח מתקדם
+            </div>
+          </div>
+
+          <!-- Pre-Game Analysis (Full Width) -->
+          <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+            <h3 class="font-semibold text-emerald-800 mb-3">ניתוח פרה-גיים</h3>
+            <div class="mb-4">
+              <button id="generatePreGameAnalysis" class="btn bg-emerald-500 text-white px-4 py-2 rounded hover:bg-emerald-600 disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+                צור ניתוח פרה-גיים
+              </button>
+            </div>
+            
+            <!-- Pre-Game Analysis Results -->
+            <div id="preGameAnalysisResults" class="hidden">
+              <!-- TL;DR Section -->
+              <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                <h4 class="font-bold text-green-800 mb-3">📋 סיכום מהיר לשדרן</h4>
+                <div id="preGameTldr" class="space-y-2">
+                  <!-- TL;DR points will be loaded here -->
+                </div>
+              </div>
+
+              <!-- Detailed Sections -->
+              <div id="preGameSections" class="space-y-4">
+                <!-- Detailed sections will be loaded here -->
+              </div>
+
+              <!-- Meta Information -->
+              <div class="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <h4 class="font-semibold text-gray-800 mb-3">מטא נתונים</h4>
+                <div id="preGameMeta" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <!-- Meta data will be loaded here -->
+                </div>
+              </div>
+            </div>
+
+            <!-- No Pre-Game Analysis Message -->
+            <div id="noPreGameAnalysisMessage" class="text-center py-8 text-gray-500">
+              <div class="text-4xl mb-4">📊</div>
+              <h4 class="text-lg font-medium mb-2">אין ניתוח פרה-גיים זמין</h4>
+              <p class="text-sm">בחר שתי קבוצות ולחץ "צור ניתוח פרה-גיים" כדי לראות ניתוח מתקדם</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Authentication Modal -->
+    <div id="authModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-xl font-semibold text-gray-900">כניסת מנהל</h3>
+          <button id="closeAuthModal" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
+        </div>
+        
+        <form id="authLoginForm" class="space-y-4">
+          <div>
+            <label for="authPassword" class="block text-sm font-medium text-gray-700 mb-2">סיסמה</label>
+            <input 
+              type="password" 
+              id="authPassword" 
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="הזן סיסמת מנהל"
+              autocomplete="current-password"
+            />
+          </div>
+          
+          <div id="authError" class="hidden text-red-600 text-sm bg-red-50 p-2 rounded"></div>
+          
+          <div class="flex gap-3">
+            <button 
+              type="submit" 
+              id="authSubmitBtn"
+              class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+            >
+              התחבר
+            </button>
+            <button 
+              type="button" 
+              onclick="document.getElementById('authModal').classList.add('hidden')"
+              class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors"
+            >
+              ביטול
+            </button>
+          </div>
+        </form>
+        
+        <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p class="text-xs text-blue-800">
+            <strong>💡 למנהלי המערכת:</strong> לאחר התחברות תוכל לגשת לכל הכלים וטאבי הניהול.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Configuration and Core Libraries -->
+    <script src="js/config.js?v=1"></script>
+    <script defer src="js/db_adapter.js?v=1"></script>
+    <script defer src="js/auth.js?v=1"></script>
+    <script defer src="js/app_version.js?v=1"></script>
+    <script defer src="js/gameAnalysis.js?v=1"></script>
+    <script defer src="js/preGamePrep.js?v=1"></script>
+    <script defer src="js/preGameNarratives.js?v=1"></script>
+    <script defer src="js/app_utils.js?v=7"></script>
+    <script defer src="js/app_game_serial.js?v=7"></script>
+    <script defer src="js/cp1252Utf8Repair.js?v=4"></script>
+    <script defer src="js/app_teams_ui.js?v=35"></script>
+    <script defer src="js/app_events.js?v=7"></script>
+    <script defer src="js/app_bootstrap.js?v=7"></script>
+    <script defer src="js/app_last_mile.js?v=7"></script>
+    <script defer src="js/app_expose.js?v=7"></script>
+    <script defer src="js/app_game_analysis.js?v=1"></script>
+    <script defer src="js/team_merge_tool.js?v=1"></script>
+    <script defer src="js/player_merge_tool.js?v=1"></script>
+    <script defer src="js/app_db_save.js?v=82"></script>
+    
+</body>
+</html>

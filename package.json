@@ -1,0 +1,23 @@
+{
+  "name": "basketball-stats-manager",
+  "version": "1.0.0",
+  "description": "Basketball Stats Manager - IBBA Parser with Cloud Database",
+  "main": "index.html",
+  "scripts": {
+    "dev": "python -m http.server 8000",
+    "preview": "python -m http.server 8000"
+  },
+  "keywords": [
+    "basketball",
+    "statistics",
+    "sports",
+    "analytics"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0"
+  },
+  "devDependencies": {}
+}
+
