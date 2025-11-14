@@ -1003,20 +1003,22 @@ ${suspectedDuplicates}
     // =========================
     async function getGameListWithTeamTotals(){
       const games = [];
-      if(!(DB_AVAILABLE && DB)) return games;
-      const rows = [];
-      const gTx = DB.transaction(['games'], 'readonly');
-      const gStore = gTx.objectStore('games');
-      await new Promise(res=>{ const req = gStore.openCursor(); req.onsuccess = e => { const c=e.target.result; if(!c) return res(); rows.push(c.value); c.continue(); }; });
+      
+      // Initialize dbAdapter if not already done
+      if (window.dbAdapter && !window.dbAdapter.isDbAvailable()) {
+        await window.dbAdapter.init();
+      }
+      
+      // Get games from dbAdapter (Supabase or IndexedDB)
+      const rows = await window.dbAdapter.getGames();
 
       const totalsByGame = new Map();
-      const pTx = DB.transaction(['players'], 'readonly');
-      const pStore = pTx.objectStore('players');
-      await new Promise(res=>{
-        const req = pStore.openCursor();
-        req.onsuccess = e => {
-          const c = e.target.result; if(!c) return res();
-          const pl = c.value;
+      
+      // Get players from dbAdapter
+      const allPlayers = await window.dbAdapter.getPlayers();
+      
+      // Calculate totals by game
+      for (const pl of allPlayers) {
           for(const g of (pl.games||[])){
             const key = g.gameId;
             if(!totalsByGame.has(key)) totalsByGame.set(key, {});
@@ -1024,9 +1026,7 @@ ${suspectedDuplicates}
             if(!byTeam[g.team]) byTeam[g.team] = { points:0 };
             byTeam[g.team].points += g.points||0;
           }
-          c.continue();
-        };
-      });
+      }
 
       for(const g of rows){
         games.push({
@@ -1042,15 +1042,18 @@ ${suspectedDuplicates}
     }
 
     async function getTeamsAggregate(){
-      if(!(DB_AVAILABLE && DB)) return [];
+      // Initialize dbAdapter if not already done
+      if (window.dbAdapter && !window.dbAdapter.isDbAvailable()) {
+        await window.dbAdapter.init();
+      }
+      
       const agg = {};
-      const pTx = DB.transaction(['players'], 'readonly');
-      const pStore = pTx.objectStore('players');
-      await new Promise(res=>{
-        const req = pStore.openCursor();
-        req.onsuccess = e => {
-          const c = e.target.result; if(!c) return res();
-          const pl = c.value;
+      
+      // Get all players from dbAdapter
+      const allPlayers = await window.dbAdapter.getPlayers();
+      
+      // Calculate team aggregates
+      for (const pl of allPlayers) {
           for(const g of (pl.games||[])){
             if(!agg[g.team]) agg[g.team] = { 
               games:new Set(), points:0, rebounds:0, assists:0, steals:0, blocks:0, turnovers:0, fouls:0,
@@ -1073,9 +1076,7 @@ ${suspectedDuplicates}
             t.fta += g.freeThrowsAttempted||0;
             t.efficiency += g.efficiency||0;
           }
-          c.continue();
-        };
-      });
+      }
       return Object.entries(agg).map(([team,t])=>({
         team,
         games: t.games.size,
