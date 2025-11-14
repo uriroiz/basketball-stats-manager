@@ -1255,37 +1255,33 @@ ${suspectedDuplicates}
         const tbody = $("playersTbody"); 
         if (!tbody) return;
         
+        // Initialize dbAdapter if not already done
+        if (window.dbAdapter && !window.dbAdapter.isDbAvailable()) {
+          await window.dbAdapter.init();
+        }
+        
         const q = ($("playersSearch")?.value || "").trim().toLowerCase();
         const playersMap = new Map(); // Deduplicate by ID
         
-        if (!(DB_AVAILABLE && DB)) { 
-          tbody.innerHTML = ''; 
+        // Get all players from dbAdapter
+        const allPlayers = await window.dbAdapter.getPlayers();
+        
+        if (!allPlayers || allPlayers.length === 0) { 
+          tbody.innerHTML = '<tr><td colspan="13" class="text-center text-gray-500">אין שחקנים במערכת</td></tr>'; 
           return; 
         }
-      
-      const pTx = DB.transaction(['players'], 'readonly');
-      const pStore = pTx.objectStore('players');
       
       let totalPlayers = 0;
       let playersWithGames = 0;
       let duplicateCount = 0;
       
-      await new Promise(res => {
-        const req = pStore.openCursor();
-        req.onsuccess = e => {
-          const c = e.target.result; 
-          if (!c) {
-            console.log(`Total players in DB: ${totalPlayers}, with games: ${playersWithGames}, duplicates found: ${duplicateCount}`);
-            return res();
-          }
-          
-          const pl = c.value;
+      // Process all players
+      for (const pl of allPlayers) {
           totalPlayers++;
           
           // דילוג על שחקנים ללא משחקים בלבד
           if (!pl.games || pl.games.length === 0) {
-            c.continue();
-            return;
+            continue;
           }
           
           playersWithGames++;
@@ -1307,8 +1303,7 @@ ${suspectedDuplicates}
             
             if (!playerName) {
               // Skip players without name
-              c.continue();
-              return;
+              continue;
             }
             
             // Use name + jersey as the deduplication key (ignore team differences)
@@ -1342,10 +1337,9 @@ ${suspectedDuplicates}
               console.log(`Merged player ${pl.name}: ${existingGames} + ${currentGames} = ${mergedGames.length} games`);
             }
           }
-          
-          c.continue();
-        };
-      });
+      }
+      
+      console.log(`Total players in DB: ${totalPlayers}, with games: ${playersWithGames}, duplicates found: ${duplicateCount}`);
       
       // Convert Map to array
       const rows = Array.from(playersMap.values());
