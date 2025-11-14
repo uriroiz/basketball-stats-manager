@@ -273,6 +273,14 @@
     const event = new CustomEvent('authStateChanged', { detail: { isAuthenticated: isAuth } });
     console.log('🔐 [auth] dispatching authStateChanged', event.detail);
     window.dispatchEvent(event);
+    
+    // ALSO directly call renderGamesTable if it exists (more reliable than events)
+    if (typeof window.App !== 'undefined' && typeof window.App.renderGamesTable === 'function') {
+      console.log('🔐 [auth] calling App.renderGamesTable directly');
+      window.App.renderGamesTable();
+    } else {
+      console.log('⚠️ [auth] App.renderGamesTable not available');
+    }
   }
 
   /**
