@@ -1795,6 +1795,9 @@ ${suspectedDuplicates}
 
         const result = (homePts===null || awayPts===null) ? "–" : `${awayPts}:${homePts}`;
 
+        // Check if admin is authenticated
+        const isAdmin = window.authManager && window.authManager.isAuthenticated();
+        
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td class="px-3 py-2 mono">${g.id}</td>
@@ -1803,8 +1806,10 @@ ${suspectedDuplicates}
           <td class="px-3 py-2">${home || "-"} - ${away || "-"}</td>
           <td class="px-3 py-2 font-semibold">${result}</td>
           <td class="px-3 py-2">
-            <button class="text-blue-700 hover:underline mr-2" data-reload="${g.id}">טען מחדש</button>
-            <button class="text-red-700 hover:underline" data-del="${g.id}">מחק</button>
+            ${isAdmin ? `
+              <button class="text-blue-700 hover:underline mr-2" data-reload="${g.id}">טען מחדש</button>
+              <button class="text-red-700 hover:underline" data-del="${g.id}">מחק</button>
+            ` : ''}
           </td>
         `;
         tbody.appendChild(tr);
