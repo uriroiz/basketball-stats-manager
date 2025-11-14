@@ -220,14 +220,16 @@ if (window.App) {
   async function loadPlayersForComparison() {
     console.log('🔍 === DEBUG: loadPlayersForComparison called ===');
     
-    // Check DB availability using the global App object
-    if (!(window.App && window.App.DB_AVAILABLE)) {
-      console.log('❌ DB not available for player comparison');
-      console.log('🔍 window.App:', window.App);
-      console.log('🔍 window.App.DB_AVAILABLE:', window.App?.DB_AVAILABLE);
+    // Initialize dbAdapter if not already done
+    if (window.dbAdapter && !window.dbAdapter.isDbAvailable()) {
+      await window.dbAdapter.init();
+    }
+    
+    if (!window.dbAdapter || !window.dbAdapter.isDbAvailable()) {
+      console.log('❌ dbAdapter not available for player comparison');
       return;
     }
-    console.log('✅ DB is available');
+    console.log('✅ dbAdapter is available');
 
     try {
       // Get selected teams - using correct element IDs
@@ -300,75 +302,61 @@ if (window.App) {
     const players = [];
     
     try {
-      // Get team name first
-      console.log('🔍 Getting team info from DB...');
-      // Use the global DB reference
-      const db = window.App?.DB || window.DB;
-      if (!db) {
-        console.log('❌ No DB reference available');
+      // Initialize dbAdapter if not already done
+      if (window.dbAdapter && !window.dbAdapter.isDbAvailable()) {
+        await window.dbAdapter.init();
+      }
+      
+      // Get team info from dbAdapter
+      console.log('🔍 Getting team info from dbAdapter...');
+      const team = await window.dbAdapter.getTeam(teamId);
+      
+      if (!team) {
+        console.log('❌ Team not found');
         return players;
       }
       
-      const teamTx = db.transaction(["teams"], "readonly");
-      const teamStore = teamTx.objectStore("teams");
-      const teamReq = teamStore.get(teamId);
+      console.log('🔍 Team found:', team);
       
-      await new Promise((resolve) => {
-        teamReq.onsuccess = () => {
-          const team = teamReq.result;
-          console.log('🔍 Team found:', team);
-          if (team) {
-            // Get players from appearances for this team in current season
-            console.log('🔍 Getting appearances for team:', teamId, 'season: 2024-25');
-            const appearanceTx = db.transaction(["appearances"], "readonly");
-            const appearanceStore = appearanceTx.objectStore("appearances");
-            const seasonIndex = appearanceStore.index("by_season_team");
-            const req = seasonIndex.getAll(["2024-25", teamId]);
-            
-            req.onsuccess = async () => {
-              const appearances = req.result;
-              console.log('🔍 Appearances found:', appearances.length, appearances);
-              const playerIds = [...new Set(appearances.map(app => app.playerId))];
-              console.log('🔍 Unique player IDs:', playerIds);
-              
-              // Get player details
-              for (const playerId of playerIds) {
-                const playerTx = db.transaction(["players"], "readonly");
-                const playerStore = playerTx.objectStore("players");
-                const playerReq = playerStore.get(playerId);
-                
-                await new Promise((resolvePlayer) => {
-                  playerReq.onsuccess = () => {
-                    const player = playerReq.result;
-                    console.log('🔍 Player found:', player);
-                    if (player) {
-                      const playerName = `${player.firstNameHe || ''} ${player.familyNameHe || ''}`.trim() || 
-                                        `${player.firstNameEn || ''} ${player.familyNameEn || ''}`.trim();
-                      console.log('🔍 Player name:', playerName);
-                      players.push({
-                        id: playerId,
-                        name: playerName,
-                        teamId: teamId,
-                        teamName: team.name_he || team.name_en
-                      });
-                    }
-                    resolvePlayer();
-                  };
-                  playerReq.onerror = () => resolvePlayer();
-                });
-              }
-              resolve();
-            };
-            req.onerror = () => resolve();
-          } else {
-            resolve();
+      // Get all players from dbAdapter
+      const allPlayers = await window.dbAdapter.getPlayers();
+      console.log('🔍 Total players in DB:', allPlayers.length);
+      
+      // Filter players who played for this team
+      // Check both lastSeenTeam and games array
+      for (const player of allPlayers) {
+        const playedForTeam = 
+          player.lastSeenTeam === teamId ||
+          player.lastSeenTeam === team.name_he ||
+          player.lastSeenTeam === team.name_en ||
+          (player.games && player.games.some(game => 
+            game.team === teamId || 
+            game.team === team.name_he || 
+            game.team === team.name_en
+          ));
+        
+        if (playedForTeam) {
+          const playerName = player.name ||
+                            `${player.firstNameHe || ''} ${player.familyNameHe || ''}`.trim() || 
+                            `${player.firstNameEn || ''} ${player.familyNameEn || ''}`.trim();
+          
+          if (playerName) {
+            console.log('🔍 Player found for team:', playerName);
+            players.push({
+              id: player.id,
+              name: playerName,
+              teamId: teamId,
+              teamName: team.name_he || team.name_en,
+              player: player // Keep full player data for stats
+            });
           }
-        };
-        teamReq.onerror = () => resolve();
-      });
+        }
+      }
+      
+      console.log('🔍 Found', players.length, 'players for team', team.name_he);
       
     } catch (e) {
-      console.log('Error getting players for team:', e);
+      console.log('❌ Error getting players for team:', e);
     }
     
     return players;
