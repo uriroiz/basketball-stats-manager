@@ -268,19 +268,23 @@
       authIndicator.style.display = isAuth ? 'inline-flex' : 'none';
     }
     
-    // Trigger a custom event to refresh admin-dependent UI
-    // This will be caught by other modules that need to update
-    const event = new CustomEvent('authStateChanged', { detail: { isAuthenticated: isAuth } });
+    // Dispatch custom event
+    const event = new CustomEvent('authStateChanged', { 
+      detail: { isAuthenticated: isAuth } 
+    });
     console.log('🔐 [auth] dispatching authStateChanged', event.detail);
     window.dispatchEvent(event);
     
-    // ALSO directly call renderGamesTable if it exists (more reliable than events)
-    if (typeof window.App !== 'undefined' && typeof window.App.renderGamesTable === 'function') {
-      console.log('🔐 [auth] calling App.renderGamesTable directly');
-      window.App.renderGamesTable();
-    } else {
-      console.log('⚠️ [auth] App.renderGamesTable not available');
-    }
+    // Fallback: Try direct call after a microtask
+    // (ensures all defer scripts have executed)
+    setTimeout(() => {
+      if (typeof window.App?.renderGamesTable === 'function') {
+        console.log('🔐 [auth] calling App.renderGamesTable directly (fallback)');
+        window.App.renderGamesTable();
+      } else {
+        console.log('⚠️ [auth] App.renderGamesTable not available yet');
+      }
+    }, 0);
   }
 
   /**

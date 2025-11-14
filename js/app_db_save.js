@@ -1737,8 +1737,8 @@ ${suspectedDuplicates}
       console.log('🎨 START renderGamesTable');
       
       // Check auth state for debugging
-      const isAdmin = window.authManager && window.authManager.isAuthenticated();
-      console.log('🔐 renderGamesTable - isAdmin =', isAdmin, 'authManager =', !!window.authManager);
+      const isAdmin = window.authModule && window.authModule.isAuthenticated();
+      console.log('🔐 renderGamesTable - isAdmin =', isAdmin, 'authModule =', !!window.authModule);
       
       try {
       // מחיקה בלחיצה על כפתור "מחק" בתוך הטבלה
@@ -1773,7 +1773,7 @@ ${suspectedDuplicates}
       const games = await getGameListWithTeamTotals();
       
       // Check admin status ONCE before loop (not inside loop)
-      const isAdmin = window.authManager && window.authManager.isAuthenticated();
+      const isAdmin = window.authModule && window.authModule.isAuthenticated();
       console.log('🔐 isAdmin for all rows =', isAdmin);
 
       const filtered = games.filter(g=>{
@@ -3617,13 +3617,21 @@ ${suspectedDuplicates}
       }
     }
     
-    // Listen for auth state changes to refresh games table
-    console.log('📌 [app_db_save] Setting up authStateChanged listener');
-    window.addEventListener('authStateChanged', (event) => {
-      console.log('🔐 [app_db_save] authStateChanged received!', event.detail);
+    // Initialize auth event listeners
+    function initGamesTableListeners() {
+      console.log('📌 [app_db_save] Initializing authStateChanged listener');
       
-      // Always re-render games table on auth change
-      // It's cheap and ensures buttons appear/disappear immediately
-      renderGamesTable();
-    });
-    console.log('✅ [app_db_save] authStateChanged listener added');
+      window.addEventListener('authStateChanged', (event) => {
+        console.log('🔐 [app_db_save] authStateChanged received!', event.detail);
+        renderGamesTable();
+      });
+      
+      console.log('✅ [app_db_save] authStateChanged listener registered');
+    }
+
+    // Auto-initialize when script loads (will happen in order with defer)
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initGamesTableListeners);
+    } else {
+      initGamesTableListeners();
+    }

@@ -1,0 +1,61 @@
+# ========================================
+# Vercel Environment Variables
+# Basketball Stats Manager
+# ========================================
+#
+# העתק והדבק את השורות הבאות ב-Vercel:
+# Settings → Environment Variables → Add
+#
+# ========================================
+
+# משתנה 1:
+Name: VITE_SUPABASE_URL
+Value: https://ruzfbkxiqusfbiyxyegb.supabase.co
+
+# משתנה 2:
+Name: VITE_SUPABASE_ANON_KEY
+Value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1emZia3hpcXVzZmJpeXh5ZWdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMxMTkyNDEsImV4cCI6MjA3ODY5NTI0MX0.UjzpGJ9Xx_T-74FBamNF9T7pQWyEFgcSYf_TkQs3E38
+
+# משתנה 3:
+Name: ADMIN_PASSWORD
+Value: UriPixellot1982!
+
+# ========================================
+# פורמט Vercel CLI (אם תרצה להשתמש ב-CLI)
+# ========================================
+# vercel env add VITE_SUPABASE_URL production
+# הדבק: https://ruzfbkxiqusfbiyxyegb.supabase.co
+#
+# vercel env add VITE_SUPABASE_ANON_KEY production
+# הדבק: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1emZia3hpcXVzZmJpeXh5ZWdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMxMTkyNDEsImV4cCI6MjA3ODY5NTI0MX0.UjzpGJ9Xx_T-74FBamNF9T7pQWyEFgcSYf_TkQs3E38
+#
+# vercel env add ADMIN_PASSWORD production
+# הדבק: UriPixellot1982!
+
+# ========================================
+# פורמט .env (לעבודה מקומית)
+# ========================================
+VITE_SUPABASE_URL=https://ruzfbkxiqusfbiyxyegb.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1emZia3hpcXVzZmJpeXh5ZWdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMxMTkyNDEsImV4cCI6MjA3ODY5NTI0MX0.UjzpGJ9Xx_T-74FBamNF9T7pQWyEFgcSYf_TkQs3E38
+ADMIN_PASSWORD=UriPixellot1982!
+
+# ========================================
+# הוראות להוספה ב-Vercel Dashboard
+# ========================================
+# 1. לך ל: https://vercel.com/uriroiz/basketball-stats-manager/settings/environment-variables
+# 2. לחץ "Add New"
+# 3. הוסף כל משתנה בנפרד:
+#    - Name: VITE_SUPABASE_URL
+#      Value: https://ruzfbkxiqusfbiyxyegb.supabase.co
+#      Environment: Production, Preview, Development (סמן הכל)
+#
+#    - Name: VITE_SUPABASE_ANON_KEY
+#      Value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1emZia3hpcXVzZmJpeXh5ZWdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMxMTkyNDEsImV4cCI6MjA3ODY5NTI0MX0.UjzpGJ9Xx_T-74FBamNF9T7pQWyEFgcSYf_TkQs3E38
+#      Environment: Production, Preview, Development (סמן הכל)
+#
+#    - Name: ADMIN_PASSWORD
+#      Value: UriPixellot1982!
+#      Environment: Production, Preview, Development (סמן הכל)
+# 4. לחץ "Save"
+# 5. לך ל-Deployments ולחץ "Redeploy"
+

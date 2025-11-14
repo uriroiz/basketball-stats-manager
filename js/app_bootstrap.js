@@ -26,6 +26,20 @@ window.addEventListener('load', async () => {
       initPlayerMergeTool();
     }
 
+    // Load initial data for default "games" tab
+    console.log('🎬 [bootstrap] Loading default games tab');
+    if (typeof renderGamesTable === 'function') {
+      await renderGamesTable();
+    }
+    if (typeof renderTeamsAggregate === 'function') {
+      // Pre-load teams data (not visible but cached)
+      await renderTeamsAggregate();
+    }
+    if (typeof renderPlayersTable === 'function') {
+      // Pre-load players data (not visible but cached)
+      await renderPlayersTable();
+    }
+
     // Small visual cue
     if (typeof DB_AVAILABLE !== 'undefined' && !DB_AVAILABLE) {
       typeof showError === 'function' && showError("מסד הנתונים המקומי אינו זמין (ייתכן חלון פרטי/אורח).");
