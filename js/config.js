@@ -6,12 +6,12 @@
 
   // Get configuration from environment or window object
   const config = {
-    // Supabase configuration
-    supabaseUrl: window.SUPABASE_URL || '',
-    supabaseKey: window.SUPABASE_ANON_KEY || '',
+    // Supabase configuration - fallback to hardcoded values for production
+    supabaseUrl: window.SUPABASE_URL || 'https://ruzfbkxiqusfbiyxyegb.supabase.co',
+    supabaseKey: window.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1emZia3hpcXVzZmJpeXh5ZWdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMxMTkyNDEsImV4cCI6MjA3ODY5NTI0MX0.UjzpGJ9Xx_T-74FBamNF9T7pQWyEFgcSYf_TkQs3E38',
     
     // Admin configuration
-    adminPassword: window.ADMIN_PASSWORD || 'admin123', // Default fallback
+    adminPassword: window.ADMIN_PASSWORD || 'UriPixellot1982!', // Default fallback
     
     // App configuration
     appName: 'Basketball Stats Manager',

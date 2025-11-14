@@ -36,8 +36,8 @@
 
     <!-- Tabs -->
     <nav id="tabs" class="flex flex-wrap items-center gap-2 justify-center mb-4">
-      <button class="tab active" data-tab="ingest">ייבוא וניתוח</button>
-      <button class="tab" data-tab="games">כל המשחקים</button>
+      <button class="tab" data-tab="ingest" style="display: none;">ייבוא וניתוח</button>
+      <button class="tab active" data-tab="games">כל המשחקים</button>
       <button class="tab" data-tab="teams">סטטיסטיקות קבוצתיות</button>
       <button class="tab" data-tab="players">סטטיסטיקות שחקנים</button>
       <button class="tab" data-tab="manageTeams">ניהול קבוצות</button>
@@ -50,7 +50,7 @@
     <div id="alerts"></div>
 
     <!-- ========== Ingest (view-ingest) ========== -->
-    <section id="view-ingest">
+    <section id="view-ingest" class="hidden">
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <!-- קלט JSON -->
         <div class="md:col-span-3 card p-4">
@@ -149,7 +149,7 @@
     </section>
 
     <!-- ========== All Games (view-games) ========== -->
-    <section id="view-games" class="hidden">
+    <section id="view-games">
       <div class="card p-4">
         <div class="flex items-center justify-between mb-3">
           <h2 class="text-lg font-bold text-blue-900">כל המשחקים</h2>
