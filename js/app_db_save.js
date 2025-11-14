@@ -1632,14 +1632,16 @@ ${suspectedDuplicates}
     // Prevent multiple simultaneous calls
     let switchTabInProgress = false;
     
-    function switchTab(name){
+    async function switchTab(name){
       if (switchTabInProgress) {
         return;
       }
       
       switchTabInProgress = true;
+      console.log('=== Switching to tab:', name, '===');
       
       try {
+        // Update UI (synchronous part)
         document.querySelectorAll('#tabs .tab').forEach(b=>{
           b.classList.toggle('active', b.dataset.tab===name);
         });
@@ -1649,31 +1651,39 @@ ${suspectedDuplicates}
           teams: $("view-teams"), 
           players: $("view-players"), 
           manageTeams: $("view-manageTeams"),
-          managePlayers: $("view-managePlayers"),   // ← חדש
-          gamePrep: $("view-gamePrep"),             // ← חדש
+          managePlayers: $("view-managePlayers"),
+          gamePrep: $("view-gamePrep"),
           tools: $("view-tools")
         };
         Object.entries(VIEWS).forEach(([k,el])=> el && el.classList.toggle('hidden', k!==name));
 
-        if (name === 'games')   renderGamesTable();
-        if (name === 'teams') { renderTeamsAggregate('team', 'asc'); initTeamsTableSort(); }
-        if (name === 'players'){ 
-          renderPlayersTable('name', 'asc');   
-          initPlayerTableSort(); 
-        }
-        if (name === 'manageTeams')   listTeams();
-        if (name === 'managePlayers') listPlayerMappings();           // ← חדש
-        if (name === 'gamePrep') {    
-          console.log('🔍 === DEBUG: Switching to gamePrep tab ===');
-          initGamePrep();                                             // ← חדש
-          // Advanced analysis will be displayed when teams are selected and analyzed
-          console.log('🔍 typeof window.displayAdvancedAnalysis:', typeof window.displayAdvancedAnalysis);
-          console.log('✅ Game preparation tab initialized - advanced analysis will show when teams are analyzed');
-          
-          // Update pre-game analysis button state
-          if (typeof window.updatePreGameAnalysisButton === 'function') {
-            window.updatePreGameAnalysisButton();
+        // Load tab data (asynchronous part)
+        try {
+          if (name === 'games') {
+            await renderGamesTable();
+          } else if (name === 'teams') {
+            await renderTeamsAggregate('team', 'asc');
+            initTeamsTableSort();
+          } else if (name === 'players') {
+            await renderPlayersTable('name', 'asc');
+            initPlayerTableSort();
+          } else if (name === 'manageTeams') {
+            await listTeams();
+          } else if (name === 'managePlayers') {
+            await listPlayerMappings();
+          } else if (name === 'gamePrep') {
+            console.log('🔍 === DEBUG: Switching to gamePrep tab ===');
+            initGamePrep();
+            console.log('🔍 typeof window.displayAdvancedAnalysis:', typeof window.displayAdvancedAnalysis);
+            console.log('✅ Game preparation tab initialized - advanced analysis will show when teams are analyzed');
+            
+            // Update pre-game analysis button state
+            if (typeof window.updatePreGameAnalysisButton === 'function') {
+              window.updatePreGameAnalysisButton();
+            }
           }
+        } catch (error) {
+          console.error(`❌ Error loading tab ${name}:`, error);
         }
       } finally {
         // Reset the flag after a short delay to allow for async operations

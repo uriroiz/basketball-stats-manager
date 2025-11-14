@@ -12,34 +12,84 @@
   // IndexedDB fallback
   let DB = null;
 
+  // Initialization tracking
+  let dbInitPromise = null;
+  let dbInitialized = false;
+
   /**
    * Initialize database connection
    * @returns {Promise<boolean>} - True if initialization successful
    */
   async function dbInit() {
-    try {
-      // Check if we have Supabase configured
-      if (window.supabase && window.supabaseConfig) {
-        const { url, key } = window.supabaseConfig;
-        
-        if (url && key) {
-          supabase = window.supabase.createClient(url, key);
-          useSupabase = true;
-          DB_AVAILABLE = true;
-          console.log('✅ Supabase initialized');
-          return true;
-        }
-      }
-
-      // Fallback to IndexedDB
-      console.log('ℹ️ Supabase not configured, using IndexedDB fallback');
-      return await initIndexedDB();
-      
-    } catch (error) {
-      console.error('Error initializing database:', error);
-      // Try IndexedDB fallback
-      return await initIndexedDB();
+    // Return existing promise if already initializing
+    if (dbInitPromise) {
+      return dbInitPromise;
     }
+
+    // If already initialized, return immediately
+    if (dbInitialized) {
+      return Promise.resolve(true);
+    }
+
+    // Create initialization promise
+    dbInitPromise = (async () => {
+      console.log('=== DB Initialization Starting ===');
+      
+      try {
+        // Check if we have Supabase configured
+        if (window.supabase && window.supabaseConfig) {
+          const { url, key } = window.supabaseConfig;
+          
+          if (url && key) {
+            console.log('✅ Supabase credentials found, initializing Supabase client...');
+            supabase = window.supabase.createClient(url, key);
+            useSupabase = true;
+            
+            // Test connection
+            try {
+              const { data, error } = await supabase.from('teams').select('count', { count: 'exact', head: true });
+              if (error) throw error;
+              console.log('✅ Supabase connection verified');
+              DB_AVAILABLE = true;
+              dbInitialized = true;
+              return true;
+            } catch (testError) {
+              console.error('❌ Supabase connection test failed:', testError);
+              useSupabase = false;
+              supabase = null;
+            }
+          }
+        }
+
+        // Fallback to IndexedDB
+        console.log('ℹ️ Supabase not configured or failed, using IndexedDB fallback');
+        const result = await initIndexedDB();
+        dbInitialized = result;
+        return result;
+        
+      } catch (error) {
+        console.error('❌ DB Initialization Error:', error);
+        dbInitialized = false;
+        // Try IndexedDB fallback
+        const result = await initIndexedDB();
+        dbInitialized = result;
+        return result;
+      } finally {
+        console.log('✅ DB Initialization Complete - Using:', useSupabase ? 'Supabase' : 'IndexedDB');
+      }
+    })();
+
+    return dbInitPromise;
+  }
+
+  /**
+   * Helper function to ensure DB is ready
+   */
+  async function ensureDbReady() {
+    if (!dbInitialized) {
+      await dbInit();
+    }
+    return dbInitialized;
   }
 
   /**
@@ -220,27 +270,55 @@
    * Get all players
    */
   async function dbGetPlayers() {
+    console.log('📡 dbGetPlayers called, useSupabase:', useSupabase);
+    
     if (useSupabase && supabase) {
-      const { data, error } = await supabase
-        .from('players')
-        .select('*')
-        .order('name');
-      
-      if (error) {
-        console.error('Error getting players:', error);
+      try {
+        const { data, error } = await supabase
+          .from('players')
+          .select('*')
+          .order('name');
+        
+        if (error) {
+          console.error('❌ Supabase error getting players:', error);
+          return [];
+        }
+        
+        console.log(`✅ Supabase returned ${data?.length || 0} players`);
+        return data || [];
+        
+      } catch (error) {
+        console.error('❌ Exception getting players from Supabase:', error);
         return [];
       }
-      return data || [];
     }
 
     // IndexedDB fallback
-    if (!DB) return [];
+    console.log('📦 Using IndexedDB for players');
+    if (!DB) {
+      console.error('❌ IndexedDB not initialized');
+      return [];
+    }
+    
     return new Promise((resolve) => {
-      const tx = DB.transaction(['players'], 'readonly');
-      const store = tx.objectStore('players');
-      const request = store.getAll();
-      request.onsuccess = () => resolve(request.result || []);
-      request.onerror = () => resolve([]);
+      try {
+        const tx = DB.transaction(['players'], 'readonly');
+        const store = tx.objectStore('players');
+        const request = store.getAll();
+        
+        request.onsuccess = () => {
+          console.log(`✅ IndexedDB returned ${request.result?.length || 0} players`);
+          resolve(request.result || []);
+        };
+        
+        request.onerror = (e) => {
+          console.error('❌ IndexedDB error getting players:', e);
+          resolve([]);
+        };
+      } catch (error) {
+        console.error('❌ Exception with IndexedDB players:', error);
+        resolve([]);
+      }
     });
   }
 
@@ -338,27 +416,55 @@
    * Get all teams
    */
   async function dbGetTeams() {
+    console.log('📡 dbGetTeams called, useSupabase:', useSupabase);
+    
     if (useSupabase && supabase) {
-      const { data, error } = await supabase
-        .from('teams')
-        .select('*')
-        .order('name_he');
-      
-      if (error) {
-        console.error('Error getting teams:', error);
+      try {
+        const { data, error } = await supabase
+          .from('teams')
+          .select('*')
+          .order('name_he');
+        
+        if (error) {
+          console.error('❌ Supabase error getting teams:', error);
+          return [];
+        }
+        
+        console.log(`✅ Supabase returned ${data?.length || 0} teams`);
+        return data || [];
+        
+      } catch (error) {
+        console.error('❌ Exception getting teams from Supabase:', error);
         return [];
       }
-      return data || [];
     }
 
     // IndexedDB fallback
-    if (!DB) return [];
+    console.log('📦 Using IndexedDB for teams');
+    if (!DB) {
+      console.error('❌ IndexedDB not initialized');
+      return [];
+    }
+    
     return new Promise((resolve) => {
-      const tx = DB.transaction(['teams'], 'readonly');
-      const store = tx.objectStore('teams');
-      const request = store.getAll();
-      request.onsuccess = () => resolve(request.result || []);
-      request.onerror = () => resolve([]);
+      try {
+        const tx = DB.transaction(['teams'], 'readonly');
+        const store = tx.objectStore('teams');
+        const request = store.getAll();
+        
+        request.onsuccess = () => {
+          console.log(`✅ IndexedDB returned ${request.result?.length || 0} teams`);
+          resolve(request.result || []);
+        };
+        
+        request.onerror = (e) => {
+          console.error('❌ IndexedDB error getting teams:', e);
+          resolve([]);
+        };
+      } catch (error) {
+        console.error('❌ Exception with IndexedDB teams:', error);
+        resolve([]);
+      }
     });
   }
 
@@ -629,6 +735,9 @@
   window.dbAdapter = {
     // Initialization
     init: dbInit,
+    ensureDbReady: ensureDbReady,
+    isReady: () => dbInitialized,
+    isSupabase: () => useSupabase,
     
     // Games
     getGames: dbGetGames,
@@ -662,6 +771,9 @@
     isDbAvailable,
     getDbInfo
   };
+
+  // Also make ensureDbReady globally available
+  window.ensureDbReady = ensureDbReady;
 
   console.log('📦 DB Adapter loaded');
 

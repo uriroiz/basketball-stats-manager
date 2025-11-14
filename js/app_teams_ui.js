@@ -134,25 +134,56 @@
       }
     }
     async function listTeams(){
-      console.log('listTeams called, DB_AVAILABLE:', DB_AVAILABLE, 'DB:', !!DB);
-      const rows = [];
-      if(DB_AVAILABLE && DB){
-        const tx = DB.transaction(["teams"], "readonly");
-        const store = tx.objectStore("teams");
-        await new Promise((resolve)=>{
-          const req = store.openCursor();
-          req.onsuccess = (e)=>{
-            const cur = e.target.result; if(!cur) return resolve();
-            rows.push(cur.value); cur.continue();
-          };
-        });
-        console.log('Teams loaded from DB:', rows.length, 'teams');
-      } else {
-        rows.push(...TEAMS_MEM);
-        console.log('Teams loaded from memory:', rows.length, 'teams');
+      console.log('=== listTeams called ===');
+      
+      try {
+        // CRITICAL: Wait for DB to be ready
+        const isReady = await window.ensureDbReady();
+        if (!isReady) {
+          console.error('❌ DB not ready, cannot load teams');
+          renderTeamsList([]);
+          return;
+        }
+
+        const rows = [];
+        
+        // Use dbAdapter
+        if (window.dbAdapter && typeof window.dbAdapter.getTeams === 'function') {
+          console.log('📡 Fetching teams from', window.dbAdapter.isSupabase() ? 'Supabase' : 'IndexedDB');
+          
+          const teams = await window.dbAdapter.getTeams();
+          
+          if (teams && teams.length > 0) {
+            rows.push(...teams);
+            console.log(`✅ Teams loaded: ${rows.length} teams`);
+          } else {
+            console.log('⚠️ No teams returned from database');
+          }
+        } else {
+          console.error('❌ dbAdapter.getTeams not available');
+        }
+        
+        // Fallback to memory (only if dbAdapter failed)
+        if (rows.length === 0 && TEAMS_MEM && TEAMS_MEM.length > 0) {
+          rows.push(...TEAMS_MEM);
+          console.log('⚠️ Using memory fallback:', rows.length, 'teams');
+        }
+        
+        // Sort and render
+        rows.sort((a, b) => 
+          (a.name_he || a.name_en || "").localeCompare(
+            b.name_he || b.name_en || "", 
+            'he'
+          )
+        );
+        
+        console.log('📊 Rendering teams list with', rows.length, 'teams');
+        renderTeamsList(rows);
+        
+      } catch (error) {
+        console.error('❌ Error in listTeams:', error);
+        renderTeamsList([]);
       }
-      rows.sort((a,b)=> (a.name_he||a.name_en||"").localeCompare(b.name_he||b.name_en||"", 'he'));
-      renderTeamsList(rows);
     }
 
     function renderTeamsList(rows){
@@ -370,91 +401,92 @@ function renderPlayerMappingsList(rows){
 
 async function listPlayerMappings(){
   console.log('=== listPlayerMappings called ===');
-  console.log('DB_AVAILABLE:', DB_AVAILABLE, 'DB:', !!DB);
-  const rows=[];
-  if(!(DB_AVAILABLE && DB)) { 
-    console.log('❌ DB not available, rendering empty list');
-    renderPlayerMappingsList(rows); 
-    return; 
-  }
   
-  console.log('✅ DB available, loading players from new system...');
-  
-        // Use new player identity system instead of old player_mappings
-        console.log('Loading players from "players" table...');
-        const tx = DB.transaction(["players"], "readonly");
-        const store = tx.objectStore("players");
-        await new Promise((resolve)=>{
-          const req = store.openCursor();
-          req.onsuccess = (e)=>{ 
-            const c=e.target.result; 
-            if(!c) {
-              console.log('✅ Finished loading players, total:', rows.length);
-              return resolve(); 
-            }
-            
-            // Convert new player format to old format for compatibility
-            const player = c.value;
-            
-            // Skip old system players (they have old lookup_key format)
-            if (player.id && player.id.includes('-#') && player.id.includes('-')) {
-              console.log('Skipping old system player:', player.id);
-              c.continue();
-              return;
-            }
-            
-            console.log('Loading player:', player.id, 'names:', { 
-              firstNameEn: player.firstNameEn, 
-              familyNameEn: player.familyNameEn,
-              firstNameHe: player.firstNameHe,
-              familyNameHe: player.familyNameHe
-            });
-            
-            const row = {
-              lookup_key: player.id, // Use UUID as lookup_key
-              id: player.id,
-              first_en: player.firstNameEn || '',
-              family_en: player.familyNameEn || '',
-              first_he: player.firstNameHe || '',
-              family_he: player.familyNameHe || '',
-              jersey: '', // Will be filled from appearances
-              team_en: '' // Will be filled from appearances
-            };
-            
-            rows.push(row); 
-            c.continue(); 
-          };
-        });
-  
-  // Get latest appearance data for each player
-  for (const row of rows) {
-    try {
-      const appearanceTx = DB.transaction(["appearances"], "readonly");
-      const appearanceStore = appearanceTx.objectStore("appearances");
-      const playerIndex = appearanceStore.index("by_player_season");
-      const req = playerIndex.getAll([row.id, "2024-25"]); // Get current season
-      
-      await new Promise((resolve) => {
-        req.onsuccess = () => {
-          const appearances = req.result;
-          if (appearances.length > 0) {
-            // Get the most recent appearance
-            const latest = appearances[appearances.length - 1];
-            row.jersey = latest.shirtNumber || '';
-            row.team_en = latest.teamId || '';
-          }
-          resolve();
-        };
-        req.onerror = () => resolve();
-      });
-    } catch (e) {
-      console.log('Error getting appearance data for player:', row.id, e);
+  try {
+    // CRITICAL: Wait for DB to be ready
+    const isReady = await window.ensureDbReady();
+    if (!isReady) {
+      console.error('❌ DB not ready, cannot load players');
+      renderPlayerMappingsList([]);
+      return;
     }
+
+    const rows=[];
+    
+    // Use dbAdapter
+    if (window.dbAdapter && typeof window.dbAdapter.getPlayers === 'function') {
+      console.log('📡 Fetching players from', window.dbAdapter.isSupabase() ? 'Supabase' : 'IndexedDB');
+      
+      const players = await window.dbAdapter.getPlayers();
+      
+      console.log(`📊 Raw players data: ${players ? players.length : 0} players`);
+      
+      if (players && players.length > 0) {
+        for (const player of players) {
+          // Skip old system players (they have old lookup_key format)
+          if (player.id && player.id.includes('-#') && player.id.includes('-')) {
+            console.log('⏭️ Skipping old system player:', player.id);
+            continue;
+          }
+          
+          console.log('Loading player:', player.id, 'names:', { 
+            firstNameEn: player.firstNameEn, 
+            familyNameEn: player.familyNameEn,
+            firstNameHe: player.firstNameHe,
+            familyNameHe: player.familyNameHe
+          });
+          
+          // Get latest game info for jersey and team
+          let jersey = '';
+          let team_en = '';
+          
+          // Try to get from player.games array (Supabase format)
+          if (player.games && Array.isArray(player.games) && player.games.length > 0) {
+            // Get the most recent game (last in array)
+            const latestGame = player.games[player.games.length - 1];
+            jersey = latestGame.jersey || latestGame.shirtNumber || '';
+            team_en = latestGame.team || '';
+          }
+          
+          // Fallback: try to get from lastSeenTeam and jersey fields
+          if (!team_en && player.lastSeenTeam) {
+            team_en = player.lastSeenTeam;
+          }
+          if (!jersey && player.jersey) {
+            jersey = player.jersey;
+          }
+          
+          const row = {
+            lookup_key: player.id,
+            id: player.id,
+            first_en: player.firstNameEn || '',
+            family_en: player.familyNameEn || '',
+            first_he: player.firstNameHe || '',
+            family_he: player.familyNameHe || '',
+            jersey: jersey,
+            team_en: team_en
+          };
+          
+          rows.push(row);
+        }
+        console.log(`✅ Players processed: ${rows.length} players (skipped ${players.length - rows.length})`);
+      } else {
+        console.log('⚠️ No players returned from database');
+      }
+    } else {
+      console.error('❌ dbAdapter.getPlayers not available');
+    }
+    
+    // Sort and render
+    rows.sort((a,b)=> a.family_he?.localeCompare(b.family_he,'he') || a.first_he?.localeCompare(b.first_he,'he') || 0);
+    
+    console.log('📊 Rendering players list with', rows.length, 'players');
+    renderPlayerMappingsList(rows);
+    
+  } catch (error) {
+    console.error('❌ Error in listPlayerMappings:', error);
+    renderPlayerMappingsList([]);
   }
-  
-  console.log('Players loaded from new system:', rows.length, 'players');
-  rows.sort((a,b)=> a.family_he?.localeCompare(b.family_he,'he') || a.first_he?.localeCompare(b.first_he,'he') || 0);
-  renderPlayerMappingsList(rows);
 }
 
 // Function to clean up old system data
