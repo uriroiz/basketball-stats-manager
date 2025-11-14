@@ -2573,17 +2573,15 @@ ${suspectedDuplicates}
     
     // Get team by ID
     async function getTeamById(teamId) {
-      if (!(DB_AVAILABLE && DB)) return null;
+      // Initialize dbAdapter if not already done
+      if (window.dbAdapter && !window.dbAdapter.isDbAvailable()) {
+        await window.dbAdapter.init();
+      }
       
       try {
-        const tx = DB.transaction(['teams'], 'readonly');
-        const store = tx.objectStore('teams');
-        
-        return await new Promise((resolve, reject) => {
-          const req = store.get(teamId);
-          req.onsuccess = () => resolve(req.result);
-          req.onerror = () => reject(req.error);
-        });
+        // Get team from dbAdapter
+        const team = await window.dbAdapter.getTeam(teamId);
+        return team;
       } catch (error) {
         console.error('Error getting team by ID:', error);
         return null;
@@ -3120,17 +3118,15 @@ ${suspectedDuplicates}
     
     // Get all games from database
     async function getAllGames() {
-      if (!(DB_AVAILABLE && DB)) return [];
+      // Initialize dbAdapter if not already done
+      if (window.dbAdapter && !window.dbAdapter.isDbAvailable()) {
+        await window.dbAdapter.init();
+      }
       
       try {
-        const tx = DB.transaction(['games'], 'readonly');
-        const store = tx.objectStore('games');
-        
-        return await new Promise((resolve, reject) => {
-          const req = store.getAll();
-          req.onsuccess = () => resolve(req.result || []);
-          req.onerror = () => reject(req.error);
-        });
+        // Get all games from dbAdapter
+        const games = await window.dbAdapter.getGames();
+        return games || [];
       } catch (error) {
         console.error('Error getting all games:', error);
         return [];
@@ -3206,34 +3202,28 @@ ${suspectedDuplicates}
     
     // Calculate team scores for a specific game from player data
     async function calculateTeamScoresForGame(gameId) {
-      if (!(DB_AVAILABLE && DB)) return {};
+      // Initialize dbAdapter if not already done
+      if (window.dbAdapter && !window.dbAdapter.isDbAvailable()) {
+        await window.dbAdapter.init();
+      }
       
       const teamScores = {};
       
       try {
-        const tx = DB.transaction(['players'], 'readonly');
-        const store = tx.objectStore('players');
+        // Get all players from dbAdapter
+        const allPlayers = await window.dbAdapter.getPlayers();
         
-        await new Promise(resolve => {
-          const req = store.openCursor();
-          req.onsuccess = e => {
-            const c = e.target.result;
-            if (!c) return resolve();
-            
-            const player = c.value;
-            for (const game of (player.games || [])) {
-              if (game.gameId === gameId) {
-                if (!teamScores[game.team]) {
-                  teamScores[game.team] = 0;
-                }
-                teamScores[game.team] += game.points || 0;
+        // Calculate team scores from player game data
+        for (const player of allPlayers) {
+          for (const game of (player.games || [])) {
+            if (game.gameId === gameId) {
+              if (!teamScores[game.team]) {
+                teamScores[game.team] = 0;
               }
+              teamScores[game.team] += game.points || 0;
             }
-            
-            c.continue();
-          };
-          req.onerror = () => resolve();
-        });
+          }
+        }
         
       } catch (error) {
         console.error('Error calculating team scores:', error);
