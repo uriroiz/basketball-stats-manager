@@ -2367,36 +2367,34 @@ ${suspectedDuplicates}
       homeSelect.innerHTML = '<option value="">בחר קבוצת בית...</option>';
       awaySelect.innerHTML = '<option value="">בחר קבוצת חוץ...</option>';
       
-      if (!(DB_AVAILABLE && DB)) return;
+      // Initialize dbAdapter if not already done
+      if (window.dbAdapter && !window.dbAdapter.isDbAvailable()) {
+        await window.dbAdapter.init();
+      }
       
       try {
-        const tx = DB.transaction(['teams'], 'readonly');
-        const store = tx.objectStore('teams');
+        // Get teams from dbAdapter
+        const allTeams = await window.dbAdapter.getTeams();
+        
+        if (!allTeams || allTeams.length === 0) {
+          console.log('No teams found for game prep');
+          return;
+        }
         
         // Collect all teams in a Map to avoid duplicates
         const teamsMap = new Map();
         
-        await new Promise(resolve => {
-          const req = store.openCursor();
-          req.onsuccess = e => {
-            const c = e.target.result;
-            if (!c) return resolve();
-            
-            const team = c.value;
-            const teamName = team.name_he || team.name_en || 'Unknown Team';
-            
-            // Use team_id as key to avoid duplicates
-            if (!teamsMap.has(team.team_id)) {
-              teamsMap.set(team.team_id, {
-                id: team.team_id,
-                name: teamName
-              });
-            }
-            
-            c.continue();
-          };
-          req.onerror = () => resolve();
-        });
+        for (const team of allTeams) {
+          const teamName = team.name_he || team.name_en || 'Unknown Team';
+          
+          // Use team_id as key to avoid duplicates
+          if (!teamsMap.has(team.team_id)) {
+            teamsMap.set(team.team_id, {
+              id: team.team_id,
+              name: teamName
+            });
+          }
+        }
         
         // Convert Map to array and sort alphabetically by Hebrew name
         const sortedTeams = Array.from(teamsMap.values()).sort((a, b) => {
