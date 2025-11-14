@@ -444,104 +444,109 @@ if (window.App) {
       rebounds: 0,
       assists: 0,
       steals: 0,
+      blocks: 0,
+      turnovers: 0,
       efficiency: 0,
       plusMinus: 0,
-      games: 0
+      games: 0,
+      fieldGoalsPercentage: 0,
+      threePointsPercentage: 0,
+      freeThrowsPercentage: 0
     };
 
     try {
-      // Get player name
-      const db = window.App?.DB || window.DB;
-      if (!db) {
-        console.log('❌ No DB reference available in getPlayerStats');
+      // Initialize dbAdapter if not already done
+      if (window.dbAdapter && !window.dbAdapter.isDbAvailable()) {
+        await window.dbAdapter.init();
+      }
+      
+      // Get player from dbAdapter
+      console.log('🔍 Getting player from dbAdapter...');
+      const player = await window.dbAdapter.getPlayer(playerId);
+      
+      if (!player) {
+        console.log('❌ Player not found');
         return stats;
       }
       
-      const playerTx = db.transaction(["players"], "readonly");
-      const playerStore = playerTx.objectStore("players");
-      const playerReq = playerStore.get(playerId);
+      console.log('🔍 Player found:', player);
       
-      await new Promise((resolve) => {
-        playerReq.onsuccess = () => {
-          const player = playerReq.result;
-          if (player) {
-            stats.name = `${player.firstNameHe || ''} ${player.familyNameHe || ''}`.trim() || 
-                        `${player.firstNameEn || ''} ${player.familyNameEn || ''}`.trim();
-          }
-          resolve();
-        };
-        playerReq.onerror = () => resolve();
-      });
+      // Get player name
+      stats.name = player.name ||
+                  `${player.firstNameHe || ''} ${player.familyNameHe || ''}`.trim() || 
+                  `${player.firstNameEn || ''} ${player.familyNameEn || ''}`.trim();
 
-      // First, let's check if there are any stats in the table at all
-      console.log('🔍 Checking if player_stats table has any data...');
-      const allStatsTx = db.transaction(["player_stats"], "readonly");
-      const allStatsStore = allStatsTx.objectStore("player_stats");
-      const allStatsReq = allStatsStore.getAll();
+      // Calculate stats from player.games array
+      console.log('🔍 Calculating stats from player.games array...');
+      const games = player.games || [];
+      console.log('🔍 Player has', games.length, 'games');
       
-      await new Promise((resolveAll) => {
-        allStatsReq.onsuccess = () => {
-          const allStats = allStatsReq.result;
-          console.log('🔍 Total player_stats records in DB:', allStats.length);
-          if (allStats.length > 0) {
-            console.log('🔍 Sample player_stats record:', allStats[0]);
-          }
-          resolveAll();
+      if (games.length > 0) {
+        stats.games = games.length;
+        
+        // Calculate totals
+        const totals = {
+          points: 0,
+          rebounds: 0,
+          assists: 0,
+          steals: 0,
+          blocks: 0,
+          turnovers: 0,
+          fieldGoalsMade: 0,
+          fieldGoalsAttempted: 0,
+          threePointsMade: 0,
+          threePointsAttempted: 0,
+          freeThrowsMade: 0,
+          freeThrowsAttempted: 0,
+          efficiency: 0,
+          plusMinus: 0
         };
-        allStatsReq.onerror = () => resolveAll();
-      });
-
-      // Get player stats for current season
-      console.log('🔍 Getting player stats for playerId:', playerId, 'season: 2024-25');
-      const statsTx = db.transaction(["player_stats"], "readonly");
-      const statsStore = statsTx.objectStore("player_stats");
-      const playerIndex = statsStore.index("by_player_season");
-      const req = playerIndex.getAll([playerId, "2024-25"]);
-      
-      await new Promise((resolve) => {
-        req.onsuccess = () => {
-          const playerStats = req.result;
-          console.log('🔍 Player stats found:', playerStats.length, playerStats);
-          
-          if (playerStats.length > 0) {
-            stats.games = playerStats.length;
-            console.log('🔍 Processing', stats.games, 'games for player');
-            
-            // Calculate averages
-            const totals = playerStats.reduce((acc, stat) => {
-              console.log('🔍 Processing stat:', stat);
-              console.log('🔍 Stat metrics:', stat.metrics);
-              
-              acc.points += stat.metrics?.points || 0;
-              acc.rebounds += stat.metrics?.rebounds || 0;
-              acc.assists += stat.metrics?.assists || 0;
-              acc.steals += stat.metrics?.steals || 0;
-              acc.plusMinus += stat.metrics?.plusMinus || 0;
-              return acc;
-            }, { points: 0, rebounds: 0, assists: 0, steals: 0, plusMinus: 0 });
-
-            console.log('🔍 Totals calculated:', totals);
-
-            stats.points = (totals.points / stats.games).toFixed(1);
-            stats.rebounds = (totals.rebounds / stats.games).toFixed(1);
-            stats.assists = (totals.assists / stats.games).toFixed(1);
-            stats.steals = (totals.steals / stats.games).toFixed(1);
-            stats.plusMinus = (totals.plusMinus / stats.games).toFixed(1);
-
-            // Calculate efficiency (simplified formula)
-            stats.efficiency = ((totals.points + totals.rebounds + totals.assists + totals.steals) / stats.games).toFixed(1);
-            
-            console.log('🔍 Final stats calculated:', stats);
-          } else {
-            console.log('🔍 No player stats found for this player');
-          }
-          resolve();
-        };
-        req.onerror = () => {
-          console.log('❌ Error getting player stats:', req.error);
-          resolve();
-        };
-      });
+        
+        // Sum up all games
+        for (const game of games) {
+          totals.points += game.points || 0;
+          totals.rebounds += game.rebounds || 0;
+          totals.assists += game.assists || 0;
+          totals.steals += game.steals || 0;
+          totals.blocks += game.blocks || 0;
+          totals.turnovers += game.turnovers || 0;
+          totals.fieldGoalsMade += game.fieldGoalsMade || 0;
+          totals.fieldGoalsAttempted += game.fieldGoalsAttempted || 0;
+          totals.threePointsMade += game.threePointsMade || 0;
+          totals.threePointsAttempted += game.threePointsAttempted || 0;
+          totals.freeThrowsMade += game.freeThrowsMade || 0;
+          totals.freeThrowsAttempted += game.freeThrowsAttempted || 0;
+          totals.efficiency += game.efficiency || 0;
+          totals.plusMinus += game.plusMinus || 0;
+        }
+        
+        console.log('🔍 Totals calculated:', totals);
+        
+        // Calculate averages
+        stats.points = (totals.points / stats.games).toFixed(1);
+        stats.rebounds = (totals.rebounds / stats.games).toFixed(1);
+        stats.assists = (totals.assists / stats.games).toFixed(1);
+        stats.steals = (totals.steals / stats.games).toFixed(1);
+        stats.blocks = (totals.blocks / stats.games).toFixed(1);
+        stats.turnovers = (totals.turnovers / stats.games).toFixed(1);
+        stats.efficiency = (totals.efficiency / stats.games).toFixed(1);
+        stats.plusMinus = (totals.plusMinus / stats.games).toFixed(1);
+        
+        // Calculate shooting percentages
+        if (totals.fieldGoalsAttempted > 0) {
+          stats.fieldGoalsPercentage = ((totals.fieldGoalsMade / totals.fieldGoalsAttempted) * 100).toFixed(1);
+        }
+        if (totals.threePointsAttempted > 0) {
+          stats.threePointsPercentage = ((totals.threePointsMade / totals.threePointsAttempted) * 100).toFixed(1);
+        }
+        if (totals.freeThrowsAttempted > 0) {
+          stats.freeThrowsPercentage = ((totals.freeThrowsMade / totals.freeThrowsAttempted) * 100).toFixed(1);
+        }
+        
+        console.log('🔍 Final stats calculated:', stats);
+      } else {
+        console.log('🔍 No games found for this player');
+      }
 
     } catch (e) {
       console.log('Error getting player stats:', e);
