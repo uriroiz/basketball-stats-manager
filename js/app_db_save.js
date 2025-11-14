@@ -1736,6 +1736,10 @@ ${suspectedDuplicates}
       isRenderingGames = true;
       console.log('🎨 START renderGamesTable');
       
+      // Check auth state for debugging
+      const isAdmin = window.authManager && window.authManager.isAuthenticated();
+      console.log('🔐 renderGamesTable - isAdmin =', isAdmin, 'authManager =', !!window.authManager);
+      
       try {
       // מחיקה בלחיצה על כפתור "מחק" בתוך הטבלה
       const _tbody = document.getElementById("gamesTbody");
@@ -1767,6 +1771,10 @@ ${suspectedDuplicates}
       const q = ($("gamesSearch")?.value || "").trim().toLowerCase();
 
       const games = await getGameListWithTeamTotals();
+      
+      // Check admin status ONCE before loop (not inside loop)
+      const isAdmin = window.authManager && window.authManager.isAuthenticated();
+      console.log('🔐 isAdmin for all rows =', isAdmin);
 
       const filtered = games.filter(g=>{
         const hay = [
@@ -1795,9 +1803,7 @@ ${suspectedDuplicates}
 
         const result = (homePts===null || awayPts===null) ? "–" : `${awayPts}:${homePts}`;
 
-        // Check if admin is authenticated
-        const isAdmin = window.authManager && window.authManager.isAuthenticated();
-        
+        // isAdmin is now checked once before the loop (line 1776)
         const tr = document.createElement("tr");
         tr.innerHTML = `
           <td class="px-3 py-2 mono">${g.id}</td>
@@ -3615,10 +3621,7 @@ ${suspectedDuplicates}
     window.addEventListener('authStateChanged', (event) => {
       console.log('🔐 Auth state changed, refreshing games table...', event.detail);
       
-      // Check if games view is currently visible
-      const gamesView = document.getElementById('view-games');
-      if (gamesView && !gamesView.classList.contains('hidden')) {
-        // Games table is visible, refresh it to show/hide admin buttons
-        renderGamesTable();
-      }
+      // Always re-render games table on auth change
+      // It's cheap and ensures buttons appear/disappear immediately
+      renderGamesTable();
     });

@@ -239,6 +239,7 @@
    */
   function updateUIForAuthState() {
     const isAuth = isAuthenticated();
+    console.log('🔐 [auth] updateUIForAuthState, isAuth =', isAuth);
     
     // Update login/logout buttons
     const loginBtn = document.getElementById('loginBtn');
@@ -269,7 +270,9 @@
     
     // Trigger a custom event to refresh admin-dependent UI
     // This will be caught by other modules that need to update
-    window.dispatchEvent(new CustomEvent('authStateChanged', { detail: { isAuthenticated: isAuth } }));
+    const event = new CustomEvent('authStateChanged', { detail: { isAuthenticated: isAuth } });
+    console.log('🔐 [auth] dispatching authStateChanged', event.detail);
+    window.dispatchEvent(event);
   }
 
   /**
