@@ -1318,11 +1318,19 @@ async function executeManualPlayerMerge() {
     console.log(`💾 Saving updated target player with ${mergedGames.length} games`);
     
     // Make sure we're authenticated for saving
+    console.log(`🔐 Checking authentication...`);
+    console.log(`🔐 window.authModule exists:`, !!window.authModule);
+    console.log(`🔐 window.authModule.getPassword exists:`, !!window.authModule?.getPassword);
     const adminPassword = window.authModule?.getPassword?.();
+    console.log(`🔐 Admin password retrieved:`, adminPassword ? 'YES (length: ' + adminPassword.length + ')' : 'NO (null/undefined)');
+    
     if (!adminPassword) {
+      console.error(`❌ No admin password - cannot save!`);
       showError('נדרשת הזדהות כמנהל לשמירת שחקנים');
       return;
     }
+    
+    console.log(`✅ Authentication OK, proceeding to save...`);
     
     try {
       console.log(`💾 Calling dbAdapter.savePlayer for target...`);
