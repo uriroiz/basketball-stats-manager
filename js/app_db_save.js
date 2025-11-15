@@ -1256,6 +1256,7 @@ ${suspectedDuplicates}
         }
         
         const q = ($("playersSearch")?.value || "").trim().toLowerCase();
+        const teamFilter = ($("playersTeamFilter")?.value || "").trim();
         const playersMap = new Map(); // Deduplicate by ID
         
         // Get all players from dbAdapter
@@ -1284,13 +1285,16 @@ ${suspectedDuplicates}
           // חיפוש
           const hay = [
             pl.name || '', 
-            pl.team || '', 
             pl.jersey || '', 
             pl.id || ''
           ].join(' ').toLowerCase();
           
-          // Apply search filter
-          if (!q || hay.includes(q)) {
+          // Team filter
+          const playerTeam = (pl.team || '').trim();
+          const teamMatch = !teamFilter || playerTeam === teamFilter;
+          
+          // Apply search filter and team filter
+          if (teamMatch && (!q || hay.includes(q))) {
             // Create a unique key for deduplication (use name + jersey for proper deduplication)
             // This handles players who play for different teams (before team merging)
             const playerName = (pl.name || '').toLowerCase().trim();
@@ -1335,6 +1339,9 @@ ${suspectedDuplicates}
       }
       
       console.log(`Total players in DB: ${totalPlayers}, with games: ${playersWithGames}, duplicates found: ${duplicateCount}`);
+      
+      // Populate team filter dropdown (before filtering, using all players)
+      populatePlayersTeamFilter(allPlayers);
       
       // Convert Map to array
       const rows = Array.from(playersMap.values());
@@ -1632,6 +1639,73 @@ ${suspectedDuplicates}
       if (document.querySelector('#view-players thead th')) {
         updateSortHeaders('name', 'asc'); // Default sort
       }
+    }
+    
+    /**
+     * Populate players team filter dropdown
+     */
+    function populatePlayersTeamFilter(players) {
+      const teamFilter = document.getElementById('playersTeamFilter');
+      if (!teamFilter) return;
+      
+      // Extract unique teams
+      const teamsSet = new Set();
+      for (const player of players) {
+        if (player.team) {
+          teamsSet.add(player.team.trim());
+        }
+      }
+      
+      // Sort teams alphabetically
+      const teams = Array.from(teamsSet).sort((a, b) => a.localeCompare(b, 'he'));
+      
+      // Remember current selection
+      const currentValue = teamFilter.value;
+      
+      // Rebuild options
+      teamFilter.innerHTML = '<option value="">כל הקבוצות</option>';
+      for (const team of teams) {
+        const option = document.createElement('option');
+        option.value = team;
+        option.textContent = team;
+        teamFilter.appendChild(option);
+      }
+      
+      // Restore selection if it still exists
+      if (currentValue && teams.includes(currentValue)) {
+        teamFilter.value = currentValue;
+      }
+    }
+    
+    /**
+     * Initialize players filter listeners
+     */
+    function initPlayersFilterListeners() {
+      const teamFilter = document.getElementById('playersTeamFilter');
+      const searchInput = document.getElementById('playersSearch');
+      const clearBtn = document.getElementById('clearPlayersFilters');
+      
+      if (teamFilter) {
+        teamFilter.addEventListener('change', () => {
+          renderPlayersTable();
+        });
+      }
+      
+      if (searchInput) {
+        searchInput.addEventListener('input', () => {
+          renderPlayersTable();
+        });
+      }
+      
+      if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+          if (teamFilter) teamFilter.value = '';
+          if (searchInput) searchInput.value = '';
+          renderPlayersTable();
+        });
+      }
+      
+      console.log('✅ Players filter listeners initialized');
     }
 
     // Prevent multiple simultaneous calls

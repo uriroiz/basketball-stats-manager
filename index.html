@@ -236,9 +236,23 @@
     <!-- ========== Players DB (view-players) ========== -->
     <section id="view-players" class="hidden">
       <div class="card p-4">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-lg font-bold text-blue-900">סטטיסטיקות שחקנים (<span id="playersCount">0</span>)</h2>
-          <input id="playersSearch" class="px-3 py-2 border rounded text-sm" placeholder="חפש לפי שם/קבוצה/מס' חולצה/מזהה (חיפוש אוטומטי)">
+        <div class="mb-3">
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-lg font-bold text-blue-900">סטטיסטיקות שחקנים (<span id="playersCount">0</span>)</h2>
+          </div>
+          
+          <!-- Filters Row -->
+          <div class="flex gap-2 items-center">
+            <select id="playersTeamFilter" class="px-3 py-2 border rounded text-sm">
+              <option value="">כל הקבוצות</option>
+            </select>
+            
+            <input id="playersSearch" class="flex-1 px-3 py-2 border rounded text-sm" placeholder="חפש לפי שם/מס' חולצה/מזהה">
+            
+            <button id="clearPlayersFilters" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm">
+              נקה סינון
+            </button>
+          </div>
         </div>
         <div class="stats-wrap">
           <table class="stats-table" dir="rtl">
@@ -902,13 +916,13 @@
     <script defer src="js/cp1252Utf8Repair.js?v=4"></script>
     <script defer src="js/app_teams_ui.js?v=36"></script>
     <script defer src="js/app_events.js?v=8"></script>
-    <script defer src="js/app_bootstrap.js?v=8"></script>
+    <script defer src="js/app_bootstrap.js?v=9"></script>
     <script defer src="js/app_last_mile.js?v=7"></script>
     <script defer src="js/app_expose.js?v=8"></script>
     <script defer src="js/app_game_analysis.js?v=1"></script>
     <script defer src="js/team_merge_tool.js?v=1"></script>
     <script defer src="js/player_merge_tool.js?v=12"></script>
-    <script defer src="js/app_db_save.js?v=91"></script>
+    <script defer src="js/app_db_save.js?v=92"></script>
     
 </body>
 </html>

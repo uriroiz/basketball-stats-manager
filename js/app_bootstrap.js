@@ -68,6 +68,10 @@ window.addEventListener('load', async () => {
       await renderTeamsAggregate();
     }
     if (typeof renderPlayersTable === 'function') {
+      // Initialize players filter listeners
+      if (typeof window.initPlayersFilterListeners === 'function') {
+        window.initPlayersFilterListeners();
+      }
       // Pre-load players data (not visible but cached)
       await renderPlayersTable();
     }
