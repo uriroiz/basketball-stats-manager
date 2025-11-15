@@ -85,6 +85,13 @@
     key: config.supabaseKey
   };
   
+  // Export as window.CONFIG for compatibility with db_adapter
+  window.CONFIG = {
+    SUPABASE_URL: config.supabaseUrl,
+    SUPABASE_ANON_KEY: config.supabaseKey,
+    ADMIN_PASSWORD: config.adminPassword
+  };
+  
   // Validate on load
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
