@@ -1029,15 +1029,15 @@ async function loadPlayersForManualMerge() {
     
     // Filter out players without names and sort by name
     const validPlayers = players.filter(p => {
-      const name = `${p.firstNameHe || ''} ${p.familyNameHe || ''}`.trim();
+      const name = p.name || `${p.firstNameHe || ''} ${p.familyNameHe || ''}`.trim();
       return name.length > 0; // Only include players with names
     });
     
     console.log(`✅ Found ${validPlayers.length} players with valid names (filtered out ${players.length - validPlayers.length})`);
     
     validPlayers.sort((a, b) => {
-      const nameA = `${a.firstNameHe || ''} ${a.familyNameHe || ''}`.trim();
-      const nameB = `${b.firstNameHe || ''} ${b.familyNameHe || ''}`.trim();
+      const nameA = a.name || `${a.firstNameHe || ''} ${a.familyNameHe || ''}`.trim();
+      const nameB = b.name || `${b.firstNameHe || ''} ${b.familyNameHe || ''}`.trim();
       return nameA.localeCompare(nameB, 'he');
     });
     
@@ -1052,25 +1052,14 @@ async function loadPlayersForManualMerge() {
       
       // Add players
       validPlayers.forEach(player => {
-        const name = `${player.firstNameHe || ''} ${player.familyNameHe || ''}`.trim();
+        const name = player.name || `${player.firstNameHe || ''} ${player.familyNameHe || ''}`.trim();
         
-        // Count games more carefully
-        let gamesCount = 0;
-        if (player.games) {
-          if (Array.isArray(player.games)) {
-            gamesCount = player.games.length;
-          } else if (typeof player.games === 'string') {
-            // If games is a JSON string, parse it
-            try {
-              const parsed = JSON.parse(player.games);
-              gamesCount = Array.isArray(parsed) ? parsed.length : 0;
-            } catch (e) {
-              console.warn(`Failed to parse games for ${name}:`, e);
-            }
-          }
-        }
+        // Count games - it's always an array from dbAdapter
+        const gamesCount = Array.isArray(player.games) ? player.games.length : 0;
         
         const displayName = `${name} (${gamesCount} משחקים)`;
+        
+        console.log(`📋 Adding player: ${displayName}`); // Debug
         
         const sourceOption = document.createElement('option');
         sourceOption.value = player.id;
@@ -1151,41 +1140,16 @@ async function showManualMergePreview() {
     const targetGamesSpan = document.getElementById('previewTargetGames');
     
     if (previewDiv && sourceNameSpan && targetNameSpan && sourceGamesSpan && targetGamesSpan) {
-      const sourceName = `${sourcePlayer.firstNameHe || ''} ${sourcePlayer.familyNameHe || ''}`.trim();
-      const targetName = `${targetPlayer.firstNameHe || ''} ${targetPlayer.familyNameHe || ''}`.trim();
+      const sourceName = sourcePlayer.name || `${sourcePlayer.firstNameHe || ''} ${sourcePlayer.familyNameHe || ''}`.trim();
+      const targetName = targetPlayer.name || `${targetPlayer.firstNameHe || ''} ${targetPlayer.familyNameHe || ''}`.trim();
       
-      // Count games carefully (might be array or JSON string)
-      let sourceGamesCount = 0;
-      if (sourcePlayer.games) {
-        if (Array.isArray(sourcePlayer.games)) {
-          sourceGamesCount = sourcePlayer.games.length;
-        } else if (typeof sourcePlayer.games === 'string') {
-          try {
-            const parsed = JSON.parse(sourcePlayer.games);
-            sourceGamesCount = Array.isArray(parsed) ? parsed.length : 0;
-          } catch (e) {
-            console.warn('Failed to parse source games:', e);
-          }
-        }
-      }
+      // Count games - always an array from dbAdapter
+      const sourceGamesCount = Array.isArray(sourcePlayer.games) ? sourcePlayer.games.length : 0;
+      const targetGamesCount = Array.isArray(targetPlayer.games) ? targetPlayer.games.length : 0;
       
-      let targetGamesCount = 0;
-      if (targetPlayer.games) {
-        if (Array.isArray(targetPlayer.games)) {
-          targetGamesCount = targetPlayer.games.length;
-        } else if (typeof targetPlayer.games === 'string') {
-          try {
-            const parsed = JSON.parse(targetPlayer.games);
-            targetGamesCount = Array.isArray(parsed) ? parsed.length : 0;
-          } catch (e) {
-            console.warn('Failed to parse target games:', e);
-          }
-        }
-      }
-      
-      console.log(`🔍 Source player games:`, sourcePlayer.games);
+      console.log(`🔍 Source player:`, sourceName, sourcePlayer.games);
       console.log(`🔍 Source games count:`, sourceGamesCount);
-      console.log(`🔍 Target player games:`, targetPlayer.games);
+      console.log(`🔍 Target player:`, targetName, targetPlayer.games);
       console.log(`🔍 Target games count:`, targetGamesCount);
       
       sourceNameSpan.textContent = sourceName;
@@ -1255,36 +1219,14 @@ async function executeManualPlayerMerge() {
       return;
     }
     
-    console.log(`🔀 Merging ${sourcePlayer.firstNameHe} ${sourcePlayer.familyNameHe} → ${targetPlayer.firstNameHe} ${targetPlayer.familyNameHe}`);
+    const sourceName = sourcePlayer.name || `${sourcePlayer.firstNameHe} ${sourcePlayer.familyNameHe}`;
+    const targetName = targetPlayer.name || `${targetPlayer.firstNameHe} ${targetPlayer.familyNameHe}`;
     
-    // Parse games if they are JSON strings
-    let sourceGames = [];
-    if (sourcePlayer.games) {
-      if (Array.isArray(sourcePlayer.games)) {
-        sourceGames = sourcePlayer.games;
-      } else if (typeof sourcePlayer.games === 'string') {
-        try {
-          const parsed = JSON.parse(sourcePlayer.games);
-          sourceGames = Array.isArray(parsed) ? parsed : [];
-        } catch (e) {
-          console.error('Failed to parse source games:', e);
-        }
-      }
-    }
+    console.log(`🔀 Merging ${sourceName} → ${targetName}`);
     
-    let targetGames = [];
-    if (targetPlayer.games) {
-      if (Array.isArray(targetPlayer.games)) {
-        targetGames = targetPlayer.games;
-      } else if (typeof targetPlayer.games === 'string') {
-        try {
-          const parsed = JSON.parse(targetPlayer.games);
-          targetGames = Array.isArray(parsed) ? parsed : [];
-        } catch (e) {
-          console.error('Failed to parse target games:', e);
-        }
-      }
-    }
+    // Get games arrays - always arrays from dbAdapter
+    const sourceGames = Array.isArray(sourcePlayer.games) ? sourcePlayer.games : [];
+    const targetGames = Array.isArray(targetPlayer.games) ? targetPlayer.games : [];
     
     console.log(`📊 Source has ${sourceGames.length} games, target has ${targetGames.length} games`);
     
