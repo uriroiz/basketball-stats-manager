@@ -396,6 +396,39 @@
    */
   async function dbSavePlayer(playerData) {
     if (useSupabase && supabase) {
+      // Try Edge Function if admin password is available
+      const adminPassword = window.authModule?.getPassword?.();
+      
+      if (adminPassword) {
+        console.log('💾 Saving player via Edge Function (authenticated)...');
+        try {
+          const response = await fetch(`${window.CONFIG.SUPABASE_URL}/functions/v1/save-player`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-admin-password': adminPassword,
+              'Authorization': `Bearer ${window.CONFIG.SUPABASE_ANON_KEY}`
+            },
+            body: JSON.stringify({ playerData })
+          });
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Edge Function error response:', errorText);
+            throw new Error(`Edge Function call failed: ${response.status} ${errorText}`);
+          }
+          
+          const result = await response.json();
+          console.log('✅ Player saved via Edge Function:', result);
+          return result;
+        } catch (edgeFunctionError) {
+          console.error('❌ Edge Function error:', edgeFunctionError);
+          throw edgeFunctionError;
+        }
+      }
+      
+      // Fall back to direct Supabase API (will fail if RLS is enabled)
+      console.log('💾 Saving via direct Supabase API (no admin password)...');
       const { data, error } = await supabase
         .from('players')
         .upsert(playerData, { onConflict: 'id' })
@@ -425,6 +458,39 @@
    */
   async function dbDeletePlayer(playerId) {
     if (useSupabase && supabase) {
+      // Try Edge Function if admin password is available
+      const adminPassword = window.authModule?.getPassword?.();
+      
+      if (adminPassword) {
+        console.log('🗑️ Deleting player via Edge Function (authenticated)...');
+        try {
+          const response = await fetch(`${window.CONFIG.SUPABASE_URL}/functions/v1/delete-player`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-admin-password': adminPassword,
+              'Authorization': `Bearer ${window.CONFIG.SUPABASE_ANON_KEY}`
+            },
+            body: JSON.stringify({ playerId })
+          });
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Edge Function error response:', errorText);
+            throw new Error(`Edge Function call failed: ${response.status} ${errorText}`);
+          }
+          
+          const result = await response.json();
+          console.log('✅ Player deleted via Edge Function:', result);
+          return true;
+        } catch (edgeFunctionError) {
+          console.error('❌ Edge Function error:', edgeFunctionError);
+          throw edgeFunctionError;
+        }
+      }
+      
+      // Fall back to direct Supabase API (will fail if RLS is enabled)
+      console.log('🗑️ Deleting via direct Supabase API (no admin password)...');
       const { error } = await supabase
         .from('players')
         .delete()
