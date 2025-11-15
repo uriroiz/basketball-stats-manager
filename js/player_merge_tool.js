@@ -1027,14 +1027,46 @@ async function loadPlayersForManualMerge() {
       console.log('🔍 Player games is array:', Array.isArray(players[0].games));
     }
     
-    // Filter out players without names and sort by name
-    const validPlayers = players.filter(p => {
+    // Filter out players without names
+    const namedPlayers = players.filter(p => {
       const name = p.name || `${p.firstNameHe || ''} ${p.familyNameHe || ''}`.trim();
       return name.length > 0; // Only include players with names
     });
     
-    console.log(`✅ Found ${validPlayers.length} players with valid names (filtered out ${players.length - validPlayers.length})`);
+    console.log(`✅ Found ${namedPlayers.length} players with names (filtered out ${players.length - namedPlayers.length})`);
     
+    // Deduplicate players by ID - merge games from duplicates
+    const playerMap = new Map();
+    
+    for (const player of namedPlayers) {
+      if (playerMap.has(player.id)) {
+        // Merge games if this ID already exists
+        const existing = playerMap.get(player.id);
+        const existingGames = Array.isArray(existing.games) ? existing.games : [];
+        const newGames = Array.isArray(player.games) ? player.games : [];
+        
+        // Combine games, avoiding duplicates by gameSerial
+        const gameSerials = new Set(existingGames.map(g => g.gameSerial));
+        for (const game of newGames) {
+          if (!gameSerials.has(game.gameSerial)) {
+            existingGames.push(game);
+          }
+        }
+        existing.games = existingGames;
+        
+        console.log(`🔗 Merged duplicate ${player.name}: ${existingGames.length} total games`);
+      } else {
+        // First time seeing this ID
+        playerMap.set(player.id, player);
+      }
+    }
+    
+    // Convert map back to array
+    const validPlayers = Array.from(playerMap.values());
+    
+    console.log(`✅ After deduplication: ${validPlayers.length} unique players`);
+    
+    // Sort by name
     validPlayers.sort((a, b) => {
       const nameA = a.name || `${a.firstNameHe || ''} ${a.familyNameHe || ''}`.trim();
       const nameB = b.name || `${b.firstNameHe || ''} ${b.familyNameHe || ''}`.trim();
@@ -1058,8 +1090,6 @@ async function loadPlayersForManualMerge() {
         const gamesCount = Array.isArray(player.games) ? player.games.length : 0;
         
         const displayName = `${name} (${gamesCount} משחקים)`;
-        
-        console.log(`📋 Adding player: ${displayName}`); // Debug
         
         const sourceOption = document.createElement('option');
         sourceOption.value = player.id;
