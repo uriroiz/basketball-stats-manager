@@ -1843,20 +1843,20 @@ ${suspectedDuplicates}
 
     // טעינה מחדש של משחק מה-JSON המקורי
     async function reloadGameFromOriginalJson(gameId) {
-      if (!(DB_AVAILABLE && DB)) {
-        showError('מסד הנתונים לא זמין');
-        return;
-      }
-
       try {
-        // קבלת המשחק המקורי
-        const game = await new Promise((resolve, reject) => {
-          const tx = DB.transaction(['games'], 'readonly');
-          const store = tx.objectStore('games');
-          const req = store.get(parseInt(gameId));
-          req.onsuccess = () => resolve(req.result);
-          req.onerror = () => reject(req.error);
-        });
+        // Wait for DB to be ready
+        if (typeof window.ensureDbReady === 'function') {
+          await window.ensureDbReady();
+        }
+
+        if (!window.dbAdapter || typeof window.dbAdapter.getGame !== 'function') {
+          showError('מסד הנתונים לא זמין');
+          return;
+        }
+
+        // קבלת המשחק מ-dbAdapter (עובד עם Supabase ו-IndexedDB)
+        console.log('📡 Loading game', gameId, 'from', window.dbAdapter.isSupabase() ? 'Supabase' : 'IndexedDB');
+        const game = await window.dbAdapter.getGame(parseInt(gameId));
 
         if (!game) {
           showError(`משחק ${gameId} לא נמצא`);
@@ -1896,10 +1896,11 @@ ${suspectedDuplicates}
         // מעבר לטאב ייבוא וניתוח
         switchTab('ingest');
         
+        console.log('✅ Game', gameId, 'loaded successfully');
         showOk(`JSON מקורי של משחק ${gameId} נטען! לחץ על "פענח" כדי לעבד מחדש. המשחק יעודכן (לא יווצר משחק חדש).`);
 
       } catch (error) {
-        console.error('Error reloading game:', error);
+        console.error('❌ Error reloading game:', error);
         showError('שגיאה בטעינת המשחק: ' + (error?.message || error));
       }
     }
@@ -3465,20 +3466,25 @@ ${suspectedDuplicates}
 
     // טעינה מחדש של כל המשחקים עם שחזור נתוני שחקנים
     async function reloadAllGamesFromJSON() {
-      if (!(DB_AVAILABLE && DB)) {
-        showError('מסד הנתונים לא זמין');
-        return;
-      }
-
-      const confirmed = confirm(
-        '⚠️ פעולה זו תמחק את כל נתוני השחקנים ותבנה אותם מחדש מה-JSON המקורי.\n\n' +
-        'זה ימנע כפילויות ויבטיח נתונים נקיים.\n\n' +
-        'האם להמשיך?'
-      );
-      
-      if (!confirmed) return;
-
       try {
+        // Wait for DB to be ready
+        if (typeof window.ensureDbReady === 'function') {
+          await window.ensureDbReady();
+        }
+
+        if (!window.dbAdapter || typeof window.dbAdapter.getGames !== 'function') {
+          showError('מסד הנתונים לא זמין');
+          return;
+        }
+
+        const confirmed = confirm(
+          '⚠️ פעולה זו תמחק את כל נתוני השחקנים ותבנה אותם מחדש מה-JSON המקורי.\n\n' +
+          'זה ימנע כפילויות ויבטיח נתונים נקיים.\n\n' +
+          'האם להמשיך?'
+        );
+        
+        if (!confirmed) return;
+
         console.log('🔄 מתחיל ריבילד מלא של נתוני שחקנים...');
         showOk('🔄 מתחיל ניקוי ובנייה מחדש... אנא המתן');
         
@@ -3488,16 +3494,10 @@ ${suspectedDuplicates}
         
         for (const storeName of playerStores) {
           try {
-            const tx = DB.transaction([storeName], 'readwrite');
-            const store = tx.objectStore(storeName);
-            await new Promise((resolve, reject) => {
-              const req = store.clear();
-              req.onsuccess = () => {
-                console.log(`  ✅ ${storeName} נוקה`);
-                resolve();
-              };
-              req.onerror = () => reject(req.error);
-            });
+            if (window.dbAdapter && typeof window.dbAdapter.clearTable === 'function') {
+              await window.dbAdapter.clearTable(storeName);
+              console.log(`  ✅ ${storeName} נוקה`);
+            }
           } catch (err) {
             console.warn(`⚠️ לא ניתן לנקות ${storeName}:`, err);
           }
@@ -3505,17 +3505,11 @@ ${suspectedDuplicates}
         
         console.log('✅ שלב 1 הושלם - כל נתוני השחקנים נוקו');
         
-        // שלב 2: קבלת כל המשחקים
+        // שלב 2: קבלת כל המשחקים מ-dbAdapter
         console.log('📦 שלב 2: טוען רשימת משחקים...');
-        const allGames = await new Promise((resolve, reject) => {
-          const tx = DB.transaction(['games'], 'readonly');
-          const store = tx.objectStore('games');
-          const req = store.getAll();
-          req.onsuccess = () => resolve(req.result || []);
-          req.onerror = () => reject(req.error);
-        });
+        const allGames = await window.dbAdapter.getGames();
 
-        if (allGames.length === 0) {
+        if (!allGames || allGames.length === 0) {
           showError('אין משחקים למעבד מחדש');
           return;
         }
