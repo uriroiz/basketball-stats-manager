@@ -1880,6 +1880,12 @@ ${suspectedDuplicates}
         }
       });
 
+      // Update games count
+      const gamesCountSpan = $("gamesCount");
+      if (gamesCountSpan) {
+        gamesCountSpan.textContent = filtered.length;
+      }
+
       tbody.innerHTML = "";
       if(!filtered.length){
         const tr = document.createElement("tr");
