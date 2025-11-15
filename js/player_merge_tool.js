@@ -1317,14 +1317,27 @@ async function executeManualPlayerMerge() {
       return;
     }
     
-    console.log(`💾 Calling dbAdapter.savePlayer for target...`);
-    const savedPlayer = await window.dbAdapter.savePlayer(targetPlayer);
-    console.log(`✅ Target player saved:`, savedPlayer);
+    try {
+      console.log(`💾 Calling dbAdapter.savePlayer for target...`);
+      console.log(`💾 Target player to save:`, targetPlayer);
+      const savedPlayer = await window.dbAdapter.savePlayer(targetPlayer);
+      console.log(`✅ Target player saved:`, savedPlayer);
+    } catch (saveError) {
+      console.error(`❌ Failed to save target player:`, saveError);
+      showError(`שגיאה בשמירת שחקן: ${saveError.message}`);
+      throw saveError; // Re-throw so outer catch handles it
+    }
     
     // Delete source player
-    console.log(`🗑️ Deleting source player (ID: ${sourceId})...`);
-    const deleteResult = await window.dbAdapter.deletePlayer(sourceId);
-    console.log(`✅ Source player deleted:`, deleteResult);
+    try {
+      console.log(`🗑️ Deleting source player (ID: ${sourceId})...`);
+      const deleteResult = await window.dbAdapter.deletePlayer(sourceId);
+      console.log(`✅ Source player deleted:`, deleteResult);
+    } catch (deleteError) {
+      console.error(`❌ Failed to delete source player:`, deleteError);
+      showError(`שגיאה במחיקת שחקן: ${deleteError.message}`);
+      throw deleteError; // Re-throw so outer catch handles it
+    }
     
     // Success!
     showOk(`✅ איחוד הושלם בהצלחה! ${sourceGames.length} משחקים הועברו.`);
