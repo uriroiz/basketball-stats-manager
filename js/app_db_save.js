@@ -1656,6 +1656,7 @@ ${suspectedDuplicates}
         try {
           if (name === 'games') {
             await renderGamesTable();
+            initGamesTableSort();
           } else if (name === 'teams') {
             await renderTeamsAggregate('team', 'asc');
             initTeamsTableSort();
@@ -1730,7 +1731,7 @@ ${suspectedDuplicates}
     // 🔥 Guard flag to prevent race condition in renderGamesTable
     let isRenderingGames = false;
     
-    async function renderGamesTable(){
+    async function renderGamesTable(sortField = 'gameId', sortDirection = 'desc'){
       // 🔥 Guard: If already rendering, skip this call
       if (isRenderingGames) {
         console.log('⏭️ Skipping renderGamesTable - already in progress');
@@ -1766,7 +1767,7 @@ ${suspectedDuplicates}
           if(!id) return;
           if(confirm(`למחוק את המשחק ${id}?`)){
             await deleteGameById(id);
-            await renderGamesTable();
+            await renderGamesTable(sortField, sortDirection);
             if(typeof renderTeamsAggregate === "function"){ await renderTeamsAggregate(); }
           }
         };
@@ -1789,6 +1790,57 @@ ${suspectedDuplicates}
           (g.teams||[]).join(" ")
         ].join(" ").toLowerCase();
         return !q || hay.includes(q);
+      });
+
+      // Sort the filtered games
+      filtered.sort((a, b) => {
+        let valA, valB;
+        
+        switch(sortField) {
+          case 'gameId':
+            valA = Number(a.id) || 0;
+            valB = Number(b.id) || 0;
+            break;
+          case 'cycle':
+            valA = Number(a.cycle) || 0;
+            valB = Number(b.cycle) || 0;
+            break;
+          case 'date':
+            valA = a.date || '';
+            valB = b.date || '';
+            break;
+          case 'game':
+            valA = (a.teams || []).join(' ');
+            valB = (b.teams || []).join(' ');
+            break;
+          case 'result':
+            const homeA = a.teams?.[0] || '';
+            const awayA = a.teams?.[1] || '';
+            const totalsA = a.totals || {};
+            const homePtsA = (totalsA[homeA]?.points ?? -1);
+            const awayPtsA = (totalsA[awayA]?.points ?? -1);
+            valA = homePtsA + awayPtsA;
+            
+            const homeB = b.teams?.[0] || '';
+            const awayB = b.teams?.[1] || '';
+            const totalsB = b.totals || {};
+            const homePtsB = (totalsB[homeB]?.points ?? -1);
+            const awayPtsB = (totalsB[awayB]?.points ?? -1);
+            valB = homePtsB + awayPtsB;
+            break;
+          default:
+            return 0;
+        }
+        
+        if (typeof valA === 'string') {
+          return sortDirection === 'asc' 
+            ? valA.localeCompare(valB, 'he') 
+            : valB.localeCompare(valA, 'he');
+        } else {
+          return sortDirection === 'asc' 
+            ? valA - valB 
+            : valB - valA;
+        }
       });
 
       tbody.innerHTML = "";
@@ -1826,6 +1878,9 @@ ${suspectedDuplicates}
         tbody.appendChild(tr);
       }
       
+      // Update table headers with sort indicators
+      updateGamesTableHeaders(sortField, sortDirection);
+      
       console.log('✅ END renderGamesTable');
       
       } catch (error) {
@@ -1834,6 +1889,35 @@ ${suspectedDuplicates}
         // 🔥 CRITICAL: Always release the flag, even if there was an error
         isRenderingGames = false;
       }
+    }
+
+    // Update games table headers with sort indicators
+    function updateGamesTableHeaders(sortField, sortDirection) {
+      const headers = document.querySelectorAll('#view-games .stats-table thead th[data-sort-field]');
+      
+      headers.forEach(header => {
+        const field = header.getAttribute('data-sort-field');
+        
+        // Clear existing sort indicators
+        header.classList.remove('sort-asc', 'sort-desc');
+        
+        // Add sort indicator if this is the active sort field
+        if (field === sortField) {
+          header.classList.add(sortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
+        }
+        
+        // Make headers clickable
+        header.style.cursor = 'pointer';
+        header.onclick = function() {
+          const newDirection = (field === sortField && sortDirection === 'desc') ? 'asc' : 'desc';
+          renderGamesTable(field, newDirection);
+        };
+      });
+    }
+
+    // Initialize games table sort on page load
+    function initGamesTableSort() {
+      updateGamesTableHeaders('gameId', 'desc');
     }
 
     // טעינה מחדש של משחק מה-JSON המקורי
