@@ -1305,7 +1305,14 @@ async function executeManualPlayerMerge() {
     console.log(`✅ Merged games total: ${mergedGames.length}`);
     
     // Recalculate stats for target player
-    recalculatePlayerStats(targetPlayer);
+    console.log(`📊 Recalculating stats for target player...`);
+    try {
+      recalculatePlayerStats(targetPlayer);
+      console.log(`✅ Stats recalculated successfully`);
+    } catch (statsError) {
+      console.error(`⚠️ Failed to recalculate stats (continuing anyway):`, statsError);
+      // Continue anyway - stats can be recalculated later
+    }
     
     // Save updated target player
     console.log(`💾 Saving updated target player with ${mergedGames.length} games`);
