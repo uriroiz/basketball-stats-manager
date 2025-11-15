@@ -1448,6 +1448,11 @@ ${suspectedDuplicates}
               aVal = getTeamHeName(a.team || '');
               bVal = getTeamHeName(b.team || '');
               break;
+            case 'jersey':
+              // Convert jersey to number for proper sorting
+              aVal = parseInt(a.jersey) || 0;
+              bVal = parseInt(b.jersey) || 0;
+              break;
             case 'games':
               aVal = (a.games || []).length;
               bVal = (b.games || []).length;
