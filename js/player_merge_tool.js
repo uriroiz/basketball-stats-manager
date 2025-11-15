@@ -1035,13 +1035,15 @@ async function loadPlayersForManualMerge() {
     
     console.log(`✅ Found ${namedPlayers.length} players with names (filtered out ${players.length - namedPlayers.length})`);
     
-    // Deduplicate players by ID - merge games from duplicates
+    // Deduplicate players by NAME (not ID!) - merge games from duplicates
     const playerMap = new Map();
     
     for (const player of namedPlayers) {
-      if (playerMap.has(player.id)) {
-        // Merge games if this ID already exists
-        const existing = playerMap.get(player.id);
+      const name = player.name || `${player.firstNameHe || ''} ${player.familyNameHe || ''}`.trim();
+      
+      if (playerMap.has(name)) {
+        // Merge games if this NAME already exists
+        const existing = playerMap.get(name);
         const existingGames = Array.isArray(existing.games) ? existing.games : [];
         const newGames = Array.isArray(player.games) ? player.games : [];
         
@@ -1054,17 +1056,22 @@ async function loadPlayersForManualMerge() {
         }
         existing.games = existingGames;
         
-        console.log(`🔗 Merged duplicate ${player.name}: ${existingGames.length} total games`);
+        // Keep the ID of the entry with more games (prefer non-empty)
+        if (newGames.length > existingGames.length - newGames.length) {
+          existing.id = player.id;
+        }
+        
+        console.log(`🔗 Merged duplicate "${name}": ${existingGames.length} total games`);
       } else {
-        // First time seeing this ID
-        playerMap.set(player.id, player);
+        // First time seeing this NAME
+        playerMap.set(name, player);
       }
     }
     
     // Convert map back to array
     const validPlayers = Array.from(playerMap.values());
     
-    console.log(`✅ After deduplication: ${validPlayers.length} unique players`);
+    console.log(`✅ After deduplication: ${validPlayers.length} unique players (from ${namedPlayers.length})`);
     
     // Sort by name
     validPlayers.sort((a, b) => {
