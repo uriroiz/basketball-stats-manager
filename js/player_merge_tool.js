@@ -1019,8 +1019,23 @@ async function loadPlayersForManualMerge() {
     const players = await window.dbAdapter.getPlayers();
     console.log(`📊 Loaded ${players.length} players`);
     
-    // Sort by name
-    players.sort((a, b) => {
+    // Debug: Log first 3 players to see structure
+    if (players.length > 0) {
+      console.log('🔍 Sample player data:', players[0]);
+      console.log('🔍 Player games:', players[0].games);
+      console.log('🔍 Player games type:', typeof players[0].games);
+      console.log('🔍 Player games is array:', Array.isArray(players[0].games));
+    }
+    
+    // Filter out players without names and sort by name
+    const validPlayers = players.filter(p => {
+      const name = `${p.firstNameHe || ''} ${p.familyNameHe || ''}`.trim();
+      return name.length > 0; // Only include players with names
+    });
+    
+    console.log(`✅ Found ${validPlayers.length} players with valid names (filtered out ${players.length - validPlayers.length})`);
+    
+    validPlayers.sort((a, b) => {
       const nameA = `${a.firstNameHe || ''} ${a.familyNameHe || ''}`.trim();
       const nameB = `${b.firstNameHe || ''} ${b.familyNameHe || ''}`.trim();
       return nameA.localeCompare(nameB, 'he');
@@ -1036,9 +1051,25 @@ async function loadPlayersForManualMerge() {
       targetSelect.innerHTML = '<option value="">-- בחר שחקן --</option>';
       
       // Add players
-      players.forEach(player => {
+      validPlayers.forEach(player => {
         const name = `${player.firstNameHe || ''} ${player.familyNameHe || ''}`.trim();
-        const gamesCount = player.games ? player.games.length : 0;
+        
+        // Count games more carefully
+        let gamesCount = 0;
+        if (player.games) {
+          if (Array.isArray(player.games)) {
+            gamesCount = player.games.length;
+          } else if (typeof player.games === 'string') {
+            // If games is a JSON string, parse it
+            try {
+              const parsed = JSON.parse(player.games);
+              gamesCount = Array.isArray(parsed) ? parsed.length : 0;
+            } catch (e) {
+              console.warn(`Failed to parse games for ${name}:`, e);
+            }
+          }
+        }
+        
         const displayName = `${name} (${gamesCount} משחקים)`;
         
         const sourceOption = document.createElement('option');
@@ -1052,7 +1083,7 @@ async function loadPlayersForManualMerge() {
         targetSelect.appendChild(targetOption);
       });
       
-      showOk(`נטענו ${players.length} שחקנים`);
+      showOk(`נטענו ${validPlayers.length} שחקנים`);
     }
     
   } catch (error) {
@@ -1122,8 +1153,40 @@ async function showManualMergePreview() {
     if (previewDiv && sourceNameSpan && targetNameSpan && sourceGamesSpan && targetGamesSpan) {
       const sourceName = `${sourcePlayer.firstNameHe || ''} ${sourcePlayer.familyNameHe || ''}`.trim();
       const targetName = `${targetPlayer.firstNameHe || ''} ${targetPlayer.familyNameHe || ''}`.trim();
-      const sourceGamesCount = sourcePlayer.games ? sourcePlayer.games.length : 0;
-      const targetGamesCount = targetPlayer.games ? targetPlayer.games.length : 0;
+      
+      // Count games carefully (might be array or JSON string)
+      let sourceGamesCount = 0;
+      if (sourcePlayer.games) {
+        if (Array.isArray(sourcePlayer.games)) {
+          sourceGamesCount = sourcePlayer.games.length;
+        } else if (typeof sourcePlayer.games === 'string') {
+          try {
+            const parsed = JSON.parse(sourcePlayer.games);
+            sourceGamesCount = Array.isArray(parsed) ? parsed.length : 0;
+          } catch (e) {
+            console.warn('Failed to parse source games:', e);
+          }
+        }
+      }
+      
+      let targetGamesCount = 0;
+      if (targetPlayer.games) {
+        if (Array.isArray(targetPlayer.games)) {
+          targetGamesCount = targetPlayer.games.length;
+        } else if (typeof targetPlayer.games === 'string') {
+          try {
+            const parsed = JSON.parse(targetPlayer.games);
+            targetGamesCount = Array.isArray(parsed) ? parsed.length : 0;
+          } catch (e) {
+            console.warn('Failed to parse target games:', e);
+          }
+        }
+      }
+      
+      console.log(`🔍 Source player games:`, sourcePlayer.games);
+      console.log(`🔍 Source games count:`, sourceGamesCount);
+      console.log(`🔍 Target player games:`, targetPlayer.games);
+      console.log(`🔍 Target games count:`, targetGamesCount);
       
       sourceNameSpan.textContent = sourceName;
       targetNameSpan.textContent = targetName;
@@ -1194,9 +1257,36 @@ async function executeManualPlayerMerge() {
     
     console.log(`🔀 Merging ${sourcePlayer.firstNameHe} ${sourcePlayer.familyNameHe} → ${targetPlayer.firstNameHe} ${targetPlayer.familyNameHe}`);
     
-    // Merge games from source to target
-    const sourceGames = sourcePlayer.games || [];
-    const targetGames = targetPlayer.games || [];
+    // Parse games if they are JSON strings
+    let sourceGames = [];
+    if (sourcePlayer.games) {
+      if (Array.isArray(sourcePlayer.games)) {
+        sourceGames = sourcePlayer.games;
+      } else if (typeof sourcePlayer.games === 'string') {
+        try {
+          const parsed = JSON.parse(sourcePlayer.games);
+          sourceGames = Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+          console.error('Failed to parse source games:', e);
+        }
+      }
+    }
+    
+    let targetGames = [];
+    if (targetPlayer.games) {
+      if (Array.isArray(targetPlayer.games)) {
+        targetGames = targetPlayer.games;
+      } else if (typeof targetPlayer.games === 'string') {
+        try {
+          const parsed = JSON.parse(targetPlayer.games);
+          targetGames = Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+          console.error('Failed to parse target games:', e);
+        }
+      }
+    }
+    
+    console.log(`📊 Source has ${sourceGames.length} games, target has ${targetGames.length} games`);
     
     // Combine games (avoiding duplicates by gameSerial)
     const mergedGames = [...targetGames];
@@ -1209,14 +1299,24 @@ async function executeManualPlayerMerge() {
       }
     }
     
-    // Update target player with merged games
+    // Update target player with merged games (ensure it's an array, not a string)
     targetPlayer.games = mergedGames;
+    
+    console.log(`✅ Merged games total: ${mergedGames.length}`);
     
     // Recalculate stats for target player
     recalculatePlayerStats(targetPlayer);
     
     // Save updated target player
     console.log(`💾 Saving updated target player with ${mergedGames.length} games`);
+    
+    // Make sure we're authenticated for saving
+    const adminPassword = window.authModule?.getPassword?.();
+    if (!adminPassword) {
+      showError('נדרשת הזדהות כמנהל לשמירת שחקנים');
+      return;
+    }
+    
     await window.dbAdapter.savePlayer(targetPlayer);
     
     // Delete source player
