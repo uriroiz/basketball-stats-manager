@@ -229,9 +229,16 @@ ${suspectedDuplicates}
           console.log(`Insert mode: creating new game ${currentSerial}`);
         }
         
-        const tx=DB.transaction(["games","players"],"readwrite");
-        const gameStore=tx.objectStore("games");
-        const playerStore=tx.objectStore("players");
+        // Wait for DB to be ready
+        if (typeof window.ensureDbReady === 'function') {
+          await window.ensureDbReady();
+        }
+
+        if (!window.dbAdapter) {
+          showError('מסד הנתונים לא זמין');
+          return;
+        }
+
         // שמירת ה-JSON המקורי
         const originalJson = $("jsonTa")?.value || null;
         
@@ -244,29 +251,24 @@ ${suspectedDuplicates}
           originalJson: originalJson
         };
         
-        // שימוש ב-PUT במקום ADD - עובד גם להוספה וגם לעדכון
-        await new Promise((resolve,reject)=>{ 
-          const req = gameStore.put(gameToSave); 
-          req.onsuccess = () => resolve(); 
-          req.onerror = () => reject(req.error); 
-        });
+        // שמירת המשחק דרך dbAdapter (עובד עם Supabase ו-IndexedDB)
+        console.log('💾 Saving game', currentSerial, 'via dbAdapter');
+        await window.dbAdapter.saveGame(gameToSave);
         
-        // במצב עדכון, ננקה את סטטיסטיקות השחקנים הישנות למשחק זה
-        if (isUpdateMode) {
-          await cleanupPlayerStatsForGame(playerStore, currentSerial);
-        }
-
         let totalPlayers = PLAYERS.length;
         let playersWithMinutes = 0;
         let playersSaved = 0;
         
-        console.log(`Starting to save ${totalPlayers} players to database...`);
+        console.log(`Starting to save ${totalPlayers} players to database via dbAdapter...`);
         
         for(const player of PLAYERS){
           // שמירת רק שחקנים שבאמת שיחקו במשחק
           if(!player.playedMinutes) continue;
           playersWithMinutes++;
-          const existingPlayer=await new Promise((resolve)=>{ const req=playerStore.get(player.id); req.onsuccess=()=>resolve(req.result); req.onerror=()=>resolve(null); });
+          
+          // קבלת שחקן קיים (אם יש) דרך dbAdapter
+          const existingPlayer = await window.dbAdapter.getPlayer(player.id);
+          
           const gameEntry = {
             gameId: currentSerial, date:gameDate, team:player.team, minutes:player.minutes,
             points:player.points, rebounds:player.rebounds, assists:player.assists,
@@ -277,6 +279,7 @@ ${suspectedDuplicates}
             freeThrowsMade:player.freeThrowsMade, freeThrowsAttempted:player.freeThrowsAttempted,
             efficiency:player.efficiency
           };
+          
           if(existingPlayer){
             existingPlayer.games=existingPlayer.games||[];
             const idx = existingPlayer.games.findIndex(g => g.gameId===currentSerial);
@@ -313,7 +316,9 @@ ${suspectedDuplicates}
             existingPlayer.avgTurnovers = totalGames ? (existingPlayer.totalTurnovers / totalGames).toFixed(1) : "0.0";
             existingPlayer.avgFouls = totalGames ? (existingPlayer.totalFouls / totalGames).toFixed(1) : "0.0";
             existingPlayer.avgEfficiency = totalGames ? (existingPlayer.totalEfficiency / totalGames).toFixed(1) : "0.0";
-            await new Promise((resolve,reject)=>{ const req=playerStore.put(existingPlayer); req.onsuccess=()=>resolve(); req.onerror=()=>reject(req.error); });
+            
+            // שמירה דרך dbAdapter
+            await window.dbAdapter.savePlayer(existingPlayer);
           } else {
             const newPlayer={
               id:player.id, name:player.name, team:player.team, jersey:player.jersey,
@@ -328,33 +333,21 @@ ${suspectedDuplicates}
               avgSteals:player.steals.toFixed(1), avgBlocks:player.blocks.toFixed(1), avgTurnovers:player.turnovers.toFixed(1),
               avgFouls:player.fouls.toFixed(1), avgEfficiency:player.efficiency.toFixed(1)
             };
-            await new Promise((resolve,reject)=>{ const req=playerStore.add(newPlayer); req.onsuccess=()=>resolve(); req.onerror=()=>reject(req.error); });
+            
+            // שמירה דרך dbAdapter
+            await window.dbAdapter.savePlayer(newPlayer);
           }
           playersSaved++;
         }
         
-        console.log(`Save completed: ${totalPlayers} total players, ${playersWithMinutes} actually played, ${playersSaved} saved to DB`);
+        console.log(`✅ Save completed via dbAdapter: ${totalPlayers} total players, ${playersWithMinutes} actually played, ${playersSaved} saved`);
         
-        // בדיקת כמה משחקים ושחקנים יש במסד הנתונים (אחרי שהטרנזקציה נסגרת)
+        // בדיקת כמה משחקים ושחקנים יש במסד הנתונים
         setTimeout(async () => {
           try {
-            const gamesTx = DB.transaction(['games'], 'readonly');
-            const gamesStore = gamesTx.objectStore('games');
-            const gamesCount = await new Promise(resolve => {
-              const req = gamesStore.count();
-              req.onsuccess = () => resolve(req.result);
-              req.onerror = () => resolve(0);
-            });
-            console.log(`Total games in database: ${gamesCount}`);
-            
-            const playersTx = DB.transaction(['players'], 'readonly');
-            const playersStore = playersTx.objectStore('players');
-            const playersCount = await new Promise(resolve => {
-              const req = playersStore.count();
-              req.onsuccess = () => resolve(req.result);
-              req.onerror = () => resolve(0);
-            });
-            console.log(`Total players in database after save: ${playersCount}`);
+            const allGames = await window.dbAdapter.getGames();
+            const allPlayers = await window.dbAdapter.getPlayers();
+            console.log(`📊 Total in database: ${allGames?.length || 0} games, ${allPlayers?.length || 0} players`);
           } catch (error) {
             console.error('Error counting database records:', error);
           }
