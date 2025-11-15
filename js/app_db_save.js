@@ -251,15 +251,14 @@ ${suspectedDuplicates}
           originalJson: originalJson
         };
         
-        // שמירת המשחק דרך dbAdapter (עובד עם Supabase ו-IndexedDB)
-        console.log('💾 Saving game', currentSerial, 'via dbAdapter');
-        await window.dbAdapter.saveGame(gameToSave);
-        
         let totalPlayers = PLAYERS.length;
         let playersWithMinutes = 0;
         let playersSaved = 0;
         
-        console.log(`Starting to save ${totalPlayers} players to database via dbAdapter...`);
+        console.log(`Preparing to save ${totalPlayers} players...`);
+        
+        // Prepare all players data
+        const playersToSave = [];
         
         for(const player of PLAYERS){
           // שמירת רק שחקנים שבאמת שיחקו במשחק
@@ -280,6 +279,7 @@ ${suspectedDuplicates}
             efficiency:player.efficiency
           };
           
+          let playerToSave;
           if(existingPlayer){
             existingPlayer.games=existingPlayer.games||[];
             const idx = existingPlayer.games.findIndex(g => g.gameId===currentSerial);
@@ -317,10 +317,9 @@ ${suspectedDuplicates}
             existingPlayer.avgFouls = totalGames ? (existingPlayer.totalFouls / totalGames).toFixed(1) : "0.0";
             existingPlayer.avgEfficiency = totalGames ? (existingPlayer.totalEfficiency / totalGames).toFixed(1) : "0.0";
             
-            // שמירה דרך dbAdapter
-            await window.dbAdapter.savePlayer(existingPlayer);
+            playerToSave = existingPlayer;
           } else {
-            const newPlayer={
+            playerToSave = {
               id:player.id, name:player.name, team:player.team, jersey:player.jersey,
               games:[gameEntry],
               totalPoints:player.points, totalRebounds:player.rebounds, totalAssists:player.assists,
@@ -333,14 +332,17 @@ ${suspectedDuplicates}
               avgSteals:player.steals.toFixed(1), avgBlocks:player.blocks.toFixed(1), avgTurnovers:player.turnovers.toFixed(1),
               avgFouls:player.fouls.toFixed(1), avgEfficiency:player.efficiency.toFixed(1)
             };
-            
-            // שמירה דרך dbAdapter
-            await window.dbAdapter.savePlayer(newPlayer);
           }
+          
+          playersToSave.push(playerToSave);
           playersSaved++;
         }
         
-        console.log(`✅ Save completed via dbAdapter: ${totalPlayers} total players, ${playersWithMinutes} actually played, ${playersSaved} saved`);
+        // Save game with all players in one call (uses Edge Function if authenticated)
+        console.log(`💾 Saving game ${currentSerial} with ${playersToSave.length} players via dbAdapter...`);
+        await window.dbAdapter.saveGame(gameToSave, playersToSave);
+        
+        console.log(`✅ Save completed: ${totalPlayers} total players, ${playersWithMinutes} actually played, ${playersSaved} prepared`);
         
         // בדיקת כמה משחקים ושחקנים יש במסד הנתונים
         setTimeout(async () => {

@@ -207,9 +207,47 @@
 
   /**
    * Save/update game
+   * Uses Edge Function if admin is authenticated, otherwise direct Supabase
    */
-  async function dbSaveGame(gameData) {
+  async function dbSaveGame(gameData, playersData = []) {
+    // Check if admin password is available (for Edge Function)
+    const adminPassword = window.authModule?.getPassword?.();
+    
+    if (useSupabase && supabase && adminPassword) {
+      // Use Edge Function with admin authentication
+      console.log('💾 Saving via Edge Function (authenticated)...');
+      try {
+        const supabaseUrl = window.CONFIG?.SUPABASE_URL;
+        const response = await fetch(`${supabaseUrl}/functions/v1/save-game`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-admin-password': adminPassword,
+            'apikey': window.CONFIG?.SUPABASE_ANON_KEY
+          },
+          body: JSON.stringify({ 
+            gameData, 
+            playersData 
+          })
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Edge Function call failed');
+        }
+        
+        const result = await response.json();
+        console.log('✅ Saved via Edge Function:', result);
+        return gameData; // Return original gameData for consistency
+      } catch (error) {
+        console.error('❌ Edge Function error:', error);
+        throw error;
+      }
+    }
+    
     if (useSupabase && supabase) {
+      // Fallback to direct Supabase (will fail if RLS is enabled)
+      console.log('💾 Saving via direct Supabase...');
       const { data, error } = await supabase
         .from('games')
         .upsert(gameData, { onConflict: 'gameSerial' })

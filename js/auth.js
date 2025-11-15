@@ -11,6 +11,7 @@
   // State
   let isAuthenticatedState = false;
   let authCheckCallbacks = [];
+  let currentPassword = null; // Store password in memory for Edge Function calls
 
   /**
    * Check if user is currently authenticated
@@ -65,6 +66,9 @@
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
         isAuthenticatedState = true;
         
+        // Store password in memory for Edge Function authentication
+        currentPassword = password;
+        
         // Notify listeners
         notifyAuthChange(true);
         
@@ -84,6 +88,7 @@
   function logout() {
     localStorage.removeItem(AUTH_STORAGE_KEY);
     isAuthenticatedState = false;
+    currentPassword = null; // Clear password from memory
     
     // Notify listeners
     notifyAuthChange(false);
@@ -339,6 +344,15 @@
     }
   }
 
+  /**
+   * Get current admin password (for Edge Function authentication)
+   * Only available if user is authenticated
+   * @returns {string|null} - The password or null if not authenticated
+   */
+  function getPassword() {
+    return isAuthenticated() ? currentPassword : null;
+  }
+
   // Export functions to global scope
   window.authModule = {
     isAuthenticated,
@@ -346,7 +360,8 @@
     logout,
     onAuthChange,
     updateUIForAuthState,
-    initAuthUI
+    initAuthUI,
+    getPassword
   };
 
   // Auto-initialize when DOM is ready
