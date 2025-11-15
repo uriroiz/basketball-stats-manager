@@ -34,21 +34,20 @@ async function scanPlayerAliases() {
   console.log('🔍 === Starting Player Alias Scan ===');
   
   try {
+    // Wait for DB to be ready
+    if (typeof window.ensureDbReady === 'function') {
+      await window.ensureDbReady();
+    }
+    
     // Check database availability
-    if (!window.DB_AVAILABLE && !window.App?.DB_AVAILABLE) {
+    if (!window.dbAdapter) {
       showError('מסד הנתונים לא זמין');
       return;
     }
     
-    const db = window.DB || window.App?.DB;
-    if (!db) {
-      showError('מסד הנתונים לא זמין');
-      return;
-    }
+    console.log('✅ Database adapter available, scanning players...');
     
-    console.log('✅ Database available, scanning players...');
-    
-    // Get all players from the players store
+    // Get all players from dbAdapter
     const players = await getAllPlayersFromDB();
     console.log(`🔍 Found ${players.length} players in database`);
     
@@ -80,79 +79,39 @@ async function scanPlayerAliases() {
  * Get all players from the players store with their games and appearances
  */
 async function getAllPlayersFromDB() {
-  return new Promise(async (resolve, reject) => {
-    const db = window.DB || window.App?.DB;
-    if (!db) {
-      reject(new Error('Database not available'));
-      return;
+  try {
+    console.log('🔍 getAllPlayersFromDB: Starting...');
+    
+    // Wait for DB to be ready
+    if (typeof window.ensureDbReady === 'function') {
+      await window.ensureDbReady();
     }
     
-    try {
-      // Get all players
-      const players = await new Promise((resolve, reject) => {
-        const transaction = db.transaction(['players'], 'readonly');
-        const store = transaction.objectStore('players');
-        const request = store.getAll();
-        
-        request.onsuccess = () => {
-          resolve(request.result || []);
-        };
-        
-        request.onerror = () => {
-          reject(new Error('Failed to get players from database'));
-        };
-      });
-      
-      // Get all appearances
-      const appearances = await new Promise((resolve, reject) => {
-        const transaction = db.transaction(['appearances'], 'readonly');
-        const store = transaction.objectStore('appearances');
-        const request = store.getAll();
-        
-        request.onsuccess = () => {
-          resolve(request.result || []);
-        };
-        
-        request.onerror = () => {
-          reject(new Error('Failed to get appearances from database'));
-        };
-      });
-      
-      // Get all player stats (which contain game information)
-      const playerStats = await new Promise((resolve, reject) => {
-        const transaction = db.transaction(['player_stats'], 'readonly');
-        const store = transaction.objectStore('player_stats');
-        const request = store.getAll();
-        
-        request.onsuccess = () => {
-          resolve(request.result || []);
-        };
-        
-        request.onerror = () => {
-          reject(new Error('Failed to get player stats from database'));
-        };
-      });
-      
-      // Enrich players with appearances and games
-      const enrichedPlayers = players.map(player => {
-        const playerAppearances = appearances.filter(app => app.playerId === player.id);
-        const playerGames = playerStats.filter(stat => stat.playerId === player.id);
-        
-        console.log(`🔍 Player ${player.firstNameHe} ${player.familyNameHe}: ${playerAppearances.length} appearances, ${playerGames.length} games`);
-        
-        return {
-          ...player,
-          appearances: playerAppearances,
-          games: playerGames
-        };
-      });
-      
-      resolve(enrichedPlayers);
-      
-    } catch (error) {
-      reject(error);
+    if (!window.dbAdapter) {
+      throw new Error('Database adapter not available');
     }
-  });
+    
+    console.log('✅ dbAdapter is available');
+    
+    // Get all players from dbAdapter (already includes games data)
+    const players = await window.dbAdapter.getPlayers();
+    console.log(`📊 Loaded ${players.length} players from dbAdapter`);
+    
+    // Players from dbAdapter already have 'games' array
+    // Just log some debug info
+    players.forEach((player, index) => {
+      const gamesCount = player.games ? player.games.length : 0;
+      if (index < 5) { // Log first 5 for debugging
+        console.log(`🔍 Player ${index + 1}: ${player.firstNameHe} ${player.familyNameHe} - ${gamesCount} games`);
+      }
+    });
+    
+    return players;
+    
+  } catch (error) {
+    console.error('❌ Error in getAllPlayersFromDB:', error);
+    throw error;
+  }
 }
 
 /**
@@ -329,14 +288,17 @@ function arePlayersSimilar(player1, player2) {
  * Get player team from appearances or games
  */
 function getPlayerTeam(player) {
-  // Try to get from appearances first
-  if (player.appearances && player.appearances.length > 0) {
-    return player.appearances[0].teamId || '';
+  // Try to get from games (Supabase format)
+  if (player.games && player.games.length > 0) {
+    // Sort by gameSerial to get most recent
+    const sortedGames = [...player.games].sort((a, b) => (b.gameSerial || 0) - (a.gameSerial || 0));
+    const team = sortedGames[0].team || sortedGames[0].teamId || '';
+    if (team) return team;
   }
   
-  // Try to get from games
-  if (player.games && player.games.length > 0) {
-    return player.games[0].teamId || '';
+  // Try to get from appearances (IndexedDB format - fallback)
+  if (player.appearances && player.appearances.length > 0) {
+    return player.appearances[0].teamId || '';
   }
   
   return '';
@@ -346,14 +308,17 @@ function getPlayerTeam(player) {
  * Get player jersey from appearances or games
  */
 function getPlayerJersey(player) {
-  // Try to get from appearances first
-  if (player.appearances && player.appearances.length > 0) {
-    return player.appearances[0].shirtNumber || '';
+  // Try to get from games (Supabase format)
+  if (player.games && player.games.length > 0) {
+    // Sort by gameSerial to get most recent
+    const sortedGames = [...player.games].sort((a, b) => (b.gameSerial || 0) - (a.gameSerial || 0));
+    const jersey = sortedGames[0].jersey || sortedGames[0].shirtNumber || '';
+    if (jersey) return String(jersey);
   }
   
-  // Try to get from games
-  if (player.games && player.games.length > 0) {
-    return player.games[0].shirtNumber || '';
+  // Try to get from appearances (IndexedDB format - fallback)
+  if (player.appearances && player.appearances.length > 0) {
+    return String(player.appearances[0].shirtNumber || '');
   }
   
   return '';

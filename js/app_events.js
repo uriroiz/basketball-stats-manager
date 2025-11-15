@@ -252,108 +252,70 @@
         const delPM  = e.target.closest('button.delPlayerMap');
         if(editPM){
           const key = editPM.dataset.k;
-          if (typeof DB !== 'undefined' && DB) {
-            // 🔥 FIX: Try new system (players) first, then fallback to old system (player_mappings)
-            let rec = null;
+          console.log('🔍 Edit player clicked, key:', key);
+          
+          // Wait for DB to be ready
+          if (typeof window.ensureDbReady === 'function') {
+            await window.ensureDbReady();
+          }
+          
+          if (!window.dbAdapter) {
+            console.error('❌ dbAdapter not available');
+            typeof showError === 'function' && showError('מסד הנתונים לא זמין');
+            return;
+          }
+          
+          let rec = null;
+          
+          try {
+            // Get all players from dbAdapter
+            const allPlayers = await window.dbAdapter.getPlayers();
+            console.log('📊 Total players loaded:', allPlayers.length);
             
-            // Try new system: players store (using UUID as key)
-            try {
-              // First, load the player
-              rec = await new Promise((res)=>{
-                const tx = DB.transaction(['players'], 'readonly');
-                const st = tx.objectStore('players');
-                const rq = st.get(key);
-                rq.onsuccess = ()=>{
-                  const player = rq.result;
-                  if (player) {
-                    // Convert new format to old format for compatibility
-                    const converted = {
-                      lookup_key: player.id,
-                      id: player.id,
-                      first_en: player.firstNameEn || '',
-                      family_en: player.familyNameEn || '',
-                      first_he: player.firstNameHe || '',
-                      family_he: player.familyNameHe || '',
-                      jersey: '',
-                      team_en: ''
-                    };
-                    res(converted);
-                  } else {
-                    res(null);
-                  }
-                };
-                rq.onerror = ()=>res(null);
-              });
+            // Find the specific player by lookup_key (which is the id)
+            const player = allPlayers.find(p => p.id === key);
+            console.log('🔍 Found player:', player);
+            
+            if (player) {
+              // Extract jersey and team from most recent game
+              let jersey = '';
+              let team_en = '';
               
-              // If player found, load appearance data
-              if (rec && rec.id) {
-                try {
-                  const appearanceTx = DB.transaction(['appearances'], 'readonly');
-                  const appearanceStore = appearanceTx.objectStore('appearances');
-                  const playerIndex = appearanceStore.index('by_player_season');
-                  const appearanceReq = playerIndex.getAll([rec.id, '2024-25']);
-                  
-                  await new Promise((appearanceRes) => {
-                    appearanceReq.onsuccess = () => {
-                      const appearances = appearanceReq.result;
-                      if (appearances.length > 0) {
-                        const latest = appearances[appearances.length - 1];
-                        rec.jersey = latest.jersey || latest.shirtNumber || '';
-                        // Try to get team name from team_id
-                        if (latest.team_id) {
-                          const teamTx = DB.transaction(['teams'], 'readonly');
-                          const teamStore = teamTx.objectStore('teams');
-                          const teamReq = teamStore.get(latest.team_id);
-                          teamReq.onsuccess = () => {
-                            const team = teamReq.result;
-                            if (team) {
-                              rec.team_en = team.name_en || team.name_he || '';
-                              // Update the field in the modal if it's already open
-                              const teamEnField = document.getElementById('pm_teamEn');
-                              if (teamEnField) {
-                                teamEnField.value = rec.team_en;
-                              }
-                            }
-                          };
-                        } else {
-                          rec.team_en = latest.teamId || '';
-                          // Update the field in the modal
-                          const teamEnField = document.getElementById('pm_teamEn');
-                          if (teamEnField) {
-                            teamEnField.value = rec.team_en;
-                          }
-                        }
-                        
-                        // Update jersey field in the modal
-                        const jerseyField = document.getElementById('pm_jersey');
-                        if (jerseyField) {
-                          jerseyField.value = rec.jersey;
-                        }
-                      }
-                      appearanceRes();
-                    };
-                    appearanceReq.onerror = () => appearanceRes();
-                  });
-                } catch (e) {
-                  console.log('⚠️ Could not load appearances:', e);
-                }
+              if (player.games && Array.isArray(player.games) && player.games.length > 0) {
+                // Sort by gameSerial to get most recent
+                const sortedGames = [...player.games].sort((a, b) => (b.gameSerial || 0) - (a.gameSerial || 0));
+                const latestGame = sortedGames[0];
+                jersey = latestGame.jersey || '';
+                team_en = latestGame.team || '';
+                console.log('📋 Latest game data:', { jersey, team_en, gameSerial: latestGame.gameSerial });
               }
-            } catch (e) {
-              console.log('⚠️ Could not load from players store:', e);
+              
+              // Convert to format expected by modal
+              rec = {
+                lookup_key: player.id,
+                id: player.id,
+                first_en: player.firstNameEn || '',
+                family_en: player.familyNameEn || '',
+                first_he: player.firstNameHe || '',
+                family_he: player.familyNameHe || '',
+                jersey: jersey,
+                team_en: team_en
+              };
+              
+              console.log('✅ Player record prepared:', rec);
+            } else {
+              console.warn('⚠️ Player not found with key:', key);
             }
-            
-            // Fallback to old system: player_mappings store
-            if (!rec) {
-              rec = await new Promise((res)=>{
-                const tx = DB.transaction(['player_mappings'], 'readonly');
-                const st = tx.objectStore('player_mappings');
-                const rq = st.get(key);
-                rq.onsuccess = ()=>res(rq.result||null);
-                rq.onerror   = ()=>res(null);
-              });
-            }
-            
-            if (typeof openEditPlayerMap==='function') openEditPlayerMap(rec);
+          } catch (e) {
+            console.error('❌ Error loading player:', e);
+            typeof showError === 'function' && showError('שגיאה בטעינת נתוני שחקן: ' + (e?.message || e));
+          }
+          
+          if (rec && typeof openEditPlayerMap === 'function') {
+            console.log('🔓 Opening edit modal with data:', rec);
+            openEditPlayerMap(rec);
+          } else {
+            console.error('❌ Could not open edit modal, rec:', rec, 'function exists:', typeof openEditPlayerMap);
           }
         }
         if(delPM && typeof deletePlayerMapping==='function' && typeof listPlayerMappings==='function'){
