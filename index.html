@@ -151,10 +151,35 @@
     <!-- ========== All Games (view-games) ========== -->
     <section id="view-games">
       <div class="card p-4">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-lg font-bold text-blue-900">כל המשחקים</h2>
-          <input id="gamesSearch" class="px-3 py-2 border rounded text-sm" placeholder="חיפוש לפי מזהה/מחזור/תאריך/קבוצה (חיפוש אוטומטי)">
+        <div class="mb-3">
+          <h2 class="text-lg font-bold text-blue-900 mb-3">כל המשחקים</h2>
+          
+          <!-- Filters row -->
+          <div class="flex items-center gap-3 flex-wrap">
+            <div class="flex items-center gap-2">
+              <label for="cycleFilter" class="text-sm font-medium text-gray-700">מחזור:</label>
+              <select id="cycleFilter" class="px-3 py-2 border border-gray-300 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="">הכל</option>
+              </select>
+            </div>
+            
+            <div class="flex items-center gap-2">
+              <label for="teamFilter" class="text-sm font-medium text-gray-700">קבוצה:</label>
+              <select id="teamFilter" class="px-3 py-2 border border-gray-300 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="">הכל</option>
+              </select>
+            </div>
+            
+            <div class="flex-1 min-w-[200px]">
+              <input id="gamesSearch" class="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="חיפוש חופשי...">
+            </div>
+            
+            <button id="clearFiltersBtn" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded border border-gray-300">
+              נקה סינון
+            </button>
+          </div>
         </div>
+        
         <div class="stats-wrap">
           <table class="stats-table w-full text-sm">
             <thead>
@@ -826,7 +851,7 @@
     <script defer src="js/app_game_analysis.js?v=1"></script>
     <script defer src="js/team_merge_tool.js?v=1"></script>
     <script defer src="js/player_merge_tool.js?v=1"></script>
-    <script defer src="js/app_db_save.js?v=87"></script>
+    <script defer src="js/app_db_save.js?v=88"></script>
     
 </body>
 </html>

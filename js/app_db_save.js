@@ -1657,6 +1657,7 @@ ${suspectedDuplicates}
           if (name === 'games') {
             await renderGamesTable();
             initGamesTableSort();
+            initGamesFilterListeners();
           } else if (name === 'teams') {
             await renderTeamsAggregate('team', 'asc');
             initTeamsTableSort();
@@ -1731,7 +1732,18 @@ ${suspectedDuplicates}
     // 🔥 Guard flag to prevent race condition in renderGamesTable
     let isRenderingGames = false;
     
-    async function renderGamesTable(sortField = 'gameId', sortDirection = 'desc'){
+    // Store current sort state for games table
+    let currentGamesSortField = 'gameId';
+    let currentGamesSortDirection = 'desc';
+    
+    async function renderGamesTable(sortField = null, sortDirection = null){
+      // Use provided sort params or fall back to current state
+      if (sortField === null) sortField = currentGamesSortField;
+      if (sortDirection === null) sortDirection = currentGamesSortDirection;
+      
+      // Update current sort state
+      currentGamesSortField = sortField;
+      currentGamesSortDirection = sortDirection;
       // 🔥 Guard: If already rendering, skip this call
       if (isRenderingGames) {
         console.log('⏭️ Skipping renderGamesTable - already in progress');
@@ -1774,22 +1786,47 @@ ${suspectedDuplicates}
       }
 
       const tbody = $("gamesTbody"); if(!tbody) return;
-      const q = ($("gamesSearch")?.value || "").trim().toLowerCase();
+      
+      // Get filter values
+      const searchQuery = ($("gamesSearch")?.value || "").trim().toLowerCase();
+      const cycleFilter = $("cycleFilter")?.value || "";
+      const teamFilter = $("teamFilter")?.value || "";
 
       const games = await getGameListWithTeamTotals();
+      
+      // Populate filter dropdowns with unique values
+      populateGamesFilters(games);
       
       // Check admin status ONCE before loop (not inside loop)
       const isAdmin = window.authModule && window.authModule.isAuthenticated();
       console.log('🔐 isAdmin for all rows =', isAdmin);
 
+      // Apply filters
       const filtered = games.filter(g=>{
-        const hay = [
-          String(g.id||""),
-          String(g.cycle||""),
-          String(g.date||""),
-          (g.teams||[]).join(" ")
-        ].join(" ").toLowerCase();
-        return !q || hay.includes(q);
+        // Cycle filter
+        if (cycleFilter && String(g.cycle) !== cycleFilter) {
+          return false;
+        }
+        
+        // Team filter
+        if (teamFilter && !(g.teams || []).includes(teamFilter)) {
+          return false;
+        }
+        
+        // Search query
+        if (searchQuery) {
+          const hay = [
+            String(g.id||""),
+            String(g.cycle||""),
+            String(g.date||""),
+            (g.teams||[]).join(" ")
+          ].join(" ").toLowerCase();
+          if (!hay.includes(searchQuery)) {
+            return false;
+          }
+        }
+        
+        return true;
       });
 
       // Sort the filtered games
@@ -1891,6 +1928,51 @@ ${suspectedDuplicates}
       }
     }
 
+    // Populate games filter dropdowns with unique values
+    function populateGamesFilters(games) {
+      const cycleSelect = $("cycleFilter");
+      const teamSelect = $("teamFilter");
+      
+      if (!cycleSelect || !teamSelect) return;
+      
+      // Get current selections
+      const currentCycle = cycleSelect.value;
+      const currentTeam = teamSelect.value;
+      
+      // Extract unique cycles (sorted numerically)
+      const cycles = [...new Set(games.map(g => g.cycle).filter(c => c != null))]
+        .sort((a, b) => Number(a) - Number(b));
+      
+      // Extract unique teams (sorted alphabetically in Hebrew)
+      const teamsSet = new Set();
+      games.forEach(g => {
+        (g.teams || []).forEach(t => {
+          if (t) teamsSet.add(t);
+        });
+      });
+      const teams = [...teamsSet].sort((a, b) => a.localeCompare(b, 'he'));
+      
+      // Populate cycle dropdown
+      cycleSelect.innerHTML = '<option value="">הכל</option>';
+      cycles.forEach(cycle => {
+        const option = document.createElement('option');
+        option.value = cycle;
+        option.textContent = `מחזור ${cycle}`;
+        if (String(cycle) === currentCycle) option.selected = true;
+        cycleSelect.appendChild(option);
+      });
+      
+      // Populate team dropdown
+      teamSelect.innerHTML = '<option value="">הכל</option>';
+      teams.forEach(team => {
+        const option = document.createElement('option');
+        option.value = team;
+        option.textContent = team;
+        if (team === currentTeam) option.selected = true;
+        teamSelect.appendChild(option);
+      });
+    }
+
     // Update games table headers with sort indicators
     function updateGamesTableHeaders(sortField, sortDirection) {
       const headers = document.querySelectorAll('#view-games .stats-table thead th[data-sort-field]');
@@ -1918,6 +2000,40 @@ ${suspectedDuplicates}
     // Initialize games table sort on page load
     function initGamesTableSort() {
       updateGamesTableHeaders('gameId', 'desc');
+    }
+    
+    // Initialize games filter listeners (call only once)
+    let gamesFiltersInitialized = false;
+    function initGamesFilterListeners() {
+      if (gamesFiltersInitialized) return;
+      
+      const cycleFilter = $("cycleFilter");
+      const teamFilter = $("teamFilter");
+      const searchInput = $("gamesSearch");
+      const clearBtn = $("clearFiltersBtn");
+      
+      if (cycleFilter) {
+        cycleFilter.addEventListener('change', () => renderGamesTable());
+      }
+      
+      if (teamFilter) {
+        teamFilter.addEventListener('change', () => renderGamesTable());
+      }
+      
+      if (searchInput) {
+        searchInput.addEventListener('input', () => renderGamesTable());
+      }
+      
+      if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+          if (cycleFilter) cycleFilter.value = "";
+          if (teamFilter) teamFilter.value = "";
+          if (searchInput) searchInput.value = "";
+          renderGamesTable();
+        });
+      }
+      
+      gamesFiltersInitialized = true;
     }
 
     // טעינה מחדש של משחק מה-JSON המקורי
