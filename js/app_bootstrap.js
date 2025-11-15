@@ -51,6 +51,15 @@ window.addEventListener('load', async () => {
 
     // 6. Load initial data for default "games" tab
     console.log('🎬 [bootstrap] Loading default games tab');
+    
+    // Initialize filter listeners BEFORE rendering
+    if (typeof window.initGamesFilterListeners === 'function') {
+      window.initGamesFilterListeners();
+    }
+    if (typeof window.initGamesTableSort === 'function') {
+      window.initGamesTableSort();
+    }
+    
     if (typeof renderGamesTable === 'function') {
       await renderGamesTable();
     }

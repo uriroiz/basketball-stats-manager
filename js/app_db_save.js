@@ -2010,22 +2010,47 @@ ${suspectedDuplicates}
       const cycleFilter = $("cycleFilter");
       const teamFilter = $("teamFilter");
       const searchInput = $("gamesSearch");
+      const searchBtn = $("searchBtn");
       const clearBtn = $("clearFiltersBtn");
       
+      console.log('🔧 Initializing games filter listeners...');
+      console.log('Elements:', { cycleFilter: !!cycleFilter, teamFilter: !!teamFilter, searchInput: !!searchInput, searchBtn: !!searchBtn, clearBtn: !!clearBtn });
+      
+      // Immediate filtering on dropdown change
       if (cycleFilter) {
-        cycleFilter.addEventListener('change', () => renderGamesTable());
+        cycleFilter.addEventListener('change', () => {
+          console.log('🔄 Cycle filter changed to:', cycleFilter.value);
+          renderGamesTable();
+        });
       }
       
       if (teamFilter) {
-        teamFilter.addEventListener('change', () => renderGamesTable());
+        teamFilter.addEventListener('change', () => {
+          console.log('🔄 Team filter changed to:', teamFilter.value);
+          renderGamesTable();
+        });
       }
       
-      if (searchInput) {
-        searchInput.addEventListener('input', () => renderGamesTable());
+      // Search only when clicking search button or pressing Enter
+      if (searchInput && searchBtn) {
+        const doSearch = () => {
+          console.log('🔍 Search triggered with query:', searchInput.value);
+          renderGamesTable();
+        };
+        
+        searchBtn.addEventListener('click', doSearch);
+        
+        searchInput.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            doSearch();
+          }
+        });
       }
       
+      // Clear all filters
       if (clearBtn) {
         clearBtn.addEventListener('click', () => {
+          console.log('🧹 Clearing all filters');
           if (cycleFilter) cycleFilter.value = "";
           if (teamFilter) teamFilter.value = "";
           if (searchInput) searchInput.value = "";
@@ -2034,6 +2059,7 @@ ${suspectedDuplicates}
       }
       
       gamesFiltersInitialized = true;
+      console.log('✅ Games filter listeners initialized');
     }
 
     // טעינה מחדש של משחק מה-JSON המקורי

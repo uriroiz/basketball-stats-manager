@@ -14,6 +14,14 @@
     if (typeof renderTeamsAggregate !== 'undefined') _App['renderTeamsAggregate'] = renderTeamsAggregate;
     if (typeof renderPlayersTable !== 'undefined') _App['renderPlayersTable'] = renderPlayersTable;
     if (typeof renderGamesTable !== 'undefined') _App['renderGamesTable'] = renderGamesTable;
+    if (typeof initGamesTableSort !== 'undefined') {
+      _App['initGamesTableSort'] = initGamesTableSort;
+      window.initGamesTableSort = initGamesTableSort;
+    }
+    if (typeof initGamesFilterListeners !== 'undefined') {
+      _App['initGamesFilterListeners'] = initGamesFilterListeners;
+      window.initGamesFilterListeners = initGamesFilterListeners;
+    }
     if (typeof switchTab !== 'undefined') _App['switchTab'] = switchTab;
     if (typeof showOk !== 'undefined') _App['showOk'] = showOk;
     if (typeof showError !== 'undefined') _App['showError'] = showError;
