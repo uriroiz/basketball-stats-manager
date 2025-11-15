@@ -1901,56 +1901,48 @@ ${suspectedDuplicates}
     }
 
     async function deleteGameById(gameId){
-      if(!(typeof DB_AVAILABLE!=='undefined' && DB_AVAILABLE && typeof DB!=='undefined' && DB)) return;
+      try {
+        // Wait for DB to be ready
+        if (typeof window.ensureDbReady === 'function') {
+          await window.ensureDbReady();
+        }
 
-      // גיבוי המשחק והשחקנים לפני מחיקה
-      let backupGame = null;
-      let backupPlayers = [];
+        if (!window.dbAdapter) {
+          showError && showError('מסד הנתונים לא זמין');
+          return;
+        }
 
-      try{
-        backupGame = await new Promise((resolve)=>{
-          const tx = DB.transaction(['games'], 'readonly');
-          const store = tx.objectStore('games');
-          const req = store.get(Number(gameId));
-          req.onsuccess = ()=>resolve(req.result||null);
-          req.onerror = ()=>resolve(null);
-        });
-      }catch(e){ backupGame = null; }
+        // גיבוי המשחק והשחקנים לפני מחיקה
+        let backupGame = null;
+        let backupPlayers = [];
 
-      try{
-        await new Promise((resolve)=>{
-          const tx = DB.transaction(['players'], 'readonly');
-          const store = tx.objectStore('players');
-          const req = store.openCursor();
-          req.onsuccess = (ev)=>{
-            const cur = ev.target.result;
-            if(cur){
-              const v = cur.value||{};
-              const games = Array.isArray(v.games) ? v.games : [];
-              if(games.some(g => String(g.gameId) === String(gameId))){
-                backupPlayers.push(v);
-              }
-              cur.continue();
-            }else{
-              resolve();
-            }
-          };
-          req.onerror = ()=>resolve();
-        });
-      }catch(e){}
+        try {
+          backupGame = await window.dbAdapter.getGame(Number(gameId));
+        } catch(e) { 
+          console.error('Error getting game for backup:', e);
+          backupGame = null; 
+        }
 
-      // מחיקה ממסד
-      try{
-        await new Promise((resolve, reject)=>{
-          const tx = DB.transaction(['games'], 'readwrite');
-          const store = tx.objectStore('games');
-          const req = store.delete(Number(gameId));
-          req.onsuccess = ()=>resolve();
-          req.onerror = ()=>reject(req.error);
-        });
-      }catch(e){
-        console.error('delete games error', e);
-        showError && showError('מחיקת המשחק נכשלה (games)');
+        try {
+          const allPlayers = await window.dbAdapter.getPlayers();
+          if (allPlayers && allPlayers.length > 0) {
+            backupPlayers = allPlayers.filter(player => {
+              const games = Array.isArray(player.games) ? player.games : [];
+              return games.some(g => String(g.gameId) === String(gameId));
+            });
+          }
+        } catch(e) {
+          console.error('Error getting players for backup:', e);
+        }
+
+        // מחיקה ממסד דרך dbAdapter
+        console.log('🗑️ Deleting game', gameId, 'via dbAdapter');
+        await window.dbAdapter.deleteGame(Number(gameId));
+        
+        console.log('✅ Game deleted successfully');
+      } catch(e) {
+        console.error('❌ Delete game error:', e);
+        showError && showError('מחיקת המשחק נכשלה: ' + (e?.message || e));
         return;
       }
 
