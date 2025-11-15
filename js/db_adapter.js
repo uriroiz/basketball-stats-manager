@@ -218,12 +218,14 @@
       console.log('💾 Saving via Edge Function (authenticated)...');
       try {
         const supabaseUrl = window.CONFIG?.SUPABASE_URL;
+        const anonKey = window.CONFIG?.SUPABASE_ANON_KEY;
         const response = await fetch(`${supabaseUrl}/functions/v1/save-game`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-admin-password': adminPassword,
-            'apikey': window.CONFIG?.SUPABASE_ANON_KEY
+            'Authorization': `Bearer ${anonKey}`,
+            'apikey': anonKey,
+            'x-admin-password': adminPassword
           },
           body: JSON.stringify({ 
             gameData, 
