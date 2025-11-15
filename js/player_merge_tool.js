@@ -1267,14 +1267,35 @@ async function executeManualPlayerMerge() {
     
     console.log(`📊 Source has ${sourceGames.length} games, target has ${targetGames.length} games`);
     
-    // Combine games (avoiding duplicates by gameSerial)
+    // Debug: Check game structure
+    if (sourceGames.length > 0) {
+      console.log(`🔍 Source game structure:`, sourceGames[0]);
+    }
+    if (targetGames.length > 0) {
+      console.log(`🔍 Target game structure:`, targetGames[0]);
+    }
+    
+    // Combine games (avoiding duplicates by gameSerial or serial or game_id)
     const mergedGames = [...targetGames];
-    const existingGameSerials = new Set(targetGames.map(g => g.gameSerial));
+    
+    // Find the correct serial field name
+    const getGameSerial = (game) => {
+      return game.gameSerial || game.serial || game.game_serial || game.gameId || game.game_id || game.id;
+    };
+    
+    const existingGameSerials = new Set(targetGames.map(g => getGameSerial(g)));
+    
+    console.log(`🔍 Target game serials:`, Array.from(existingGameSerials));
     
     for (const game of sourceGames) {
-      if (!existingGameSerials.has(game.gameSerial)) {
+      const gameSerial = getGameSerial(game);
+      console.log(`🔍 Checking source game serial: ${gameSerial}`);
+      if (!existingGameSerials.has(gameSerial)) {
+        console.log(`  ✅ Adding game ${gameSerial} to merged list`);
         mergedGames.push(game);
-        existingGameSerials.add(game.gameSerial);
+        existingGameSerials.add(gameSerial);
+      } else {
+        console.log(`  ⚠️ Game ${gameSerial} already exists, skipping`);
       }
     }
     
@@ -1296,11 +1317,14 @@ async function executeManualPlayerMerge() {
       return;
     }
     
-    await window.dbAdapter.savePlayer(targetPlayer);
+    console.log(`💾 Calling dbAdapter.savePlayer for target...`);
+    const savedPlayer = await window.dbAdapter.savePlayer(targetPlayer);
+    console.log(`✅ Target player saved:`, savedPlayer);
     
     // Delete source player
-    console.log(`🗑️ Deleting source player`);
-    await window.dbAdapter.deletePlayer(sourceId);
+    console.log(`🗑️ Deleting source player (ID: ${sourceId})...`);
+    const deleteResult = await window.dbAdapter.deletePlayer(sourceId);
+    console.log(`✅ Source player deleted:`, deleteResult);
     
     // Success!
     showOk(`✅ איחוד הושלם בהצלחה! ${sourceGames.length} משחקים הועברו.`);
