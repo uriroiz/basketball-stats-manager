@@ -1036,6 +1036,11 @@ ${suspectedDuplicates}
       return games;
     }
 
+    // Teams view state
+    let currentTeamsView = 'averages'; // 'totals' or 'averages' - default to averages
+    let currentTeamsSortField = 'team'; // Track active sort field
+    let currentTeamsSortDirection = 'asc'; // Track sort direction
+
     async function getTeamsAggregate(){
       // Initialize dbAdapter if not already done
       if (window.dbAdapter && !window.dbAdapter.isDbAvailable()) {
@@ -1072,170 +1077,306 @@ ${suspectedDuplicates}
             t.efficiency += g.efficiency||0;
           }
       }
-      return Object.entries(agg).map(([team,t])=>({
-        team,
-        games: t.games.size,
-        points: t.points, rebounds: t.rebounds, assists: t.assists, steals: t.steals, blocks: t.blocks, turnovers: t.turnovers, fouls: t.fouls,
-        fgm: t.fgm, fga: t.fga, tpm: t.tpm, tpa: t.tpa, ftm: t.ftm, fta: t.fta, efficiency: t.efficiency
-      })).sort((a,b)=> a.team.localeCompare(b.team,'he'));
+      return Object.entries(agg).map(([team,t])=>{
+        const gameCount = t.games.size;
+        const fgPct = t.fga > 0 ? (t.fgm / t.fga) * 100 : 0;
+        const tpPct = t.tpa > 0 ? (t.tpm / t.tpa) * 100 : 0;
+        const ftPct = t.fta > 0 ? (t.ftm / t.fta) * 100 : 0;
+        
+        return {
+          team,
+          games: gameCount,
+          // Totals
+          totalPoints: t.points,
+          totalRebounds: t.rebounds,
+          totalAssists: t.assists,
+          totalSteals: t.steals,
+          totalBlocks: t.blocks,
+          totalTurnovers: t.turnovers,
+          totalFouls: t.fouls,
+          totalEfficiency: t.efficiency,
+          // Averages
+          avgPoints: gameCount ? t.points / gameCount : 0,
+          avgRebounds: gameCount ? t.rebounds / gameCount : 0,
+          avgAssists: gameCount ? t.assists / gameCount : 0,
+          avgSteals: gameCount ? t.steals / gameCount : 0,
+          avgBlocks: gameCount ? t.blocks / gameCount : 0,
+          avgTurnovers: gameCount ? t.turnovers / gameCount : 0,
+          avgFouls: gameCount ? t.fouls / gameCount : 0,
+          avgEfficiency: gameCount ? t.efficiency / gameCount : 0,
+          // Shooting stats
+          fgm: t.fgm, fga: t.fga,
+          tpm: t.tpm, tpa: t.tpa,
+          ftm: t.ftm, fta: t.fta,
+          // Percentages (calculated once)
+          fgPercentage: fgPct,
+          threePointPercentage: tpPct,
+          ftPercentage: ftPct,
+          // Backward compatibility
+          points: t.points,
+          rebounds: t.rebounds,
+          assists: t.assists,
+          steals: t.steals,
+          blocks: t.blocks,
+          turnovers: t.turnovers,
+          fouls: t.fouls,
+          efficiency: t.efficiency
+        };
+      }).sort((a,b)=> a.team.localeCompare(b.team,'he'));
     }
 
-    // Render teams aggregate table with debugging
-    async function renderTeamsAggregate(sortField = 'team', sortDirection = 'asc'){
-      console.log('renderTeamsAggregate called with:', sortField, sortDirection);
-      const tbody = $("teamsAggTbody"); 
-      if(!tbody) {
-        console.log('teamsAggTbody not found');
-        return;
+    // Map sort field when switching between views
+    function mapTeamsSortFieldForView(field, toView) {
+      if (field === 'team' || field === 'games') return field;
+      
+      if (toView === 'averages') {
+        if (field.startsWith('total')) {
+          return field.replace('total', 'avg');
+        }
+        return field;
+      } else {
+        if (field.startsWith('avg')) {
+          return field.replace('avg', 'total');
+        }
+        // If sorting by percentage (not available in totals), default to totalPoints
+        if (['fgPercentage', 'threePointPercentage', 'ftPercentage'].includes(field)) {
+          return 'totalPoints';
+        }
+        return field;
       }
-      console.log('teamsAggTbody found');
+    }
+
+    // Render teams aggregate table with view toggle support
+    async function renderTeamsAggregate(sortField = null, sortDirection = null){
+      console.log('🏀 renderTeamsAggregate called, view:', currentTeamsView);
+      
+      // Store in global state for preservation
+      if (sortField !== null) {
+        currentTeamsSortField = sortField;
+        currentTeamsSortDirection = sortDirection;
+      }
+      
+      // Use stored values if none provided
+      sortField = sortField || currentTeamsSortField;
+      sortDirection = sortDirection || currentTeamsSortDirection;
+      
+      const tbody = $("teamsAggTbody");
+      if(!tbody) return;
       
       const q = ($("teamsSearch")?.value||'').trim().toLowerCase();
-      console.log('Search query:', q);
-      
-      // השגת הנתונים מהמסד
-      console.log('Calling getTeamsAggregate...');
       const allRows = await getTeamsAggregate();
-      console.log('getTeamsAggregate returned:', allRows);
-      console.log('First team data:', allRows[0]);
-      console.log('All team names:', allRows.map(r => r.team));
-      
       const rows = allRows.filter(r=> !q || r.team.toLowerCase().includes(q));
-      console.log('Filtered rows:', rows);
       
-      // מיון הנתונים
+      // Update headers FIRST
+      updateTeamsTableHeaders(currentTeamsView, sortField, sortDirection);
+      
+      // Sort logic with all new fields
       if (sortField) {
         rows.sort((a, b) => {
           let aVal, bVal;
-          
-          // טיפול מיוחד בשדות שונים
-          switch(sortField) {
-            case 'team':
-              aVal = a.team || '';
-              bVal = b.team || '';
-              // מיון עברית
-              if (sortDirection === 'asc') {
-                return aVal.localeCompare(bVal, 'he');
-              } else {
-                return bVal.localeCompare(aVal, 'he');
-              }
-              break;
-            case 'shooting':
-              // לצורך מיון על פי קליעה, נשתמש באחוזי קליעה משדה
-              aVal = a.fga > 0 ? (a.fgm / a.fga) : 0;
-              bVal = b.fga > 0 ? (b.fgm / b.fga) : 0;
-              break;
-            default:
-              // שדות מספריים אחרים
-              aVal = a[sortField] || 0;
-              bVal = b[sortField] || 0;
+          if (sortField === 'team') {
+            return sortDirection === 'asc' 
+              ? (a.team || '').localeCompare(b.team || '', 'he')
+              : (b.team || '').localeCompare(a.team || '', 'he');
           }
-          
-          // מיון מספרי רגיל
-          if (sortDirection === 'asc') {
-            return aVal - bVal;
-          } else {
-            return bVal - aVal;
-          }
+          aVal = a[sortField] || 0;
+          bVal = b[sortField] || 0;
+          return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
         });
       }
       
-      // עדכון כותרות עם סמני מיון
-      updateTeamsTableHeaders(sortField, sortDirection);
-      
-      // הצגת השורות
       tbody.innerHTML = '';
-      console.log('Rendering', rows.length, 'rows');
-      
-      // Update teams count in header
       const teamsCountEl = document.getElementById('teamsCount');
       if (teamsCountEl) teamsCountEl.textContent = rows.length;
       
       if (rows.length === 0) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td class="px-3 py-2 text-center text-gray-500" colspan="13">אין נתוני קבוצות זמינים</td>`;
-        tbody.appendChild(tr);
-        console.log('No rows to display');
+        tbody.innerHTML = `<tr><td class="px-3 py-2 text-center text-gray-500" colspan="13">אין נתוני קבוצות זמינים</td></tr>`;
         return;
       }
-      
-      const pct = (m,a)=> a? ((m/a*100).toFixed(1)+'%'):'-';
       
       // Simple Hebrew fix - only for specific known corrupted patterns
       const fixHebrewName = (name) => {
         if (!name) return name;
-        
-        // Check for the specific corrupted patterns we know about
         if (name.includes('×\x90.×¡.') && name.includes('×\x90×©×§×œ×•×Ÿ')) {
           return 'א.ס. אשקלון/קרית גת';
         }
         if (name.includes('×ž.×›') && name.includes('×¢×•×˜×£')) {
           return 'מ.כ עוטף דרום';
         }
-        
-        // If no known pattern, return original
         return name;
       };
       
+      // Render rows - use pre-calculated percentages
       for(const r of rows){
         const tr = document.createElement('tr');
         const displayName = fixHebrewName(r.team);
-        tr.innerHTML = `
-          <td class="col-team">${displayName}</td>
-          <td class="num">${r.games || 0}</td>
-          <td class="num">${r.points || 0}</td>
-          <td class="num">${r.rebounds || 0}</td>
-          <td class="num">${r.assists || 0}</td>
-          <td class="num">${r.steals || 0}</td>
-          <td class="num">${r.blocks || 0}</td>
-          <td class="num">${r.turnovers || 0}</td>
-          <td class="num">${r.fouls || 0}</td>
-          <td class="pct">${pct(r.fgm,r.fga)}</td>
-          <td class="pct">${pct(r.tpm,r.tpa)}</td>
-          <td class="pct">${pct(r.ftm,r.fta)}</td>
-          <td class="num">${r.efficiency || 0}</td>`;
+        const gameCount = r.games || 0;
+        
+        if (currentTeamsView === 'totals') {
+          tr.innerHTML = `
+            <td class="col-team">${displayName}</td>
+            <td class="num">${gameCount}</td>
+            <td class="num">${r.totalPoints || 0}</td>
+            <td class="num">${r.totalRebounds || 0}</td>
+            <td class="num">${r.totalAssists || 0}</td>
+            <td class="num">${r.totalSteals || 0}</td>
+            <td class="num">${r.totalBlocks || 0}</td>
+            <td class="num">${r.totalTurnovers || 0}</td>
+            <td class="num">${r.totalFouls || 0}</td>
+            <td class="num">${gameCount ? Math.round(r.totalEfficiency) : '-'}</td>
+          `;
+        } else {
+          tr.innerHTML = `
+            <td class="col-team">${displayName}</td>
+            <td class="num">${gameCount}</td>
+            <td class="num">${gameCount ? r.avgPoints.toFixed(1) : '-'}</td>
+            <td class="num">${gameCount ? r.avgRebounds.toFixed(1) : '-'}</td>
+            <td class="num">${gameCount ? r.avgAssists.toFixed(1) : '-'}</td>
+            <td class="num">${gameCount ? r.avgSteals.toFixed(1) : '-'}</td>
+            <td class="num">${gameCount ? r.avgBlocks.toFixed(1) : '-'}</td>
+            <td class="num">${gameCount ? r.avgTurnovers.toFixed(1) : '-'}</td>
+            <td class="num">${gameCount ? r.avgFouls.toFixed(1) : '-'}</td>
+            <td class="pct">${gameCount ? r.fgPercentage.toFixed(1) + '%' : '-'}</td>
+            <td class="pct">${gameCount ? r.threePointPercentage.toFixed(1) + '%' : '-'}</td>
+            <td class="pct">${gameCount ? r.ftPercentage.toFixed(1) + '%' : '-'}</td>
+            <td class="num">${gameCount ? r.avgEfficiency.toFixed(1) : '-'}</td>
+          `;
+        }
         tbody.appendChild(tr);
       }
-      console.log('Rendered', rows.length, 'rows successfully');
-      console.log('tbody innerHTML length:', tbody.innerHTML.length);
-      console.log('tbody children count:', tbody.children.length);
+      
+      console.log('✅ Rendered', rows.length, 'teams in', currentTeamsView, 'view');
     }
 
-    // Update teams table headers with sort indicators
-    function updateTeamsTableHeaders(sortField, sortDirection) {
-      const headers = document.querySelectorAll('#view-teams .stats-table thead th[data-sort-field]');
+    // Update teams table headers based on view
+    function updateTeamsTableHeaders(view, sortField, sortDirection) {
+      const thead = document.querySelector('#view-teams .stats-table thead tr');
+      if (!thead) return;
       
+      if (view === 'totals') {
+        thead.innerHTML = `
+          <th class="col-team" data-sort-field="team"><div class="th-inner">קבוצה</div></th>
+          <th class="num" data-sort-field="games"><div class="th-inner">מש'</div></th>
+          <th class="num" data-sort-field="totalPoints"><div class="th-inner">נק'</div></th>
+          <th class="num" data-sort-field="totalRebounds"><div class="th-inner">ריב'</div></th>
+          <th class="num" data-sort-field="totalAssists"><div class="th-inner">אס'</div></th>
+          <th class="num" data-sort-field="totalSteals"><div class="th-inner">חט'</div></th>
+          <th class="num" data-sort-field="totalBlocks"><div class="th-inner">חס'</div></th>
+          <th class="num" data-sort-field="totalTurnovers"><div class="th-inner">איב'</div></th>
+          <th class="num" data-sort-field="totalFouls"><div class="th-inner">עב'</div></th>
+          <th class="num" data-sort-field="totalEfficiency"><div class="th-inner">יעילות</div></th>
+        `;
+      } else {
+        thead.innerHTML = `
+          <th class="col-team" data-sort-field="team"><div class="th-inner">קבוצה</div></th>
+          <th class="num" data-sort-field="games"><div class="th-inner">מש'</div></th>
+          <th class="num" data-sort-field="avgPoints"><div class="th-inner">נק'/מ</div></th>
+          <th class="num" data-sort-field="avgRebounds"><div class="th-inner">ריב'/מ</div></th>
+          <th class="num" data-sort-field="avgAssists"><div class="th-inner">אס'/מ</div></th>
+          <th class="num" data-sort-field="avgSteals"><div class="th-inner">חט'/מ</div></th>
+          <th class="num" data-sort-field="avgBlocks"><div class="th-inner">חס'/מ</div></th>
+          <th class="num" data-sort-field="avgTurnovers"><div class="th-inner">איב'/מ</div></th>
+          <th class="num" data-sort-field="avgFouls"><div class="th-inner">עב'/מ</div></th>
+          <th class="pct" data-sort-field="fgPercentage"><div class="th-inner">FG%</div></th>
+          <th class="pct" data-sort-field="threePointPercentage"><div class="th-inner">3PT%</div></th>
+          <th class="pct" data-sort-field="ftPercentage"><div class="th-inner">FT%</div></th>
+          <th class="num" data-sort-field="avgEfficiency"><div class="th-inner">יעילות</div></th>
+        `;
+      }
+      
+      attachTeamsSortHandlers();
+      updateTeamsSortIndicators(sortField, sortDirection);
+    }
+
+    // Attach sort handlers to team table headers
+    function attachTeamsSortHandlers() {
+      const headers = document.querySelectorAll('#view-teams .stats-table thead th[data-sort-field]');
       headers.forEach(header => {
         const field = header.getAttribute('data-sort-field');
-        
-        // Clear existing sort indicators
-        header.classList.remove('sort-asc', 'sort-desc');
-        
-        // Add sort indicator if this is the active sort field
-        if (field === sortField) {
-          header.classList.add(sortDirection === 'asc' ? 'sort-asc' : 'sort-desc');
-        }
-        
-        // Make headers clickable
         header.style.cursor = 'pointer';
-        header.onclick = function() {
-          const newDirection = (field === sortField && sortDirection === 'desc') ? 'asc' : 'desc';
-          renderTeamsAggregate(field, newDirection);
+        header.onclick = () => {
+          const newDir = (field === currentTeamsSortField && currentTeamsSortDirection === 'asc') ? 'desc' : 'asc';
+          currentTeamsSortField = field;
+          currentTeamsSortDirection = newDir;
+          renderTeamsAggregate(field, newDir);
         };
       });
     }
 
-    // Initialize teams table sort
+    // Update sort indicators on headers
+    function updateTeamsSortIndicators(sortField, sortDirection) {
+      const headers = document.querySelectorAll('#view-teams .stats-table thead th[data-sort-field]');
+      headers.forEach(header => {
+        const field = header.getAttribute('data-sort-field');
+        const inner = header.querySelector('.th-inner');
+        if (!inner) return;
+        
+        // Remove existing arrows
+        inner.textContent = inner.textContent.replace(' ▲', '').replace(' ▼', '');
+        
+        // Add arrow if this is the sorted column
+        if (field === sortField) {
+          inner.textContent += sortDirection === 'asc' ? ' ▲' : ' ▼';
+        }
+      });
+    }
+
+    // Initialize teams view toggle
+    function initTeamsViewToggle() {
+      console.log('🏀 Initializing teams view toggle, default:', currentTeamsView);
+      
+      const btn = document.getElementById('teamsViewToggle');
+      if (!btn) {
+        console.warn('⚠️ Teams toggle button not found');
+        return;
+      }
+      
+      btn.addEventListener('click', () => {
+        const newView = currentTeamsView === 'totals' ? 'averages' : 'totals';
+        console.log('🔄 Toggling teams view:', currentTeamsView, '→', newView);
+        
+        // Map sort field for new view
+        currentTeamsSortField = mapTeamsSortFieldForView(currentTeamsSortField, newView);
+        currentTeamsView = newView;
+        
+        // Update button text
+        const toggleText = document.getElementById('teamsToggleText');
+        if (toggleText) {
+          toggleText.textContent = currentTeamsView === 'totals' ? 'הצג ממוצעים' : 'הצג סה"כ';
+        }
+        
+        // Re-render
+        renderTeamsAggregate(currentTeamsSortField, currentTeamsSortDirection);
+      });
+      
+      console.log('✅ Teams toggle initialized');
+    }
+
+    // Initialize teams table sort (kept for compatibility)
     function initTeamsTableSort() {
       if (document.querySelector('#view-teams .stats-table thead th')) {
-        updateTeamsTableHeaders('team', 'asc');
+        updateTeamsTableHeaders(currentTeamsView, currentTeamsSortField, currentTeamsSortDirection);
       }
     }
 
     // 🔥 Guard flag to prevent race condition in renderPlayersTable
     let isRenderingPlayers = false;
+    
+    // Players view state
+    let currentPlayersView = 'averages'; // 'totals' or 'averages' - default to averages
+    let currentPlayersSortField = null; // Track active sort field
+    let currentPlayersSortDirection = 'desc'; // Track sort direction
 
     async function renderPlayersTable(sortField = null, sortDirection = 'desc'){
+      // Store in global state for preservation
+      if (sortField !== null) {
+        currentPlayersSortField = sortField;
+        currentPlayersSortDirection = sortDirection;
+      }
+      
+      // Use stored values if none provided
+      sortField = sortField || currentPlayersSortField;
+      sortDirection = sortDirection || currentPlayersSortDirection;
       // 🔥 Guard: If already rendering, skip this call
       if (isRenderingPlayers) {
         console.log('⏭️ Skipping renderPlayersTable - already in progress');
@@ -1384,8 +1525,16 @@ ${suspectedDuplicates}
           // Calculate averages as NUMBERS
           const totalGames = p.games.length;
           p.avgPoints = totalGames ? p.totalPoints / totalGames : 0;
+          p.avgRebounds = totalGames ? p.totalRebounds / totalGames : 0;
+          p.avgAssists = totalGames ? p.totalAssists / totalGames : 0;
+          p.avgSteals = totalGames ? p.totalSteals / totalGames : 0;
+          p.avgBlocks = totalGames ? p.totalBlocks / totalGames : 0;
+          p.avgTurnovers = totalGames ? p.totalTurnovers / totalGames : 0;
+          p.avgFouls = totalGames ? p.totalFouls / totalGames : 0;
+          p.avgFoulsDrawn = totalGames ? p.totalFoulsDrawn / totalGames : 0;
           
           const totalEfficiency = p.games.reduce((s, g) => s + (g.efficiency || 0), 0);
+          p.totalEfficiency = totalEfficiency; // Store total efficiency for cumulative view
           p.avgEfficiency = totalGames ? totalEfficiency / totalGames : 0;
         } else {
           // Set to 0 if no games
@@ -1397,10 +1546,18 @@ ${suspectedDuplicates}
           p.totalTurnovers = 0;
           p.totalFouls = 0;
           p.totalFoulsDrawn = 0;
+          p.totalEfficiency = 0;
           p.fgPercentage = 0;
           p.threePointPercentage = 0;
           p.ftPercentage = 0;
           p.avgPoints = 0;
+          p.avgRebounds = 0;
+          p.avgAssists = 0;
+          p.avgSteals = 0;
+          p.avgBlocks = 0;
+          p.avgTurnovers = 0;
+          p.avgFouls = 0;
+          p.avgFoulsDrawn = 0;
           p.avgEfficiency = 0;
         }
       }
@@ -1467,7 +1624,15 @@ ${suspectedDuplicates}
             case 'totalFouls':
             case 'totalFoulsDrawn':
             case 'avgPoints':
+            case 'avgRebounds':
+            case 'avgAssists':
+            case 'avgSteals':
+            case 'avgBlocks':
+            case 'avgTurnovers':
+            case 'avgFouls':
+            case 'avgFoulsDrawn':
             case 'avgEfficiency':
+            case 'totalEfficiency':
             case 'fgPercentage':
             case 'threePointPercentage':
             case 'ftPercentage':
@@ -1500,8 +1665,8 @@ ${suspectedDuplicates}
         rows.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'he'));
       }
       
-      // עדכון כותרות הטבלה להצגת מחווני מיון
-      updateSortHeaders(sortField, sortDirection);
+      // Update table headers based on current view
+      updatePlayersTableHeaders(currentPlayersView);
       
       tbody.innerHTML = '';
       
@@ -1562,27 +1727,52 @@ ${suspectedDuplicates}
         const threePointPercentage = (p.threePointPercentage || 0).toFixed(1);
         const ftPercentage = (p.ftPercentage || 0).toFixed(1);
         const avgEfficiency = (p.avgEfficiency || 0).toFixed(1);
-        const avgPoints = (p.avgPoints || 0).toFixed(1);
+        const totalEfficiency = Math.round(p.totalEfficiency || 0); // Whole number, no decimals
+        const totalGames = (p.games || []).length;
           
-        tr.innerHTML = `
-          <td class="col-name" title="${p.id || ''}">${(heNameById && heNameById.get(p.id)) || p.name || '-'}</td>
-          <td class="col-jersey">${p.jersey || '-'}</td>
-          <td class="col-team">${getTeamHeName(p.team)}</td>
-          <td class="col-games">${(p.games || []).length}</td>
-          <td class="num points">${totalPoints || 0}</td>
-          <td class="num rebounds">${totalRebounds || 0}</td>
-          <td class="num assists">${totalAssists || 0}</td>
-          <td class="num">${totalSteals || 0}</td>
-          <td class="num">${totalBlocks || 0}</td>
-          <td class="num">${totalTurnovers || 0}</td>
-          <td class="num">${totalFouls || 0}</td>
-          <td class="num">${totalFoulsDrawn || 0}</td>
-          <td class="num pct">${fgPercentage || '0.0'}%</td>
-          <td class="num pct">${threePointPercentage || '0.0'}%</td>
-          <td class="num pct">${ftPercentage || '0.0'}%</td>
-          <td class="num efficiency">${avgEfficiency || '0.0'}</td>
-          <td class="num avg-points">${avgPoints || '0.0'}</td>`;
+        // Conditional rendering based on view
+        if (currentPlayersView === 'totals') {
+          tr.innerHTML = `
+            <td class="col-name" title="${p.id || ''}">${(heNameById && heNameById.get(p.id)) || p.name || '-'}</td>
+            <td class="col-jersey">${p.jersey || '-'}</td>
+            <td class="col-team">${getTeamHeName(p.team)}</td>
+            <td class="col-games">${totalGames}</td>
+            <td class="num points">${totalPoints}</td>
+            <td class="num rebounds">${totalRebounds}</td>
+            <td class="num assists">${totalAssists}</td>
+            <td class="num">${totalSteals}</td>
+            <td class="num">${totalBlocks}</td>
+            <td class="num">${totalTurnovers}</td>
+            <td class="num">${totalFouls}</td>
+            <td class="num">${totalFoulsDrawn}</td>
+            <td class="num efficiency">${totalGames ? totalEfficiency : '-'}</td>
+          `;
+        } else { // averages
+          tr.innerHTML = `
+            <td class="col-name" title="${p.id || ''}">${(heNameById && heNameById.get(p.id)) || p.name || '-'}</td>
+            <td class="col-jersey">${p.jersey || '-'}</td>
+            <td class="col-team">${getTeamHeName(p.team)}</td>
+            <td class="col-games">${totalGames}</td>
+            <td class="num">${totalGames ? (p.avgPoints || 0).toFixed(1) : '-'}</td>
+            <td class="num">${totalGames ? (p.avgRebounds || 0).toFixed(1) : '-'}</td>
+            <td class="num">${totalGames ? (p.avgAssists || 0).toFixed(1) : '-'}</td>
+            <td class="num">${totalGames ? (p.avgSteals || 0).toFixed(1) : '-'}</td>
+            <td class="num">${totalGames ? (p.avgBlocks || 0).toFixed(1) : '-'}</td>
+            <td class="num">${totalGames ? (p.avgTurnovers || 0).toFixed(1) : '-'}</td>
+            <td class="num">${totalGames ? (p.avgFouls || 0).toFixed(1) : '-'}</td>
+            <td class="num">${totalGames ? (p.avgFoulsDrawn || 0).toFixed(1) : '-'}</td>
+            <td class="num pct">${totalGames ? fgPercentage + '%' : '-'}</td>
+            <td class="num pct">${totalGames ? threePointPercentage + '%' : '-'}</td>
+            <td class="num pct">${totalGames ? ftPercentage + '%' : '-'}</td>
+            <td class="num efficiency">${totalGames ? avgEfficiency : '-'}</td>
+          `;
+        }
         tbody.appendChild(tr);
+      }
+      
+      // Update sort indicators
+      if (currentPlayersSortField) {
+        updateSortHeaders(currentPlayersSortField, currentPlayersSortDirection);
       }
       
       console.log('✅ END renderPlayersTable');
@@ -1595,48 +1785,79 @@ ${suspectedDuplicates}
       }
     }
 
-    function updateSortHeaders(sortField, sortDirection) {
-      // Define the mapping between displayed columns and data fields
-      // Note: Column 0 (ID) is hidden, so we start from column 1
-      const headerMap = {
-        0: 'name', 
-        1: 'jersey',
-        2: 'team',
-        3: 'games',
-        4: 'totalPoints',
-        5: 'totalRebounds',
-        6: 'totalAssists',
-        7: 'totalSteals',
-        8: 'totalBlocks',
-        9: 'totalTurnovers',
-        10: 'totalFouls',
-        11: 'totalFoulsDrawn',
-        12: 'fgPercentage',
-        13: 'threePointPercentage',
-        14: 'ftPercentage',
-        15: 'avgEfficiency',
-        16: 'avgPoints'
-      };
+    function updatePlayersTableHeaders(view) {
+      const thead = document.querySelector('#view-players .stats-table thead tr');
+      if (!thead) return;
       
-      const headers = document.querySelectorAll('#view-players .stats-table thead th');
-      headers.forEach((header, index) => {
-        const field = headerMap[index];
-        
-        // Clear any existing indicators
-        header.textContent = header.textContent.replace(' ▲', '').replace(' ▼', '');
-        
-        // Add sort indicator if this is the active sort field
-        if (field === sortField) {
-          header.textContent += sortDirection === 'asc' ? ' ▲' : ' ▼';
-        }
-        
-        // Make headers clickable
+      if (view === 'totals') {
+        thead.innerHTML = `
+          <th class="col-name" data-sort-field="name"><div class="th-inner">שחקן</div></th>
+          <th class="col-jersey" data-sort-field="jersey"><div class="th-inner">מס'</div></th>
+          <th class="col-team" data-sort-field="team"><div class="th-inner">קבוצה</div></th>
+          <th class="col-games" data-sort-field="games"><div class="th-inner">מש'</div></th>
+          <th class="num points" data-sort-field="totalPoints"><div class="th-inner">נק'</div></th>
+          <th class="num rebounds" data-sort-field="totalRebounds"><div class="th-inner">ריב'</div></th>
+          <th class="num assists" data-sort-field="totalAssists"><div class="th-inner">אס'</div></th>
+          <th class="num" data-sort-field="totalSteals"><div class="th-inner">חט'</div></th>
+          <th class="num" data-sort-field="totalBlocks"><div class="th-inner">חס'</div></th>
+          <th class="num" data-sort-field="totalTurnovers"><div class="th-inner">איב'</div></th>
+          <th class="num" data-sort-field="totalFouls"><div class="th-inner">עב'</div></th>
+          <th class="num" data-sort-field="totalFoulsDrawn"><div class="th-inner">סחט'</div></th>
+          <th class="num efficiency" data-sort-field="totalEfficiency"><div class="th-inner">יעילות</div></th>
+        `;
+      } else { // averages
+        thead.innerHTML = `
+          <th class="col-name" data-sort-field="name"><div class="th-inner">שחקן</div></th>
+          <th class="col-jersey" data-sort-field="jersey"><div class="th-inner">מס'</div></th>
+          <th class="col-team" data-sort-field="team"><div class="th-inner">קבוצה</div></th>
+          <th class="col-games" data-sort-field="games"><div class="th-inner">מש'</div></th>
+          <th class="num" data-sort-field="avgPoints"><div class="th-inner">נק'/מ</div></th>
+          <th class="num" data-sort-field="avgRebounds"><div class="th-inner">ריב'/מ</div></th>
+          <th class="num" data-sort-field="avgAssists"><div class="th-inner">אס'/מ</div></th>
+          <th class="num" data-sort-field="avgSteals"><div class="th-inner">חט'/מ</div></th>
+          <th class="num" data-sort-field="avgBlocks"><div class="th-inner">חס'/מ</div></th>
+          <th class="num" data-sort-field="avgTurnovers"><div class="th-inner">איב'/מ</div></th>
+          <th class="num" data-sort-field="avgFouls"><div class="th-inner">עב'/מ</div></th>
+          <th class="num" data-sort-field="avgFoulsDrawn"><div class="th-inner">סחט'/מ</div></th>
+          <th class="num pct" data-sort-field="fgPercentage"><div class="th-inner">FG%</div></th>
+          <th class="num pct" data-sort-field="threePointPercentage"><div class="th-inner">3PT%</div></th>
+          <th class="num pct" data-sort-field="ftPercentage"><div class="th-inner">FT%</div></th>
+          <th class="num efficiency" data-sort-field="avgEfficiency"><div class="th-inner">יעילות</div></th>
+        `;
+      }
+      
+      // Re-attach sorting click handlers after innerHTML update
+      attachSortHandlersToHeaders();
+    }
+
+    function attachSortHandlersToHeaders() {
+      const headers = document.querySelectorAll('#view-players .stats-table thead th[data-sort-field]');
+      headers.forEach(header => {
+        const field = header.getAttribute('data-sort-field');
         header.style.cursor = 'pointer';
-        header.onclick = function() {
-          // Toggle direction if already sorted by this field
-          const newDirection = (field === sortField && sortDirection === 'desc') ? 'asc' : 'desc';
+        header.onclick = () => {
+          const newDirection = (field === currentPlayersSortField && currentPlayersSortDirection === 'desc') ? 'asc' : 'desc';
+          currentPlayersSortField = field;
+          currentPlayersSortDirection = newDirection;
           renderPlayersTable(field, newDirection);
         };
+      });
+    }
+
+    function updateSortHeaders(sortField, sortDirection) {
+      const headers = document.querySelectorAll('#view-players .stats-table thead th[data-sort-field]');
+      headers.forEach(header => {
+        const field = header.getAttribute('data-sort-field');
+        const inner = header.querySelector('.th-inner');
+        if (!inner) return;
+        
+        // Remove existing arrows
+        inner.textContent = inner.textContent.replace(' ▲', '').replace(' ▼', '');
+        
+        // Add arrow if this is the sorted column
+        if (field === sortField) {
+          inner.textContent += sortDirection === 'asc' ? ' ▲' : ' ▼';
+        }
       });
     }
 
@@ -1711,6 +1932,43 @@ ${suspectedDuplicates}
       }
       
       console.log('✅ Players filter listeners initialized');
+    }
+
+    function initPlayersViewToggle() {
+      // Players view toggle with sort preservation
+      const playersToggleBtn = document.getElementById('playersViewToggle');
+      if (playersToggleBtn) {
+        playersToggleBtn.addEventListener('click', () => {
+          // Map sort field between views (totalX <-> avgX)
+          if (currentPlayersSortField) {
+            // Special case for efficiency fields
+            if (currentPlayersSortField === 'totalEfficiency') {
+              currentPlayersSortField = 'avgEfficiency';
+            } else if (currentPlayersSortField === 'avgEfficiency') {
+              currentPlayersSortField = 'totalEfficiency';
+            } else if (currentPlayersView === 'totals' && currentPlayersSortField.startsWith('total')) {
+              currentPlayersSortField = currentPlayersSortField.replace('total', 'avg');
+            } else if (currentPlayersView === 'averages' && currentPlayersSortField.startsWith('avg')) {
+              currentPlayersSortField = currentPlayersSortField.replace('avg', 'total');
+            }
+          }
+          
+          // Toggle view
+          currentPlayersView = currentPlayersView === 'totals' ? 'averages' : 'totals';
+          
+          // Update button text
+          const toggleText = document.getElementById('toggleText');
+          if (toggleText) {
+            toggleText.textContent = currentPlayersView === 'totals' ? 'הצג ממוצעים' : 'הצג סה"כ';
+          }
+          
+          // Update headers and re-render
+          updatePlayersTableHeaders(currentPlayersView);
+          renderPlayersTable(currentPlayersSortField, currentPlayersSortDirection);
+        });
+        
+        console.log('✅ Players view toggle initialized');
+      }
     }
 
     // Prevent multiple simultaneous calls

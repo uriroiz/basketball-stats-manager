@@ -22,6 +22,34 @@
       _App['initGamesFilterListeners'] = initGamesFilterListeners;
       window.initGamesFilterListeners = initGamesFilterListeners;
     }
+    if (typeof initPlayersFilterListeners !== 'undefined') {
+      _App['initPlayersFilterListeners'] = initPlayersFilterListeners;
+      window.initPlayersFilterListeners = initPlayersFilterListeners;
+    }
+    if (typeof initPlayersViewToggle !== 'undefined') {
+      _App['initPlayersViewToggle'] = initPlayersViewToggle;
+      window.initPlayersViewToggle = initPlayersViewToggle;
+    }
+    if (typeof updatePlayersTableHeaders !== 'undefined') {
+      _App['updatePlayersTableHeaders'] = updatePlayersTableHeaders;
+      window.updatePlayersTableHeaders = updatePlayersTableHeaders;
+    }
+    if (typeof attachSortHandlersToHeaders !== 'undefined') {
+      _App['attachSortHandlersToHeaders'] = attachSortHandlersToHeaders;
+      window.attachSortHandlersToHeaders = attachSortHandlersToHeaders;
+    }
+    if (typeof initTeamsViewToggle !== 'undefined') {
+      _App['initTeamsViewToggle'] = initTeamsViewToggle;
+      window.initTeamsViewToggle = initTeamsViewToggle;
+    }
+    if (typeof updateTeamsTableHeaders !== 'undefined') {
+      _App['updateTeamsTableHeaders'] = updateTeamsTableHeaders;
+      window.updateTeamsTableHeaders = updateTeamsTableHeaders;
+    }
+    if (typeof attachTeamsSortHandlers !== 'undefined') {
+      _App['attachTeamsSortHandlers'] = attachTeamsSortHandlers;
+      window.attachTeamsSortHandlers = attachTeamsSortHandlers;
+    }
     if (typeof switchTab !== 'undefined') _App['switchTab'] = switchTab;
     if (typeof showOk !== 'undefined') _App['showOk'] = showOk;
     if (typeof showError !== 'undefined') _App['showError'] = showError;

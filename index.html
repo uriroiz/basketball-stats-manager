@@ -205,8 +205,13 @@
     <section id="view-teams" class="hidden">
       <div class="card p-4">
         <div class="flex items-center justify-between mb-3">
-          <h2 class="text-lg font-bold text-blue-900">סטטיסטיקות קבוצתיות מצטברות (<span id="teamsCount">0</span>)</h2>
-          <input id="teamsSearch" class="px-3 py-2 border rounded text-sm w-64" placeholder="חפש קבוצה">
+          <h2 class="text-lg font-bold text-blue-900">סטטיסטיקות קבוצתיות (<span id="teamsCount">0</span>)</h2>
+          <div class="flex gap-2 items-center">
+            <input id="teamsSearch" class="w-64 px-3 py-2 border rounded text-sm" placeholder="חפש קבוצה">
+            <button id="teamsViewToggle" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm transition-colors">
+              <span id="teamsToggleText">הצג סה"כ</span>
+            </button>
+          </div>
         </div>
         <div class="stats-wrap">
           <table class="stats-table w-full text-sm">
@@ -241,16 +246,24 @@
             <h2 class="text-lg font-bold text-blue-900">סטטיסטיקות שחקנים (<span id="playersCount">0</span>)</h2>
           </div>
           
-          <!-- Filters Row -->
-          <div class="flex gap-2 items-center">
+          <!-- Filters Row with Toggle Button -->
+          <div class="flex gap-2 items-center mb-2">
             <select id="playersTeamFilter" class="px-3 py-2 border rounded text-sm">
               <option value="">כל הקבוצות</option>
             </select>
             
-            <input id="playersSearch" class="flex-1 px-3 py-2 border rounded text-sm" placeholder="חפש לפי שם/מס' חולצה/מזהה">
+            <input id="playersSearch" class="w-64 px-3 py-2 border rounded text-sm" placeholder="חפש לפי שם/מס' חולצה/מזהה">
             
             <button id="clearPlayersFilters" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm">
               נקה סינון
+            </button>
+            
+            <!-- Spacer to push toggle to the left -->
+            <div class="flex-1"></div>
+            
+            <!-- View Toggle Button -->
+            <button id="playersViewToggle" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm transition-colors">
+              <span id="toggleText">הצג סה"כ</span>
             </button>
           </div>
         </div>

@@ -67,10 +67,18 @@ window.addEventListener('load', async () => {
       // Pre-load teams data (not visible but cached)
       await renderTeamsAggregate();
     }
+    // Initialize teams view toggle
+    if (typeof window.initTeamsViewToggle === 'function') {
+      window.initTeamsViewToggle();
+    }
     if (typeof renderPlayersTable === 'function') {
       // Initialize players filter listeners
       if (typeof window.initPlayersFilterListeners === 'function') {
         window.initPlayersFilterListeners();
+      }
+      // Initialize players view toggle
+      if (typeof window.initPlayersViewToggle === 'function') {
+        window.initPlayersViewToggle();
       }
       // Pre-load players data (not visible but cached)
       await renderPlayersTable();

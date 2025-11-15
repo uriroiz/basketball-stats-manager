@@ -216,9 +216,16 @@ if (window.App) {
     }
   }
 
+  // Cache for merged players (to avoid re-fetching from DB)
+  let mergedPlayersCache = new Map();
+
   // Player comparison functions
   async function loadPlayersForComparison() {
     console.log('🔍 === DEBUG: loadPlayersForComparison called ===');
+    
+    // Clear the cache when loading new teams
+    mergedPlayersCache.clear();
+    console.log('🧹 Cleared merged players cache');
     
     // Initialize dbAdapter if not already done
     if (window.dbAdapter && !window.dbAdapter.isDbAvailable()) {
@@ -299,7 +306,6 @@ if (window.App) {
 
   async function getPlayersForTeam(teamId) {
     console.log('🔍 === DEBUG: getPlayersForTeam called with teamId:', teamId);
-    const players = [];
     
     try {
       // Initialize dbAdapter if not already done
@@ -313,7 +319,7 @@ if (window.App) {
       
       if (!team) {
         console.log('❌ Team not found');
-        return players;
+        return [];
       }
       
       console.log('🔍 Team found:', team);
@@ -322,8 +328,11 @@ if (window.App) {
       const allPlayers = await window.dbAdapter.getPlayers();
       console.log('🔍 Total players in DB:', allPlayers.length);
       
+      // Use a Map to deduplicate players by name + jersey (same logic as renderPlayersTable)
+      const playersMap = new Map();
+      let duplicatesFound = 0;
+      
       // Filter players who played for this team
-      // Check both lastSeenTeam and games array
       for (const player of allPlayers) {
         const playedForTeam = 
           player.lastSeenTeam === teamId ||
@@ -341,25 +350,65 @@ if (window.App) {
                             `${player.firstNameEn || ''} ${player.familyNameEn || ''}`.trim();
           
           if (playerName) {
-            console.log('🔍 Player found for team:', playerName);
-            players.push({
-              id: player.id,
-              name: playerName,
-              teamId: teamId,
-              teamName: team.name_he || team.name_en,
-              player: player // Keep full player data for stats
-            });
+            // Create deduplication key (same as in renderPlayersTable)
+            const playerJersey = (player.jersey || '').trim();
+            const dedupKey = `${playerName.toLowerCase().trim()}|${playerJersey}`;
+            
+            if (!playersMap.has(dedupKey)) {
+              // First time seeing this player
+              console.log('🔍 Player found for team:', playerName, '#' + playerJersey);
+              playersMap.set(dedupKey, {
+                id: player.id,
+                name: playerName,
+                teamId: teamId,
+                teamName: team.name_he || team.name_en,
+                player: player // Keep full player data for stats
+              });
+            } else {
+              // Duplicate found - merge games
+              duplicatesFound++;
+              console.log('🔄 Duplicate player found, merging games:', playerName, '#' + playerJersey);
+              const existing = playersMap.get(dedupKey);
+              const existingGames = (existing.player.games || []);
+              const currentGames = (player.games || []);
+              
+              // Merge games from both players
+              const mergedGames = [...existingGames, ...currentGames];
+              
+              // Update the existing entry with merged data
+              existing.player = {
+                ...existing.player,
+                games: mergedGames,
+                // Keep the most recent/complete data
+                name: player.name || existing.player.name,
+                team: player.team || existing.player.team,
+                jersey: player.jersey || existing.player.jersey
+              };
+              
+              console.log(`  ✅ Merged ${playerName}: ${existingGames.length} + ${currentGames.length} = ${mergedGames.length} games`);
+            }
           }
         }
       }
       
-      console.log('🔍 Found', players.length, 'players for team', team.name_he);
+      // Convert Map to array
+      const uniquePlayers = Array.from(playersMap.values());
+      
+      // Store merged players in cache for later use in getPlayerStats
+      uniquePlayers.forEach(p => {
+        mergedPlayersCache.set(p.id, p.player);
+      });
+      
+      console.log(`✅ Found ${uniquePlayers.length} unique players for team ${team.name_he} (${duplicatesFound} duplicates merged)`);
+      console.log(`💾 Cached ${uniquePlayers.length} merged players`);
+      
+      return uniquePlayers;
       
     } catch (e) {
       console.log('❌ Error getting players for team:', e);
     }
     
-    return players;
+    return [];
   }
 
   function populatePlayerSelector(selectorId, players1, players2) {
@@ -382,9 +431,22 @@ if (window.App) {
       selector.removeChild(selector.lastChild);
     }
 
-    // Add players from both teams
-    const allPlayers = [...players1, ...players2];
-    console.log('🔍 All players combined:', allPlayers);
+    // Add players from both teams - remove duplicates using Map
+    const playersMap = new Map();
+    
+    // Add players1
+    players1.forEach(player => {
+      playersMap.set(player.id, player);
+    });
+    
+    // Add players2 (will not add duplicates since Map uses player.id as key)
+    players2.forEach(player => {
+      playersMap.set(player.id, player);
+    });
+    
+    // Convert Map to array and sort
+    const allPlayers = Array.from(playersMap.values());
+    console.log('🔍 All players combined (deduplicated):', allPlayers);
     allPlayers.sort((a, b) => a.name.localeCompare(b.name, 'he'));
     console.log('🔍 All players sorted:', allPlayers);
 
@@ -396,7 +458,7 @@ if (window.App) {
       console.log('🔍 Added option:', option.textContent, 'value:', option.value);
     });
     
-    console.log('✅ Selector populated with', allPlayers.length, 'players');
+    console.log('✅ Selector populated with', allPlayers.length, 'unique players');
   }
 
   async function comparePlayers() {
@@ -455,21 +517,28 @@ if (window.App) {
     };
 
     try {
-      // Initialize dbAdapter if not already done
-      if (window.dbAdapter && !window.dbAdapter.isDbAvailable()) {
-        await window.dbAdapter.init();
+      // Check cache first (for merged players)
+      let player = mergedPlayersCache.get(playerId);
+      
+      if (player) {
+        console.log('🔍 Player found in cache (merged):', player);
+      } else {
+        // Initialize dbAdapter if not already done
+        if (window.dbAdapter && !window.dbAdapter.isDbAvailable()) {
+          await window.dbAdapter.init();
+        }
+        
+        // Get player from dbAdapter
+        console.log('🔍 Getting player from dbAdapter...');
+        player = await window.dbAdapter.getPlayer(playerId);
+        
+        if (!player) {
+          console.log('❌ Player not found');
+          return stats;
+        }
+        
+        console.log('🔍 Player found in DB:', player);
       }
-      
-      // Get player from dbAdapter
-      console.log('🔍 Getting player from dbAdapter...');
-      const player = await window.dbAdapter.getPlayer(playerId);
-      
-      if (!player) {
-        console.log('❌ Player not found');
-        return stats;
-      }
-      
-      console.log('🔍 Player found:', player);
       
       // Get player name
       stats.name = player.name ||
