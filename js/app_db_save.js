@@ -1347,6 +1347,56 @@ ${suspectedDuplicates}
         hasCalculatedStats: !!rows[0].totalPoints
       } : 'No players found');
       
+      // 🔥 FIX: Calculate stats for ALL players BEFORE sorting
+      // This ensures sorting works correctly with numeric values
+      for (const p of rows) {
+        if (p.games && p.games.length > 0) {
+          // Recalculate totals from games
+          p.totalPoints = p.games.reduce((s, g) => s + (g.points || 0), 0);
+          p.totalRebounds = p.games.reduce((s, g) => s + (g.rebounds || 0), 0);
+          p.totalAssists = p.games.reduce((s, g) => s + (g.assists || 0), 0);
+          p.totalSteals = p.games.reduce((s, g) => s + (g.steals || 0), 0);
+          p.totalBlocks = p.games.reduce((s, g) => s + (g.blocks || 0), 0);
+          p.totalTurnovers = p.games.reduce((s, g) => s + (g.turnovers || 0), 0);
+          p.totalFouls = p.games.reduce((s, g) => s + (g.fouls || 0), 0);
+          p.totalFoulsDrawn = p.games.reduce((s, g) => s + (g.foulsOn || 0), 0);
+          
+          // Calculate shooting percentages
+          const totalFGM = p.games.reduce((s, g) => s + (g.fieldGoalsMade || 0), 0);
+          const totalFGA = p.games.reduce((s, g) => s + (g.fieldGoalsAttempted || 0), 0);
+          const total3PM = p.games.reduce((s, g) => s + (g.threePointsMade || 0), 0);
+          const total3PA = p.games.reduce((s, g) => s + (g.threePointsAttempted || 0), 0);
+          const totalFTM = p.games.reduce((s, g) => s + (g.freeThrowsMade || 0), 0);
+          const totalFTA = p.games.reduce((s, g) => s + (g.freeThrowsAttempted || 0), 0);
+          
+          // Store as NUMBERS for proper sorting
+          p.fgPercentage = totalFGA > 0 ? (totalFGM/totalFGA)*100 : 0;
+          p.threePointPercentage = total3PA > 0 ? (total3PM/total3PA)*100 : 0;
+          p.ftPercentage = totalFTA > 0 ? (totalFTM/totalFTA)*100 : 0;
+          
+          // Calculate averages as NUMBERS
+          const totalGames = p.games.length;
+          p.avgPoints = totalGames ? p.totalPoints / totalGames : 0;
+          
+          const totalEfficiency = p.games.reduce((s, g) => s + (g.efficiency || 0), 0);
+          p.avgEfficiency = totalGames ? totalEfficiency / totalGames : 0;
+        } else {
+          // Set to 0 if no games
+          p.totalPoints = 0;
+          p.totalRebounds = 0;
+          p.totalAssists = 0;
+          p.totalSteals = 0;
+          p.totalBlocks = 0;
+          p.totalTurnovers = 0;
+          p.totalFouls = 0;
+          p.totalFoulsDrawn = 0;
+          p.fgPercentage = 0;
+          p.threePointPercentage = 0;
+          p.ftPercentage = 0;
+          p.avgPoints = 0;
+          p.avgEfficiency = 0;
+        }
+      }
       
       // טעינת מיפויי קבוצות להצגת שמות מתורגמים
       const teamMappings = {};
@@ -1395,6 +1445,7 @@ ${suspectedDuplicates}
               aVal = (a.games || []).length;
               bVal = (b.games || []).length;
               break;
+            // All numeric fields - already stored as numbers
             case 'totalPoints':
             case 'totalRebounds':
             case 'totalAssists':
@@ -1403,19 +1454,13 @@ ${suspectedDuplicates}
             case 'totalTurnovers':
             case 'totalFouls':
             case 'totalFoulsDrawn':
-              aVal = a[sortField] || 0;
-              bVal = b[sortField] || 0;
-              break;
             case 'avgPoints':
             case 'avgEfficiency':
-              aVal = parseFloat(a[sortField] || '0');
-              bVal = parseFloat(b[sortField] || '0');
-              break;
             case 'fgPercentage':
             case 'threePointPercentage':
             case 'ftPercentage':
-              aVal = parseFloat(a[sortField] || '0');
-              bVal = parseFloat(b[sortField] || '0');
+              aVal = a[sortField] || 0;
+              bVal = b[sortField] || 0;
               break;
             default:
               aVal = a[sortField] || '';
@@ -1489,58 +1534,23 @@ ${suspectedDuplicates}
           ? (p.id || '').substring(0, 18) + '...'
           : p.id || '';
         
-        // חישוב סטטיסטיקות מצטברות אם לא קיימות
-        let totalPoints = p.totalPoints;
-        let totalRebounds = p.totalRebounds;
-        let totalAssists = p.totalAssists;
-        let totalSteals = p.totalSteals;
-        let totalBlocks = p.totalBlocks;
-        let totalTurnovers = p.totalTurnovers;
-        let totalFouls = p.totalFouls;
-        let totalFoulsDrawn = p.totalFoulsDrawn;
-        let fgPercentage = p.fgPercentage;
-        let threePointPercentage = p.threePointPercentage;
-        let ftPercentage = p.ftPercentage;
-        let avgEfficiency = p.avgEfficiency;
-        let avgPoints = p.avgPoints;
+        // 🔥 FIX: Use pre-calculated stats (already computed before sorting)
+        // Stats are now stored as NUMBERS for proper sorting
+        const totalPoints = p.totalPoints || 0;
+        const totalRebounds = p.totalRebounds || 0;
+        const totalAssists = p.totalAssists || 0;
+        const totalSteals = p.totalSteals || 0;
+        const totalBlocks = p.totalBlocks || 0;
+        const totalTurnovers = p.totalTurnovers || 0;
+        const totalFouls = p.totalFouls || 0;
+        const totalFoulsDrawn = p.totalFoulsDrawn || 0;
         
-        // 🔥 FIX: Always recalculate stats from games to ensure accuracy
-        // This fixes the issue where avgPoints was incorrect when totalPoints existed
-        if (p.games && p.games.length > 0) {
-          console.log(`🔍 Calculating stats for player ${p.name} with ${p.games.length} games`);
-          
-          // Recalculate totals from games (source of truth)
-          totalPoints = p.games.reduce((s, g) => s + (g.points || 0), 0);
-          totalRebounds = p.games.reduce((s, g) => s + (g.rebounds || 0), 0);
-          totalAssists = p.games.reduce((s, g) => s + (g.assists || 0), 0);
-          totalSteals = p.games.reduce((s, g) => s + (g.steals || 0), 0);
-          totalBlocks = p.games.reduce((s, g) => s + (g.blocks || 0), 0);
-          totalTurnovers = p.games.reduce((s, g) => s + (g.turnovers || 0), 0);
-          totalFouls = p.games.reduce((s, g) => s + (g.fouls || 0), 0);
-          totalFoulsDrawn = p.games.reduce((s, g) => s + (g.foulsOn || 0), 0);
-          
-          // חישוב אחוזי קליעה
-          const totalFGM = p.games.reduce((s, g) => s + (g.fieldGoalsMade || 0), 0);
-          const totalFGA = p.games.reduce((s, g) => s + (g.fieldGoalsAttempted || 0), 0);
-          const total3PM = p.games.reduce((s, g) => s + (g.threePointsMade || 0), 0);
-          const total3PA = p.games.reduce((s, g) => s + (g.threePointsAttempted || 0), 0);
-          const totalFTM = p.games.reduce((s, g) => s + (g.freeThrowsMade || 0), 0);
-          const totalFTA = p.games.reduce((s, g) => s + (g.freeThrowsAttempted || 0), 0);
-          
-          fgPercentage = totalFGA > 0 ? ((totalFGM/totalFGA)*100).toFixed(1) : "0.0";
-          threePointPercentage = total3PA > 0 ? ((total3PM/total3PA)*100).toFixed(1) : "0.0";
-          ftPercentage = totalFTA > 0 ? ((totalFTM/totalFTA)*100).toFixed(1) : "0.0";
-          
-          // 🔥 FIX: Always recalculate averages from games (ensures accuracy)
-          const totalGames = p.games.length;
-          avgPoints = totalGames ? (totalPoints / totalGames).toFixed(1) : "0.0";
-          
-          // חישוב יעילות ממוצעת
-          const totalEfficiency = p.games.reduce((s, g) => s + (g.efficiency || 0), 0);
-          avgEfficiency = totalGames ? (totalEfficiency / totalGames).toFixed(1) : "0.0";
-          
-          console.log(`✅ Calculated stats for ${p.name}: ${totalPoints} points in ${totalGames} games, avg=${avgPoints}`);
-        }
+        // Format percentages and averages for display (with .toFixed)
+        const fgPercentage = (p.fgPercentage || 0).toFixed(1);
+        const threePointPercentage = (p.threePointPercentage || 0).toFixed(1);
+        const ftPercentage = (p.ftPercentage || 0).toFixed(1);
+        const avgEfficiency = (p.avgEfficiency || 0).toFixed(1);
+        const avgPoints = (p.avgPoints || 0).toFixed(1);
           
         tr.innerHTML = `
           <td class="col-name" title="${p.id || ''}">${(heNameById && heNameById.get(p.id)) || p.name || '-'}</td>
