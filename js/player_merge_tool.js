@@ -12,7 +12,7 @@ let detectedPlayerAliases = [];
 function initPlayerMergeTool() {
   console.log('🔧 Initializing Player Merge Tool...');
   
-  // Set up event listeners
+  // Set up event listeners for automatic detection
   const scanPlayerAliasesBtn = document.getElementById('scanPlayerAliasesBtn');
   const mergePlayersBtn = document.getElementById('mergePlayersBtn');
   
@@ -23,6 +23,41 @@ function initPlayerMergeTool() {
   if (mergePlayersBtn) {
     mergePlayersBtn.addEventListener('click', executePlayerMerges);
   }
+  
+  // Set up event listeners for manual merge
+  const loadManualMergePlayers = document.getElementById('loadManualMergePlayers');
+  const previewManualMerge = document.getElementById('previewManualMerge');
+  const executeManualMerge = document.getElementById('executeManualMerge');
+  const sourceSelect = document.getElementById('manualMergeSourcePlayer');
+  const targetSelect = document.getElementById('manualMergeTargetPlayer');
+  const sourceKeyInput = document.getElementById('manualMergeSourceKey');
+  const targetKeyInput = document.getElementById('manualMergeTargetKey');
+  
+  if (loadManualMergePlayers) {
+    loadManualMergePlayers.addEventListener('click', loadPlayersForManualMerge);
+  }
+  
+  if (previewManualMerge) {
+    previewManualMerge.addEventListener('click', showManualMergePreview);
+  }
+  
+  if (executeManualMerge) {
+    executeManualMerge.addEventListener('click', executeManualPlayerMerge);
+  }
+  
+  // Enable preview button when either players are selected
+  const checkSelection = () => {
+    const sourceId = sourceSelect?.value || sourceKeyInput?.value?.trim();
+    const targetId = targetSelect?.value || targetKeyInput?.value?.trim();
+    if (previewManualMerge) {
+      previewManualMerge.disabled = !(sourceId && targetId);
+    }
+  };
+  
+  if (sourceSelect) sourceSelect.addEventListener('change', checkSelection);
+  if (targetSelect) targetSelect.addEventListener('change', checkSelection);
+  if (sourceKeyInput) sourceKeyInput.addEventListener('input', checkSelection);
+  if (targetKeyInput) targetKeyInput.addEventListener('input', checkSelection);
   
   console.log('✅ Player Merge Tool initialized');
 }
@@ -961,6 +996,259 @@ function recalculatePlayerStats(player) {
   player.gamesPlayed = player.games.length;
   
   console.log(`📊 Recalculated stats for ${player.firstNameHe} ${player.familyNameHe}: ${player.gamesPlayed} games, ${totalPoints} points`);
+}
+
+/**
+ * Load players for manual merge (populate dropdowns)
+ */
+async function loadPlayersForManualMerge() {
+  console.log('📋 Loading players for manual merge...');
+  
+  try {
+    // Wait for DB to be ready
+    if (typeof window.ensureDbReady === 'function') {
+      await window.ensureDbReady();
+    }
+    
+    if (!window.dbAdapter) {
+      showError('מסד הנתונים לא זמין');
+      return;
+    }
+    
+    // Get all players
+    const players = await window.dbAdapter.getPlayers();
+    console.log(`📊 Loaded ${players.length} players`);
+    
+    // Sort by name
+    players.sort((a, b) => {
+      const nameA = `${a.firstNameHe || ''} ${a.familyNameHe || ''}`.trim();
+      const nameB = `${b.firstNameHe || ''} ${b.familyNameHe || ''}`.trim();
+      return nameA.localeCompare(nameB, 'he');
+    });
+    
+    // Populate dropdowns
+    const sourceSelect = document.getElementById('manualMergeSourcePlayer');
+    const targetSelect = document.getElementById('manualMergeTargetPlayer');
+    
+    if (sourceSelect && targetSelect) {
+      // Clear existing options (keep first placeholder)
+      sourceSelect.innerHTML = '<option value="">-- בחר שחקן --</option>';
+      targetSelect.innerHTML = '<option value="">-- בחר שחקן --</option>';
+      
+      // Add players
+      players.forEach(player => {
+        const name = `${player.firstNameHe || ''} ${player.familyNameHe || ''}`.trim();
+        const gamesCount = player.games ? player.games.length : 0;
+        const displayName = `${name} (${gamesCount} משחקים)`;
+        
+        const sourceOption = document.createElement('option');
+        sourceOption.value = player.id;
+        sourceOption.textContent = displayName;
+        sourceSelect.appendChild(sourceOption);
+        
+        const targetOption = document.createElement('option');
+        targetOption.value = player.id;
+        targetOption.textContent = displayName;
+        targetSelect.appendChild(targetOption);
+      });
+      
+      showOk(`נטענו ${players.length} שחקנים`);
+    }
+    
+  } catch (error) {
+    console.error('❌ Error loading players for manual merge:', error);
+    showError(`שגיאה בטעינת שחקנים: ${error.message}`);
+  }
+}
+
+/**
+ * Show manual merge preview
+ */
+async function showManualMergePreview() {
+  console.log('👁️ Showing manual merge preview...');
+  
+  try {
+    const sourceSelect = document.getElementById('manualMergeSourcePlayer');
+    const targetSelect = document.getElementById('manualMergeTargetPlayer');
+    const sourceKeyInput = document.getElementById('manualMergeSourceKey');
+    const targetKeyInput = document.getElementById('manualMergeTargetKey');
+    
+    // Get IDs (from select or input)
+    const sourceId = sourceKeyInput?.value?.trim() || sourceSelect?.value;
+    const targetId = targetKeyInput?.value?.trim() || targetSelect?.value;
+    
+    if (!sourceId || !targetId) {
+      showError('יש לבחור שני שחקנים');
+      return;
+    }
+    
+    if (sourceId === targetId) {
+      showError('לא ניתן לאחד שחקן עם עצמו');
+      return;
+    }
+    
+    // Wait for DB to be ready
+    if (typeof window.ensureDbReady === 'function') {
+      await window.ensureDbReady();
+    }
+    
+    if (!window.dbAdapter) {
+      showError('מסד הנתונים לא זמין');
+      return;
+    }
+    
+    // Get players
+    const allPlayers = await window.dbAdapter.getPlayers();
+    const sourcePlayer = allPlayers.find(p => p.id === sourceId);
+    const targetPlayer = allPlayers.find(p => p.id === targetId);
+    
+    if (!sourcePlayer) {
+      showError(`שחקן מקור לא נמצא: ${sourceId}`);
+      return;
+    }
+    
+    if (!targetPlayer) {
+      showError(`שחקן יעד לא נמצא: ${targetId}`);
+      return;
+    }
+    
+    // Display preview
+    const previewDiv = document.getElementById('manualMergePreview');
+    const sourceNameSpan = document.getElementById('previewSourceName');
+    const targetNameSpan = document.getElementById('previewTargetName');
+    const sourceGamesSpan = document.getElementById('previewSourceGames');
+    const targetGamesSpan = document.getElementById('previewTargetGames');
+    
+    if (previewDiv && sourceNameSpan && targetNameSpan && sourceGamesSpan && targetGamesSpan) {
+      const sourceName = `${sourcePlayer.firstNameHe || ''} ${sourcePlayer.familyNameHe || ''}`.trim();
+      const targetName = `${targetPlayer.firstNameHe || ''} ${targetPlayer.familyNameHe || ''}`.trim();
+      const sourceGamesCount = sourcePlayer.games ? sourcePlayer.games.length : 0;
+      const targetGamesCount = targetPlayer.games ? targetPlayer.games.length : 0;
+      
+      sourceNameSpan.textContent = sourceName;
+      targetNameSpan.textContent = targetName;
+      sourceGamesSpan.textContent = sourceGamesCount;
+      targetGamesSpan.textContent = targetGamesCount;
+      
+      previewDiv.classList.remove('hidden');
+      
+      // Enable execute button
+      const executeBtn = document.getElementById('executeManualMerge');
+      if (executeBtn) {
+        executeBtn.disabled = false;
+      }
+      
+      console.log(`✅ Preview ready: ${sourceName} (${sourceGamesCount} games) → ${targetName} (${targetGamesCount} games)`);
+    }
+    
+  } catch (error) {
+    console.error('❌ Error showing preview:', error);
+    showError(`שגיאה בהצגת תצוגה מקדימה: ${error.message}`);
+  }
+}
+
+/**
+ * Execute manual player merge
+ */
+async function executeManualPlayerMerge() {
+  console.log('🔀 Executing manual player merge...');
+  
+  if (!confirm('האם אתה בטוח שברצונך לאחד את השחקנים? פעולה זו אינה הפיכה!')) {
+    return;
+  }
+  
+  try {
+    const sourceSelect = document.getElementById('manualMergeSourcePlayer');
+    const targetSelect = document.getElementById('manualMergeTargetPlayer');
+    const sourceKeyInput = document.getElementById('manualMergeSourceKey');
+    const targetKeyInput = document.getElementById('manualMergeTargetKey');
+    
+    // Get IDs
+    const sourceId = sourceKeyInput?.value?.trim() || sourceSelect?.value;
+    const targetId = targetKeyInput?.value?.trim() || targetSelect?.value;
+    
+    if (!sourceId || !targetId) {
+      showError('יש לבחור שני שחקנים');
+      return;
+    }
+    
+    // Wait for DB to be ready
+    if (typeof window.ensureDbReady === 'function') {
+      await window.ensureDbReady();
+    }
+    
+    if (!window.dbAdapter) {
+      showError('מסד הנתונים לא זמין');
+      return;
+    }
+    
+    // Get players
+    const allPlayers = await window.dbAdapter.getPlayers();
+    const sourcePlayer = allPlayers.find(p => p.id === sourceId);
+    const targetPlayer = allPlayers.find(p => p.id === targetId);
+    
+    if (!sourcePlayer || !targetPlayer) {
+      showError('שחקן לא נמצא');
+      return;
+    }
+    
+    console.log(`🔀 Merging ${sourcePlayer.firstNameHe} ${sourcePlayer.familyNameHe} → ${targetPlayer.firstNameHe} ${targetPlayer.familyNameHe}`);
+    
+    // Merge games from source to target
+    const sourceGames = sourcePlayer.games || [];
+    const targetGames = targetPlayer.games || [];
+    
+    // Combine games (avoiding duplicates by gameSerial)
+    const mergedGames = [...targetGames];
+    const existingGameSerials = new Set(targetGames.map(g => g.gameSerial));
+    
+    for (const game of sourceGames) {
+      if (!existingGameSerials.has(game.gameSerial)) {
+        mergedGames.push(game);
+        existingGameSerials.add(game.gameSerial);
+      }
+    }
+    
+    // Update target player with merged games
+    targetPlayer.games = mergedGames;
+    
+    // Recalculate stats for target player
+    recalculatePlayerStats(targetPlayer);
+    
+    // Save updated target player
+    console.log(`💾 Saving updated target player with ${mergedGames.length} games`);
+    await window.dbAdapter.savePlayer(targetPlayer);
+    
+    // Delete source player
+    console.log(`🗑️ Deleting source player`);
+    await window.dbAdapter.deletePlayer(sourceId);
+    
+    // Success!
+    showOk(`✅ איחוד הושלם בהצלחה! ${sourceGames.length} משחקים הועברו.`);
+    
+    // Hide preview
+    const previewDiv = document.getElementById('manualMergePreview');
+    if (previewDiv) {
+      previewDiv.classList.add('hidden');
+    }
+    
+    // Reset form
+    if (sourceSelect) sourceSelect.value = '';
+    if (targetSelect) targetSelect.value = '';
+    if (sourceKeyInput) sourceKeyInput.value = '';
+    if (targetKeyInput) targetKeyInput.value = '';
+    
+    const executeBtn = document.getElementById('executeManualMerge');
+    if (executeBtn) {
+      executeBtn.disabled = true;
+    }
+    
+    console.log('✅ Manual merge completed successfully');
+    
+  } catch (error) {
+    console.error('❌ Error executing manual merge:', error);
+    showError(`שגיאה באיחוד שחקנים: ${error.message}`);
+  }
 }
 
 /**
