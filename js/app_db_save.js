@@ -3481,12 +3481,22 @@ ${suspectedDuplicates}
       const avgSteals = (teamStats.steals || 0) / games;
       const avgEfficiency = (teamStats.efficiency || 0) / games;
       
-      // Calculate rankings
-      const rankPoints = calculateRanking(allTeamStats, 'points', teamStats.points);
-      const rankRebounds = calculateRanking(allTeamStats, 'rebounds', teamStats.rebounds);
-      const rankAssists = calculateRanking(allTeamStats, 'assists', teamStats.assists);
-      const rankSteals = calculateRanking(allTeamStats, 'steals', teamStats.steals);
-      const rankEfficiency = calculateRanking(allTeamStats, 'efficiency', teamStats.efficiency);
+      // Calculate rankings - need to create temp objects with averages for proper ranking
+      const teamsWithAvgs = allTeamStats.map(t => ({
+        team: t.team,
+        games: t.games || 1,
+        avgPoints: (t.points || 0) / (t.games || 1),
+        avgRebounds: (t.rebounds || 0) / (t.games || 1),
+        avgAssists: (t.assists || 0) / (t.games || 1),
+        avgSteals: (t.steals || 0) / (t.games || 1),
+        avgEfficiency: (t.efficiency || 0) / (t.games || 1)
+      }));
+      
+      const rankPoints = calculateRanking(teamsWithAvgs, 'avgPoints', avgPoints);
+      const rankRebounds = calculateRanking(teamsWithAvgs, 'avgRebounds', avgRebounds);
+      const rankAssists = calculateRanking(teamsWithAvgs, 'avgAssists', avgAssists);
+      const rankSteals = calculateRanking(teamsWithAvgs, 'avgSteals', avgSteals);
+      const rankEfficiency = calculateRanking(teamsWithAvgs, 'avgEfficiency', avgEfficiency);
       
       return {
         games,
