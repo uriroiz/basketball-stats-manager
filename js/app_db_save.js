@@ -3433,135 +3433,133 @@ ${suspectedDuplicates}
         console.log('Home team calculated stats:', homeStats);
         console.log('Away team calculated stats:', awayStats);
         
-        // Render the comparison
+        // Helper function to create comparison row in table format
+        // Similar to player comparison - colors based on which value is higher
+        // Uses existing statistical values from homeStats/awayStats - no recalculation
+        const createComparisonRow = (label, homeValue, homeRank, awayValue, awayRank) => {
+          // Determine which value is higher (green) and which is lower (red)
+          let homeClass = '';
+          let awayClass = '';
+          
+          if (homeValue > awayValue) {
+            homeClass = 'bg-green-100 text-green-800 font-bold';
+            awayClass = 'bg-red-100 text-red-800';
+          } else if (awayValue > homeValue) {
+            homeClass = 'bg-red-100 text-red-800';
+            awayClass = 'bg-green-100 text-green-800 font-bold';
+          } else {
+            homeClass = 'bg-gray-100 text-gray-800';
+            awayClass = 'bg-gray-100 text-gray-800';
+          }
+          
+          return `
+            <tr>
+              <td class="px-4 py-3 text-sm font-medium text-gray-900 text-right">${label}</td>
+              <td class="px-4 py-3 text-sm text-center ${homeClass}">
+                <div class="font-bold text-base">${homeValue.toFixed(1)}</div>
+                <div class="text-xs mt-1">דירוג: ${homeRank}</div>
+              </td>
+              <td class="px-4 py-3 text-sm text-center ${awayClass}">
+                <div class="font-bold text-base">${awayValue.toFixed(1)}</div>
+                <div class="text-xs mt-1">דירוג: ${awayRank}</div>
+              </td>
+            </tr>
+          `;
+        };
+        
+        // Helper function to create record row (W-L with margins)
+        // For home team: shows home record vs away team: away record
+        // Uses dual-layer coloring: background based on own record, border for better team
+        const createRecordRow = (label, homeWins, homeLosses, homeWinMargin, homeLossMargin, awayWins, awayLosses, awayWinMargin, awayLossMargin) => {
+          // Layer 1: Background color based on own record quality
+          const getRecordBackground = (wins, losses) => {
+            if (wins > losses) return 'bg-green-50'; // Positive record - light green
+            if (losses > wins) return 'bg-red-50';   // Negative record - light red
+            return 'bg-gray-50';                      // Equal record - neutral gray
+          };
+          
+          const homeRecordBg = getRecordBackground(homeWins, homeLosses);
+          const awayRecordBg = getRecordBackground(awayWins, awayLosses);
+          
+          // Layer 2: Border/indicator for which team is better
+          let homeBorder = '';
+          let awayBorder = '';
+          
+          // Calculate win percentage for comparison
+          const homeTotal = homeWins + homeLosses;
+          const awayTotal = awayWins + awayLosses;
+          const homeWinPct = homeTotal > 0 ? homeWins / homeTotal : 0;
+          const awayWinPct = awayTotal > 0 ? awayWins / awayTotal : 0;
+          
+          if (homeWinPct > awayWinPct) {
+            homeBorder = 'border-2 border-blue-500';
+          } else if (awayWinPct > homeWinPct) {
+            awayBorder = 'border-2 border-blue-500';
+          } else if (homeWinPct === awayWinPct && homeWinPct > 0) {
+            // Equal win percentage - compare by win margin
+            if (homeWinMargin > awayWinMargin) {
+              homeBorder = 'border-2 border-blue-500';
+            } else if (awayWinMargin > homeWinMargin) {
+              awayBorder = 'border-2 border-blue-500';
+            }
+          }
+          
+          return `
+            <tr>
+              <td class="px-4 py-3 text-sm font-medium text-gray-900 text-right">${label}</td>
+              <td class="px-4 py-3 text-sm text-center ${homeRecordBg} ${homeBorder}" dir="rtl">
+                <div class="font-bold text-base text-gray-900">${homeWins}–${homeLosses}</div>
+                <div class="text-xs mt-1 text-green-700" dir="ltr">+${homeWinMargin.toFixed(1)} הפרש ממוצע בניצחונות בבית</div>
+                <div class="text-xs text-red-700" dir="ltr">${homeLossMargin > 0 ? '-' : ''}${homeLossMargin.toFixed(1)} הפרש ממוצע בהפסדים בבית</div>
+              </td>
+              <td class="px-4 py-3 text-sm text-center ${awayRecordBg} ${awayBorder}" dir="rtl">
+                <div class="font-bold text-base text-gray-900">${awayWins}–${awayLosses}</div>
+                <div class="text-xs mt-1 text-green-700" dir="ltr">+${awayWinMargin.toFixed(1)} הפרש ממוצע בניצחונות בחוץ</div>
+                <div class="text-xs text-red-700" dir="ltr">${awayLossMargin > 0 ? '-' : ''}${awayLossMargin.toFixed(1)} הפרש ממוצע בהפסדים בחוץ</div>
+              </td>
+            </tr>
+          `;
+        };
+        
+        // Render the comparison in table format (similar to player comparison)
+        // NOTE: Using existing statistical values from homeStats/awayStats - no recalculation
         teamAveragesDiv.innerHTML = `
-          <div class="space-y-4">
-            <!-- Home Team Stats -->
-            <div class="bg-white border border-green-300 rounded-lg p-4">
-              <h4 class="font-bold text-lg text-green-800 mb-3">${homeTeam.name_he} (בית)</h4>
-              <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                <div class="text-center">
-                  <div class="font-semibold text-gray-700">נקודות למשחק</div>
-                  <div class="text-xl font-bold text-black">${homeStats.avgPoints.toFixed(1)}</div>
-                  <div class="text-xs text-gray-500">דירוג: ${homeStats.rankPoints}</div>
-                </div>
-                <div class="text-center">
-                  <div class="font-semibold text-gray-700">ריבאונדים למשחק</div>
-                  <div class="text-xl font-bold text-black">${homeStats.avgRebounds.toFixed(1)}</div>
-                  <div class="text-xs text-gray-500">דירוג: ${homeStats.rankRebounds}</div>
-                </div>
-                <div class="text-center">
-                  <div class="font-semibold text-gray-700">אסיסטים למשחק</div>
-                  <div class="text-xl font-bold text-black">${homeStats.avgAssists.toFixed(1)}</div>
-                  <div class="text-xs text-gray-500">דירוג: ${homeStats.rankAssists}</div>
-                </div>
-                <div class="text-center">
-                  <div class="font-semibold text-gray-700">חטיפות למשחק</div>
-                  <div class="text-xl font-bold text-black">${homeStats.avgSteals.toFixed(1)}</div>
-                  <div class="text-xs text-gray-500">דירוג: ${homeStats.rankSteals}</div>
-                </div>
-                <div class="text-center">
-                  <div class="font-semibold text-gray-700">יעילות למשחק</div>
-                  <div class="text-xl font-bold text-black">${homeStats.avgEfficiency.toFixed(1)}</div>
-                  <div class="text-xs text-gray-500">דירוג: ${homeStats.rankEfficiency}</div>
-                </div>
-                <div class="text-center">
-                  <div class="font-semibold text-gray-700">משחקים</div>
-                  <div class="text-xl font-bold text-black">${homeStats.games}</div>
-                  <div class="text-xs text-gray-500">בעונה</div>
-                </div>
-              </div>
-              
-              <!-- Home/Away Specific Stats for Home Team -->
-              <div class="mt-4 pt-4 border-t border-green-200">
-                <h5 class="font-semibold text-green-700 mb-2">מאזן משחקים בבית</h5>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                  <div class="text-center">
-                    <div class="font-semibold text-gray-700">ניצחונות</div>
-                    <div class="text-lg font-bold text-green-600">${homeHomeAwayStats.homeWins}</div>
-                    <div class="text-xs text-gray-500">משחקים</div>
-                  </div>
-                  <div class="text-center">
-                    <div class="font-semibold text-gray-700">הפסדים</div>
-                    <div class="text-lg font-bold text-red-600">${homeHomeAwayStats.homeLosses}</div>
-                    <div class="text-xs text-gray-500">משחקים</div>
-                  </div>
-                  <div class="text-center">
-                    <div class="font-semibold text-gray-700">ממוצע ניצחון</div>
-                    <div class="text-lg font-bold text-green-600">${homeHomeAwayStats.avgWinMargin.toFixed(1)}</div>
-                    <div class="text-xs text-gray-500">נקודות</div>
-                  </div>
-                  <div class="text-center">
-                    <div class="font-semibold text-gray-700">ממוצע הפסד</div>
-                    <div class="text-lg font-bold text-red-600" style="direction: ltr; unicode-bidi: bidi-override;">-${homeHomeAwayStats.avgLossMargin.toFixed(1)}</div>
-                    <div class="text-xs text-gray-500">נקודות</div>
-                  </div>
-                </div>
-              </div>
+          <div class="bg-white border border-gray-300 rounded-lg overflow-hidden" dir="rtl">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-blue-600 to-blue-700 p-4 flex justify-between items-center text-white">
+              <div class="text-lg font-bold">${homeTeam.name_he}</div>
+              <div class="text-sm font-medium">השוואת קבוצות</div>
+              <div class="text-lg font-bold">${awayTeam.name_he}</div>
             </div>
             
-            <!-- Away Team Stats -->
-            <div class="bg-white border border-green-300 rounded-lg p-4">
-              <h4 class="font-bold text-lg text-green-800 mb-3">${awayTeam.name_he} (חוץ)</h4>
-              <div class="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                <div class="text-center">
-                  <div class="font-semibold text-gray-700">נקודות למשחק</div>
-                  <div class="text-xl font-bold text-black">${awayStats.avgPoints.toFixed(1)}</div>
-                  <div class="text-xs text-gray-500">דירוג: ${awayStats.rankPoints}</div>
-                </div>
-                <div class="text-center">
-                  <div class="font-semibold text-gray-700">ריבאונדים למשחק</div>
-                  <div class="text-xl font-bold text-black">${awayStats.avgRebounds.toFixed(1)}</div>
-                  <div class="text-xs text-gray-500">דירוג: ${awayStats.rankRebounds}</div>
-                </div>
-                <div class="text-center">
-                  <div class="font-semibold text-gray-700">אסיסטים למשחק</div>
-                  <div class="text-xl font-bold text-black">${awayStats.avgAssists.toFixed(1)}</div>
-                  <div class="text-xs text-gray-500">דירוג: ${awayStats.rankAssists}</div>
-                </div>
-                <div class="text-center">
-                  <div class="font-semibold text-gray-700">חטיפות למשחק</div>
-                  <div class="text-xl font-bold text-black">${awayStats.avgSteals.toFixed(1)}</div>
-                  <div class="text-xs text-gray-500">דירוג: ${awayStats.rankSteals}</div>
-                </div>
-                <div class="text-center">
-                  <div class="font-semibold text-gray-700">יעילות למשחק</div>
-                  <div class="text-xl font-bold text-black">${awayStats.avgEfficiency.toFixed(1)}</div>
-                  <div class="text-xs text-gray-500">דירוג: ${awayStats.rankEfficiency}</div>
-                </div>
-                <div class="text-center">
-                  <div class="font-semibold text-gray-700">משחקים</div>
-                  <div class="text-xl font-bold text-black">${awayStats.games}</div>
-                  <div class="text-xs text-gray-500">בעונה</div>
-                </div>
-              </div>
-              
-              <!-- Home/Away Specific Stats for Away Team -->
-              <div class="mt-4 pt-4 border-t border-green-200">
-                <h5 class="font-semibold text-green-700 mb-2">מאזן משחקים בחוץ</h5>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                  <div class="text-center">
-                    <div class="font-semibold text-gray-700">ניצחונות</div>
-                    <div class="text-lg font-bold text-green-600">${awayHomeAwayStats.awayWins}</div>
-                    <div class="text-xs text-gray-500">משחקים</div>
-                  </div>
-                  <div class="text-center">
-                    <div class="font-semibold text-gray-700">הפסדים</div>
-                    <div class="text-lg font-bold text-red-600">${awayHomeAwayStats.awayLosses}</div>
-                    <div class="text-xs text-gray-500">משחקים</div>
-                  </div>
-                  <div class="text-center">
-                    <div class="font-semibold text-gray-700">ממוצע ניצחון</div>
-                    <div class="text-lg font-bold text-green-600">${awayHomeAwayStats.avgWinMargin.toFixed(1)}</div>
-                    <div class="text-xs text-gray-500">נקודות</div>
-                  </div>
-                  <div class="text-center">
-                    <div class="font-semibold text-gray-700">ממוצע הפסד</div>
-                    <div class="text-lg font-bold text-red-600" style="direction: ltr; unicode-bidi: bidi-override;">-${awayHomeAwayStats.avgLossMargin.toFixed(1)}</div>
-                    <div class="text-xs text-gray-500">נקודות</div>
-                  </div>
-                </div>
-              </div>
+            <!-- Comparison Table -->
+            <div class="overflow-x-auto">
+              <table class="w-full">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">סטטיסטיקה</th>
+                    <th class="px-4 py-3 text-center text-sm font-medium text-gray-700">${homeTeam.name_he}</th>
+                    <th class="px-4 py-3 text-center text-sm font-medium text-gray-700">${awayTeam.name_he}</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                  ${createComparisonRow('נקודות למשחק', homeStats.avgPoints, homeStats.rankPoints, awayStats.avgPoints, awayStats.rankPoints)}
+                  ${createComparisonRow('ריבאונדים למשחק', homeStats.avgRebounds, homeStats.rankRebounds, awayStats.avgRebounds, awayStats.rankRebounds)}
+                  ${createComparisonRow('אסיסטים למשחק', homeStats.avgAssists, homeStats.rankAssists, awayStats.avgAssists, awayStats.rankAssists)}
+                  ${createComparisonRow('חטיפות למשחק', homeStats.avgSteals, homeStats.rankSteals, awayStats.avgSteals, awayStats.rankSteals)}
+                  ${createComparisonRow('יעילות למשחק', homeStats.avgEfficiency, homeStats.rankEfficiency, awayStats.avgEfficiency, awayStats.rankEfficiency)}
+                  <!-- Separator row -->
+                  <tr class="bg-gray-100">
+                    <td colspan="3" class="px-4 py-2"></td>
+                  </tr>
+                  <!-- Home/Away Records as table rows -->
+                  ${createRecordRow('מאזן משחקים', 
+                    homeHomeAwayStats.homeWins, homeHomeAwayStats.homeLosses, 
+                    homeHomeAwayStats.avgWinMargin, homeHomeAwayStats.avgLossMargin,
+                    awayHomeAwayStats.awayWins, awayHomeAwayStats.awayLosses,
+                    awayHomeAwayStats.avgWinMargin, awayHomeAwayStats.avgLossMargin)}
+                </tbody>
+              </table>
             </div>
           </div>
         `;
