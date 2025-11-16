@@ -795,6 +795,16 @@ ${suspectedDuplicates}
             player.avgTurnovers = totalGames ? (player.totalTurnovers / totalGames).toFixed(1) : "0.0";
             player.avgFouls = totalGames ? (player.totalFouls / totalGames).toFixed(1) : "0.0";
             player.avgEfficiency = totalGames ? (player.totalEfficiency / totalGames).toFixed(1) : "0.0";
+            
+            // חישוב דקות ממוצעות
+            const totalMinutesInSeconds = player.games.reduce((s, g) => {
+              const minutesStr = g.minutes || "0:00";
+              const parts = minutesStr.split(":");
+              const mins = parseInt(parts[0] || 0);
+              const secs = parseInt(parts[1] || 0);
+              return s + (mins * 60 + secs);
+            }, 0);
+            player.avgMinutes = totalGames ? (totalMinutesInSeconds / totalGames / 60).toFixed(1) : "0.0";
 
             // שמירת השחקן המעודכן
             const updateReq = store.put(player);
@@ -1356,6 +1366,224 @@ ${suspectedDuplicates}
     function initTeamsTableSort() {
       if (document.querySelector('#view-teams .stats-table thead th')) {
         updateTeamsTableHeaders(currentTeamsView, currentTeamsSortField, currentTeamsSortDirection);
+      }
+    }
+
+    // Render League Leaders page
+    async function renderLeagueLeaders() {
+      console.log('🏆 Rendering league leaders...');
+      
+      try {
+        // Initialize dbAdapter if not already done
+        if (window.dbAdapter && !window.dbAdapter.isDbAvailable()) {
+          await window.dbAdapter.init();
+        }
+        
+        // Get all players
+        const allPlayers = await window.dbAdapter.getPlayers();
+        
+        if (!allPlayers || allPlayers.length === 0) {
+          console.log('⚠️ No players found');
+          return;
+        }
+        
+        // Build team name mappings (same as in renderPlayersTable)
+        const teamMappings = {};
+        const normalizeEn = str => (str || '').toLowerCase().trim();
+        
+        // Get teams from dbAdapter and build mappings
+        const teams = await window.dbAdapter.getTeams();
+        if (teams) {
+          for (const team of teams) {
+            if (team.name_en) teamMappings[normalizeEn(team.name_en)] = team.name_he;
+            (team.aliases || []).forEach(alias => {
+              teamMappings[normalizeEn(alias)] = team.name_he;
+            });
+          }
+        }
+        
+        // Helper function to get team name in Hebrew (same as in renderPlayersTable)
+        const getTeamHeName = (teamName) => {
+          if (!teamName) return '-';
+          // אם השם כבר בעברית, החזר אותו כפי שהוא
+          if (/[\u0590-\u05FF]/.test(teamName)) {
+            return teamName;
+          }
+          // אחרת, נסה למצוא מיפוי
+          const normalizedName = normalizeEn(teamName);
+          return teamMappings[normalizedName] || teamName;
+        };
+        
+        // Deduplicate players (same logic as in Players Statistics tab)
+        const playersMap = new Map();
+        
+        for (const pl of allPlayers) {
+          if (!pl.games || pl.games.length === 0) continue;
+          
+          const playerName = (pl.name || '').toLowerCase().trim();
+          const playerJersey = (pl.jersey || '').trim();
+          
+          if (!playerName) continue;
+          
+          // Use name + jersey as the deduplication key
+          const dedupKey = `${playerName}|${playerJersey}`;
+          
+          if (!playersMap.has(dedupKey)) {
+            playersMap.set(dedupKey, pl);
+          } else {
+            // Merge games from duplicate entries
+            const existing = playersMap.get(dedupKey);
+            const mergedGames = [...(existing.games || []), ...(pl.games || [])];
+            const mergedPlayer = {
+              ...existing,
+              games: mergedGames,
+              name: pl.name || existing.name,
+              team: pl.team || existing.team,
+              jersey: pl.jersey || existing.jersey
+            };
+            playersMap.set(dedupKey, mergedPlayer);
+          }
+        }
+        
+        // Process deduplicated players: ensure all needed stats are properly calculated
+        const eligiblePlayers = Array.from(playersMap.values())
+          .filter(p => (p.games || []).length >= 3)
+          .map(p => {
+            const games = (p.games || []).length;
+            
+            // Always recalculate totals and averages from games for consistency
+            // This ensures we match the Players Statistics tab exactly
+            p.totalPoints = (p.games || []).reduce((s, g) => s + (g.points || 0), 0);
+            p.totalRebounds = (p.games || []).reduce((s, g) => s + (g.rebounds || 0), 0);
+            p.totalAssists = (p.games || []).reduce((s, g) => s + (g.assists || 0), 0);
+            p.totalSteals = (p.games || []).reduce((s, g) => s + (g.steals || 0), 0);
+            p.totalBlocks = (p.games || []).reduce((s, g) => s + (g.blocks || 0), 0);
+            
+            // Calculate averages from the recalculated totals
+            p.avgPoints = games && p.totalPoints ? parseFloat((p.totalPoints / games).toFixed(1)) : 0;
+            p.avgRebounds = games && p.totalRebounds ? parseFloat((p.totalRebounds / games).toFixed(1)) : 0;
+            p.avgAssists = games && p.totalAssists ? parseFloat((p.totalAssists / games).toFixed(1)) : 0;
+            p.avgSteals = games && p.totalSteals ? parseFloat((p.totalSteals / games).toFixed(1)) : 0;
+            p.avgBlocks = games && p.totalBlocks ? parseFloat((p.totalBlocks / games).toFixed(1)) : 0;
+            
+            // Calculate avgMinutes if missing
+            if (!p.avgMinutes) {
+              const totalMinutesInSeconds = (p.games || []).reduce((s, g) => {
+                const minutesStr = g.minutes || "0:00";
+                const parts = minutesStr.split(":");
+                const mins = parseInt(parts[0] || 0);
+                const secs = parseInt(parts[1] || 0);
+                return s + (mins * 60 + secs);
+              }, 0);
+              p.avgMinutes = games ? (totalMinutesInSeconds / games / 60).toFixed(1) : "0.0";
+            }
+            
+            // Calculate shooting totals if missing (needed for percentage thresholds)
+            if (!p.totalFGA) {
+              p.totalFGM = (p.games || []).reduce((s, g) => s + (g.fieldGoalsMade || 0), 0);
+              p.totalFGA = (p.games || []).reduce((s, g) => s + (g.fieldGoalsAttempted || 0), 0);
+              p.total3PM = (p.games || []).reduce((s, g) => s + (g.threePointsMade || 0), 0);
+              p.total3PA = (p.games || []).reduce((s, g) => s + (g.threePointsAttempted || 0), 0);
+              p.totalFTM = (p.games || []).reduce((s, g) => s + (g.freeThrowsMade || 0), 0);
+              p.totalFTA = (p.games || []).reduce((s, g) => s + (g.freeThrowsAttempted || 0), 0);
+            }
+            
+            return p;
+          });
+        
+        console.log(`📊 Found ${eligiblePlayers.length} eligible players (3+ games)`);
+        
+        // Helper function to get player display name
+        const getPlayerName = (player) => {
+          return player.name || 
+                 `${player.firstNameHe || ''} ${player.familyNameHe || ''}`.trim() || 
+                 `${player.firstNameEn || ''} ${player.familyNameEn || ''}`.trim() ||
+                 'שחקן לא ידוע';
+        };
+        
+        // Helper function to get top N players by stat
+        const getTopPlayers = (stat, n = 5) => {
+          return [...eligiblePlayers]
+            .filter(p => parseFloat(p[stat]) > 0)
+            .sort((a, b) => parseFloat(b[stat]) - parseFloat(a[stat]))
+            .slice(0, n);
+        };
+        
+        // Helper function to get top N players by percentage with minimum attempts threshold
+        const getTopPlayersByPercentage = (percentageStat, attemptsStat, minAttempts, n = 5) => {
+          return [...eligiblePlayers]
+            .filter(p => {
+              const attempts = parseFloat(p[attemptsStat]) || 0;
+              const percentage = parseFloat(p[percentageStat]) || 0;
+              return attempts >= minAttempts && percentage > 0;
+            })
+            .sort((a, b) => parseFloat(b[percentageStat]) - parseFloat(a[percentageStat]))
+            .slice(0, n);
+        };
+        
+        // Helper function to render leaders table
+        const renderLeadersTable = (tableId, players, statField, suffix = '') => {
+          const tbody = document.querySelector(`#${tableId} tbody`);
+          if (!tbody) return;
+          
+          tbody.innerHTML = '';
+          
+          if (players.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-400">אין נתונים</td></tr>';
+            return;
+          }
+          
+          players.forEach((player, index) => {
+            const tr = document.createElement('tr');
+            tr.className = 'border-b hover:bg-gray-50';
+            
+            const playerName = getPlayerName(player);
+            const teamName = getTeamHeName(player.team);
+            const games = (player.games || []).length;
+            const statValue = parseFloat(player[statField] || 0).toFixed(1);
+            
+            tr.innerHTML = `
+              <td class="py-2 px-2 font-semibold text-gray-700">${index + 1}</td>
+              <td class="py-2 px-2 text-right font-medium">${playerName}</td>
+              <td class="py-2 px-2 text-right text-sm text-gray-600">${teamName}</td>
+              <td class="py-2 px-2 text-center text-sm text-gray-500">${games}</td>
+              <td class="py-2 px-2 text-center font-bold">${statValue}${suffix}</td>
+            `;
+            
+            tbody.appendChild(tr);
+          });
+        };
+        
+        // Get top players for each category
+        const topPoints = getTopPlayers('avgPoints');
+        const topRebounds = getTopPlayers('avgRebounds');
+        const topAssists = getTopPlayers('avgAssists');
+        const topSteals = getTopPlayers('avgSteals');
+        const topBlocks = getTopPlayers('avgBlocks');
+        const topMinutes = getTopPlayers('avgMinutes');
+        
+        // Get top players by shooting percentages with minimum attempts thresholds
+        // FG%: minimum 25 attempts | 3PT%: minimum 10 attempts | FT%: minimum 15 attempts
+        const topFG = getTopPlayersByPercentage('fgPercentage', 'totalFGA', 25);
+        const top3PT = getTopPlayersByPercentage('threePointPercentage', 'total3PA', 10);
+        const topFT = getTopPlayersByPercentage('ftPercentage', 'totalFTA', 15);
+        
+        // Render all tables
+        renderLeadersTable('leadersPoints', topPoints, 'avgPoints');
+        renderLeadersTable('leadersRebounds', topRebounds, 'avgRebounds');
+        renderLeadersTable('leadersAssists', topAssists, 'avgAssists');
+        renderLeadersTable('leadersSteals', topSteals, 'avgSteals');
+        renderLeadersTable('leadersBlocks', topBlocks, 'avgBlocks');
+        renderLeadersTable('leadersMinutes', topMinutes, 'avgMinutes');
+        renderLeadersTable('leadersFG', topFG, 'fgPercentage', '%');
+        renderLeadersTable('leaders3PT', top3PT, 'threePointPercentage', '%');
+        renderLeadersTable('leadersFT', topFT, 'ftPercentage', '%');
+        
+        console.log('✅ League leaders rendered successfully');
+        
+      } catch (error) {
+        console.error('❌ Error rendering league leaders:', error);
+        showError && showError('שגיאה בטעינת מובילי הליגה: ' + error.message);
       }
     }
 
@@ -1992,6 +2220,7 @@ ${suspectedDuplicates}
           games: $("view-games"), 
           teams: $("view-teams"), 
           players: $("view-players"), 
+          leagueLeaders: $("view-leagueLeaders"),
           manageTeams: $("view-manageTeams"),
           managePlayers: $("view-managePlayers"),
           gamePrep: $("view-gamePrep"),
@@ -2011,6 +2240,8 @@ ${suspectedDuplicates}
           } else if (name === 'players') {
             await renderPlayersTable('name', 'asc');
             initPlayerTableSort();
+          } else if (name === 'leagueLeaders') {
+            await renderLeagueLeaders();
           } else if (name === 'manageTeams') {
             await listTeams();
           } else if (name === 'managePlayers') {

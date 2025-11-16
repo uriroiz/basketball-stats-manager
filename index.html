@@ -40,6 +40,7 @@
       <button class="tab active" data-tab="games">כל המשחקים</button>
       <button class="tab" data-tab="teams">סטטיסטיקות קבוצתיות</button>
       <button class="tab" data-tab="players">סטטיסטיקות שחקנים</button>
+      <button class="tab" data-tab="leagueLeaders">מובילי הליגה</button>
       <button class="tab" data-tab="manageTeams">ניהול קבוצות</button>
       <button class="tab" data-tab="managePlayers">ניהול שחקנים</button>
       <button class="tab" data-tab="transfers">ניהול העברות</button>
@@ -326,6 +327,225 @@
             </thead>
             <tbody id="playersTbody"></tbody>
           </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== League Leaders (view-leagueLeaders) ========== -->
+    <section id="view-leagueLeaders" class="hidden">
+      <div class="card p-4">
+        <h2 class="text-lg font-bold mb-4 text-blue-900">מובילי הליגה - עונה 2025/26</h2>
+        
+        <!-- Grid layout for stat categories -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          
+          <!-- Points Leaders -->
+          <div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+            <div class="bg-gradient-to-r from-blue-800 to-blue-900 p-3">
+              <h3 class="text-white font-bold text-center">נקודות למשחק</h3>
+            </div>
+            <div class="p-3">
+              <table class="w-full text-sm" id="leadersPoints">
+                <thead>
+                  <tr class="border-b-2 border-gray-300 text-gray-700 text-xs">
+                    <th class="text-right py-2 px-2">#</th>
+                    <th class="text-right py-2 px-2">שחקן</th>
+                    <th class="text-right py-2 px-2">קבוצה</th>
+                    <th class="text-center py-2 px-2">מש'</th>
+                    <th class="text-center py-2 px-2">ממוצע</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="5" class="text-center py-4 text-gray-400">טוען נתונים...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Rebounds Leaders -->
+          <div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+            <div class="bg-gradient-to-r from-blue-800 to-blue-900 p-3">
+              <h3 class="text-white font-bold text-center">ריבאונדים למשחק</h3>
+            </div>
+            <div class="p-3">
+              <table class="w-full text-sm" id="leadersRebounds">
+                <thead>
+                  <tr class="border-b-2 border-gray-300 text-gray-700 text-xs">
+                    <th class="text-right py-2 px-2">#</th>
+                    <th class="text-right py-2 px-2">שחקן</th>
+                    <th class="text-right py-2 px-2">קבוצה</th>
+                    <th class="text-center py-2 px-2">מש'</th>
+                    <th class="text-center py-2 px-2">ממוצע</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="5" class="text-center py-4 text-gray-400">טוען נתונים...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Assists Leaders -->
+          <div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+            <div class="bg-gradient-to-r from-blue-800 to-blue-900 p-3">
+              <h3 class="text-white font-bold text-center">אסיסטים למשחק</h3>
+            </div>
+            <div class="p-3">
+              <table class="w-full text-sm" id="leadersAssists">
+                <thead>
+                  <tr class="border-b-2 border-gray-300 text-gray-700 text-xs">
+                    <th class="text-right py-2 px-2">#</th>
+                    <th class="text-right py-2 px-2">שחקן</th>
+                    <th class="text-right py-2 px-2">קבוצה</th>
+                    <th class="text-center py-2 px-2">מש'</th>
+                    <th class="text-center py-2 px-2">ממוצע</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="5" class="text-center py-4 text-gray-400">טוען נתונים...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Steals Leaders -->
+          <div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+            <div class="bg-gradient-to-r from-blue-800 to-blue-900 p-3">
+              <h3 class="text-white font-bold text-center">חטיפות למשחק</h3>
+            </div>
+            <div class="p-3">
+              <table class="w-full text-sm" id="leadersSteals">
+                <thead>
+                  <tr class="border-b-2 border-gray-300 text-gray-700 text-xs">
+                    <th class="text-right py-2 px-2">#</th>
+                    <th class="text-right py-2 px-2">שחקן</th>
+                    <th class="text-right py-2 px-2">קבוצה</th>
+                    <th class="text-center py-2 px-2">מש'</th>
+                    <th class="text-center py-2 px-2">ממוצע</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="5" class="text-center py-4 text-gray-400">טוען נתונים...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Blocks Leaders -->
+          <div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+            <div class="bg-gradient-to-r from-blue-800 to-blue-900 p-3">
+              <h3 class="text-white font-bold text-center">חסימות למשחק</h3>
+            </div>
+            <div class="p-3">
+              <table class="w-full text-sm" id="leadersBlocks">
+                <thead>
+                  <tr class="border-b-2 border-gray-300 text-gray-700 text-xs">
+                    <th class="text-right py-2 px-2">#</th>
+                    <th class="text-right py-2 px-2">שחקן</th>
+                    <th class="text-right py-2 px-2">קבוצה</th>
+                    <th class="text-center py-2 px-2">מש'</th>
+                    <th class="text-center py-2 px-2">ממוצע</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="5" class="text-center py-4 text-gray-400">טוען נתונים...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Minutes Leaders -->
+          <div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+            <div class="bg-gradient-to-r from-blue-800 to-blue-900 p-3">
+              <h3 class="text-white font-bold text-center">דקות למשחק</h3>
+            </div>
+            <div class="p-3">
+              <table class="w-full text-sm" id="leadersMinutes">
+                <thead>
+                  <tr class="border-b-2 border-gray-300 text-gray-700 text-xs">
+                    <th class="text-right py-2 px-2">#</th>
+                    <th class="text-right py-2 px-2">שחקן</th>
+                    <th class="text-right py-2 px-2">קבוצה</th>
+                    <th class="text-center py-2 px-2">מש'</th>
+                    <th class="text-center py-2 px-2">ממוצע</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="5" class="text-center py-4 text-gray-400">טוען נתונים...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- FG% Leaders -->
+          <div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+            <div class="bg-gradient-to-r from-blue-800 to-blue-900 p-3">
+              <h3 class="text-white font-bold text-center">אחוזי שדה (FG%)</h3>
+            </div>
+            <div class="p-3">
+              <table class="w-full text-sm" id="leadersFG">
+                <thead>
+                  <tr class="border-b-2 border-gray-300 text-gray-700 text-xs">
+                    <th class="text-right py-2 px-2">#</th>
+                    <th class="text-right py-2 px-2">שחקן</th>
+                    <th class="text-right py-2 px-2">קבוצה</th>
+                    <th class="text-center py-2 px-2">מש'</th>
+                    <th class="text-center py-2 px-2">אחוז</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="5" class="text-center py-4 text-gray-400">טוען נתונים...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 3PT% Leaders -->
+          <div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+            <div class="bg-gradient-to-r from-blue-800 to-blue-900 p-3">
+              <h3 class="text-white font-bold text-center">אחוזי שלוש (3PT%)</h3>
+            </div>
+            <div class="p-3">
+              <table class="w-full text-sm" id="leaders3PT">
+                <thead>
+                  <tr class="border-b-2 border-gray-300 text-gray-700 text-xs">
+                    <th class="text-right py-2 px-2">#</th>
+                    <th class="text-right py-2 px-2">שחקן</th>
+                    <th class="text-right py-2 px-2">קבוצה</th>
+                    <th class="text-center py-2 px-2">מש'</th>
+                    <th class="text-center py-2 px-2">אחוז</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="5" class="text-center py-4 text-gray-400">טוען נתונים...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- FT% Leaders -->
+          <div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+            <div class="bg-gradient-to-r from-blue-800 to-blue-900 p-3">
+              <h3 class="text-white font-bold text-center">אחוזי עונשין (FT%)</h3>
+            </div>
+            <div class="p-3">
+              <table class="w-full text-sm" id="leadersFT">
+                <thead>
+                  <tr class="border-b-2 border-gray-300 text-gray-700 text-xs">
+                    <th class="text-right py-2 px-2">#</th>
+                    <th class="text-right py-2 px-2">שחקן</th>
+                    <th class="text-right py-2 px-2">קבוצה</th>
+                    <th class="text-center py-2 px-2">מש'</th>
+                    <th class="text-center py-2 px-2">אחוז</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="5" class="text-center py-4 text-gray-400">טוען נתונים...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
         </div>
       </div>
     </section>
