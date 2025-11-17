@@ -152,6 +152,62 @@
         }
       });
 
+      // Upcoming Games - כניסה לטאב הכנה למשחק
+      const gamePrepTab = document.querySelector('[data-tab="gamePrep"]');
+      if (gamePrepTab) {
+        on(gamePrepTab, 'click', async () => {
+          if (typeof window.loadUpcomingGames === 'function') {
+            const container = byId('upcomingGamesContainer');
+            if (container && !container.dataset.loaded) {
+              try {
+                console.log('🎯 Loading upcoming games on tab open...');
+                await window.loadUpcomingGames();
+                container.dataset.loaded = 'true';
+              } catch (error) {
+                console.error('❌ Failed to load upcoming games:', error);
+              }
+            }
+          }
+        });
+      }
+
+      // Upcoming Games - כפתור רענון
+      setOnClick('refreshUpcomingGames', async function() {
+        if (typeof window.loadUpcomingGames === 'function') {
+          const btn = this;
+          const originalText = btn.textContent;
+          btn.disabled = true;
+          btn.textContent = '⏳ טוען...';
+          
+          try {
+            await window.loadUpcomingGames();
+            btn.textContent = '✓ עודכן';
+            setTimeout(() => {
+              btn.disabled = false;
+              btn.textContent = originalText;
+            }, 2000);
+          } catch (error) {
+            console.error('Error refreshing games:', error);
+            btn.textContent = '❌ שגיאה';
+            setTimeout(() => {
+              btn.disabled = false;
+              btn.textContent = originalText;
+            }, 2000);
+          }
+        }
+      });
+
+      // Upcoming Games - Dropdown מחזור
+      const roundSelector = byId('roundSelector');
+      if (roundSelector) {
+        on(roundSelector, 'change', function() {
+          if (typeof window.renderSelectedRound === 'function') {
+            console.log('🔄 Round selector changed to:', this.value);
+            window.renderSelectedRound(this.value);
+          }
+        });
+      }
+
       // Search with debounce to avoid multiple rapid calls
       // Automatic search after 300ms of no typing
       let playersSearchTimeout;

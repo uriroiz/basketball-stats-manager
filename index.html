@@ -935,6 +935,35 @@
       <div class="card p-4">
         <h2 class="text-lg font-bold mb-4 text-blue-900">הכנה למשחק הבא</h2>
         
+        <!-- משחקים קרובים -->
+        <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold text-green-800">📅 משחקים קרובים מהליגה</h3>
+            <div class="flex items-center gap-2">
+              <span id="upcomingGamesStatus" class="text-sm text-green-700 hidden"></span>
+              <button id="refreshUpcomingGames" class="btn bg-green-600 text-white text-sm rounded px-3 py-2 hover:bg-green-700 transition-colors">
+                🔄 רענן
+              </button>
+            </div>
+          </div>
+          
+          <!-- Dropdown בחירת מחזור -->
+          <div class="mb-3">
+            <label class="block text-sm font-medium text-gray-700 mb-2">בחר מחזור:</label>
+            <select id="roundSelector" class="w-full md:w-64 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500">
+              <option value="">טוען מחזורים...</option>
+            </select>
+          </div>
+          
+          <!-- טבלת משחקים -->
+          <div id="upcomingGamesContainer" class="stats-wrap" style="max-height: 400px;">
+            <div class="text-center py-8 text-gray-500">
+              <div class="text-4xl mb-2">🏀</div>
+              <p>טוען משחקים קרובים...</p>
+            </div>
+          </div>
+        </div>
+        
         <!-- Team Selection -->
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 overflow-hidden">
           <h3 class="font-semibold text-blue-800 mb-3">בחירת קבוצות</h3>
@@ -1153,6 +1182,7 @@
     <script defer src="js/app_last_mile.js?v=7"></script>
     <script defer src="js/app_expose.js?v=8"></script>
     <script defer src="js/app_game_analysis.js?v=1"></script>
+    <script defer src="js/app_upcoming_games.js?v=1"></script>
     <script defer src="js/team_merge_tool.js?v=1"></script>
     <script defer src="js/player_merge_tool.js?v=12"></script>
     <script defer src="js/app_db_save.js?v=93"></script>
