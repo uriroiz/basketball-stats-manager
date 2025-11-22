@@ -1,104 +1,106 @@
 # Basketball Stats Manager 🏀
 
-מערכת לניהול וניתוח סטטיסטיקות כדורסל עם תמיכה בפרוטוקול IBBA.
+מערכת לניהול וניתוח סטטיסטיקות כדורסל בזמן אמת מ-IBBA API.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=YOUR_GITHUB_REPO_URL)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/YOUR_USERNAME/basketball-stats-manager)
+
+## 🌟 Pure API Version 2.0
+
+**גרסה חדשה!** המערכת עברה לגרסת Pure API - כל הנתונים נטענים בזמן אמת ישירות מ-ibasketball.co.il ללא צורך במסד נתונים.
+
+### מה השתנה?
+
+- ✅ **ללא צורך בהתקנה מורכבת** - פשוט פתח ותתחיל להשתמש
+- ✅ **נתונים תמיד מעודכנים** - טעינה ישירה מה-API של IBBA
+- ✅ **ללא צורך ב-Supabase** - אין צורך בהגדרת מסד נתונים
+- ✅ **פריסה פשוטה** - העלאה ל-Vercel/GitHub Pages מיידית
+
+> 💡 **מחפש את הגרסה הישנה עם Supabase?**  
+> הגרסה הקודמת עם מסד נתונים זמינה ב-branch: [`archive/supabase-version`](https://github.com/YOUR_USERNAME/basketball-stats-manager/tree/archive/supabase-version)
 
 ## ✨ Features
 
-- **Import & Parse** - ייבוא משחקים מ-JSON (IBBA protocol)
-- **Player Statistics** - מעקב אחר סטטיסטיקות שחקנים מצטברות
-- **Team Statistics** - ניתוח ביצועים קבוצתיים
-- **Game Preparation** - כלי הכנה למשחק הבא עם ניתוחים מתקדמים
-- **Team Management** - ניהול מיפויים של קבוצות (עברית/אנגלית)
-- **Player Management** - ניהול מיפויים של שחקנים
-- **Transfer Management** - מעקב אוטומטי אחר העברות שחקנים
-- **Cloud Database** - שמירת נתונים ב-Supabase (PostgreSQL)
-- **Admin Authentication** - הגנה על כלי ניהול עם סיסמה
+- **All Games** - כל המשחקים שנשחקו בליגה
+- **Team Statistics** - סטטיסטיקות קבוצתיות מצטברות
+- **Player Statistics** - סטטיסטיקות שחקנים מפורטות
+- **League Leaders** - מובילי הליגה בכל הקטגוריות (נקודות, ריבאונדים, אסיסטים, חטיפות, חסימות, אחוזי קליעה)
+- **Game Preparation** - כלי הכנה למשחק עם ניתוחים מתקדמים:
+  - משחקים קרובים מהליגה
+  - השוואת קבוצות ושחקנים
+  - מפגשים ישירים בעונה
+  - ממוצעים ו-5 משחקים אחרונים
+  - ניתוח פרה-גיים לשדרנים
 
 ## 🚀 Quick Start
 
 ### דרישות מוקדמות
 
 - דפדפן מודרני (Chrome, Firefox, Safari, Edge)
-- חשבון Supabase (חינמי) - [הרשמה](https://supabase.com)
-- חשבון GitHub (להעלאת הקוד)
-- חשבון Vercel (חינמי) - [הרשמה](https://vercel.com)
+- אין צורך בכלים נוספים!
 
-### התקנה מקומית
+### שימוש מקומי
 
 1. **Clone the repository**:
 ```bash
-git clone YOUR_GITHUB_REPO_URL
+git clone https://github.com/YOUR_USERNAME/basketball-stats-manager.git
 cd basketball-stats-manager
 ```
 
-2. **הגדר את Supabase**:
-   - צור פרויקט חדש ב-[Supabase Dashboard](https://app.supabase.com)
-   - העתק את `env.example` ל-`.env`
-   - הוסף את ה-URL וה-Key מ-Supabase:
-     ```
-     VITE_SUPABASE_URL=https://your-project.supabase.co
-     VITE_SUPABASE_ANON_KEY=your-anon-key-here
-     ADMIN_PASSWORD=your-secure-password
-     ```
+2. **הרץ שרת מקומי**:
+```bash
+# עם Python
+python -m http.server 8000
 
-3. **צור טבלאות ב-Supabase**:
-   - פתח את **SQL Editor** ב-Supabase Dashboard
-   - הרץ את הקוד מ-`supabase_schema.sql`
+# או עם Node.js (npx)
+npx serve .
 
-4. **הרץ מקומית**:
-   ```bash
-   # עם Python
-   python -m http.server 8000
-   
-   # או עם Node.js (npx)
-   npx serve .
-   ```
+# או פשוט פתח את index.html בדפדפן
+```
 
-5. **פתח בדפדפן**:
-   - גלוש ל-http://localhost:8000
+3. **פתח בדפדפן**:
+   - גלוש ל-http://localhost:8000 (אם השתמשת בשרת)
+   - או פתח את `index.html` ישירות
 
-### העברת נתונים קיימים
-
-אם יש לך נתונים ב-IndexedDB המקומי:
-
-1. פתח את `migrate_to_supabase.html` באותו דפדפן
-2. הזן את פרטי ה-Supabase (URL + Key)
-3. לחץ "בדוק חיבור"
-4. לחץ "התחל העברה"
-5. המתן עד לסיום
+זהו! המערכת תטען את כל הנתונים אוטומטית מ-API.
 
 ## 📖 שימוש
 
-### משתמש רגיל (קריאה בלבד)
+### טעינת נתונים
 
-- **כל המשחקים** - צפייה בכל המשחקים שנשמרו
-- **סטטיסטיקות קבוצתיות** - סטטיסטיקות מצטברות לכל קבוצה
-- **סטטיסטיקות שחקנים** - סטטיסטיקות מצטברות לכל שחקן
-- **הכנה למשחק** - ניתוח משחק עתידי והשוואות
+המערכת טוענת אוטומטית את:
+- כל המשחקים שנשחקו
+- סטטיסטיקות קבוצות ושחקנים
+- טבלת העונה
+- משחקים קרובים
 
-### מנהל (עם הרשאות)
+### ניווט בטאבים
 
-1. לחץ על "🔐 כניסת מנהל" בראש העמוד
-2. הזן את הסיסמה (מוגדרת ב-`.env`)
-3. קבל גישה לכל הכלים:
-   - **ייבוא וניתוח** - טען משחקים חדשים
-   - **ניהול קבוצות** - ערוך מיפויים של קבוצות
-   - **ניהול שחקנים** - ערוך מיפויים של שחקנים
-   - **ניהול העברות** - אשר/דחה העברות
-   - **כלים מתקדמים** - גיבוי, מיזוגים, וכלים נוספים
+1. **כל המשחקים** - צפה בכל המשחקים עם אפשרות סינון לפי מחזור/קבוצה
+2. **סטטיסטיקות קבוצתיות** - סטטיסטיקות מצטברות לכל קבוצה
+3. **סטטיסטיקות שחקנים** - סטטיסטיקות מפורטות לכל שחקן
+4. **מובילי הליגה** - הדירוג בכל הקטגוריות המרכזיות
+5. **הכנה למשחק** - כלי ניתוח למשחק הבא
+
+### הכנה למשחק
+
+הטאב "הכנה למשחק" מאפשר:
+- בחירת שתי קבוצות להשוואה
+- צפייה בסטטיסטיקות מפורטות
+- השוואת שחקנים
+- ניתוח 5 משחקים אחרונים
+- מפגשים ישירים בעונה
+- יצירת ניתוח פרה-גיים מוכן לשדרנים
 
 ## 🔧 Deployment
 
-### Deploy ל-Vercel
+### Deploy ל-Vercel (מומלץ)
 
 1. **Push לGitHub**:
    ```bash
    git add .
    git commit -m "Initial commit"
    git branch -M main
-   git remote add origin YOUR_GITHUB_REPO_URL
+   git remote add origin https://github.com/YOUR_USERNAME/basketball-stats-manager.git
    git push -u origin main
    ```
 
@@ -106,105 +108,72 @@ cd basketball-stats-manager
    - היכנס ל-[Vercel Dashboard](https://vercel.com/dashboard)
    - לחץ "Add New Project"
    - ייבא את ה-Repository מ-GitHub
-   - הוסף Environment Variables:
-     - `VITE_SUPABASE_URL`
-     - `VITE_SUPABASE_ANON_KEY`
-     - `ADMIN_PASSWORD`
    - לחץ "Deploy"
 
-3. **הגדרות Vercel**:
-   - Framework Preset: Other
-   - Build Command: (השאר ריק)
-   - Output Directory: `.`
+3. **זהו!** אין צורך בהגדרות נוספות או environment variables.
+
+### Deploy ל-GitHub Pages
+
+1. **עבור להגדרות הריפוזיטורי ב-GitHub**
+2. **Settings → Pages**
+3. **בחר Branch: main**
+4. **לחץ Save**
+
+האתר יהיה זמין ב-`https://YOUR_USERNAME.github.io/basketball-stats-manager/`
 
 ## 🗂️ מבנה הפרויקט
 
 ```
 basketball-stats-manager/
-├── index.html              # דף ראשי
-├── migrate_to_supabase.html # כלי העברת נתונים
-├── supabase_schema.sql     # הגדרת טבלאות
+├── index.html              # דף ראשי - Pure API Dashboard
+├── ibba_dashboard_v1.html  # קובץ המקור (גיבוי)
 ├── package.json            # הגדרות פרויקט
 ├── vercel.json            # הגדרות Vercel
-├── .gitignore             # קבצים שלא להעלות
-├── env.example            # תבנית למשתני סביבה
-├── SUPABASE_SETUP.md      # הדרכת התקנת Supabase
 ├── css/
-│   └── styles.css         # עיצוב
+│   └── styles.css         # עיצוב מותאם אישית
 └── js/
     ├── config.js          # הגדרות אפליקציה
-    ├── auth.js            # אימות מנהל
-    ├── db_adapter.js      # שכבת database
-    ├── app_utils.js       # פונקציות עזר
-    ├── app_db_save.js     # שמירה למסד
-    ├── app_teams_ui.js    # ניהול קבוצות
-    ├── app_events.js      # טיפול באירועים
-    ├── app_bootstrap.js   # אתחול
-    ├── app_last_mile.js   # פונקציות סופיות
-    ├── app_game_analysis.js # ניתוח משחקים
-    ├── gameAnalysis.js    # אלגוריתמי ניתוח
-    ├── preGamePrep.js     # הכנה למשחק
-    ├── preGameNarratives.js # נרטיבים למשדרים
-    ├── team_merge_tool.js # מיזוג קבוצות
-    └── player_merge_tool.js # מיזוג שחקנים
+    ├── ibba/
+    │   ├── ibba_adapter.js      # מתאם API
+    │   ├── ibba_analytics.js    # חישובי סטטיסטיקות
+    │   └── ibba_player_names.js # ניהול שמות שחקנים
+    └── app_upcoming_games_pure.js # משחקים קרובים
 ```
-
-## 🔐 אבטחה
-
-- **Row Level Security (RLS)** - קריאה ציבורית, כתיבה רק למשתמשים מאומתים
-- **Admin Authentication** - גישה לכלי ניהול מוגנת בסיסמה
-- **HTTPS** - חיבור מוצפן דרך Vercel
-- **Environment Variables** - מפתחות רגישים לא נשמרים בקוד
-
-## 💾 Backup & Restore
-
-### גיבוי
-
-1. היכנס כמנהל
-2. עבור ל-"כלים מתקדמים"
-3. לחץ "גיבוי מסד נתונים"
-4. שמור את קובץ ה-JSON
-
-### שחזור
-
-1. היכנס כמנהל
-2. עבור ל-"כלים מתקדמים"
-3. לחץ "שחזור מגיבוי"
-4. בחר את קובץ ה-JSON
-
-## 📊 Database Schema
-
-הפרויקט משתמש ב-9 טבלאות ראשיות:
-
-- `games` - נתוני משחקים
-- `players` - סטטיסטיקות שחקנים
-- `teams` - נתוני קבוצות
-- `player_mappings` - מיפוי שמות שחקנים
-- `player_aliases` - שמות נוספים לשחקנים
-- `appearances` - הופעות שחקנים במשחקים
-- `player_stats` - סטטיסטיקות מפורטות
-- `transfer_events` - העברות שחקנים
-- `team_aliases` - שמות נוספים לקבוצות
 
 ## 🆘 Troubleshooting
 
-### הנתונים לא מוצגים
+### הנתונים לא נטענים
 
-- ודא שהטבלאות ב-Supabase נוצרו (הרץ `supabase_schema.sql`)
-- בדוק שה-Environment Variables נכונים
+- בדוק את חיבור האינטרנט
 - פתח Console (F12) לבדיקת שגיאות
+- נסה לרענן את העמוד
 
-### לא ניתן להתחבר כמנהל
+### שגיאת CORS בטעינה
 
-- ודא שה-`ADMIN_PASSWORD` מוגדר נכון
-- נקה את ה-localStorage ונסה שוב
-- בדוק את ה-Console לשגיאות
+- השתמש בשרת מקומי (Python/Node.js) ולא בפתיחה ישירה של הקובץ
+- או השתמש ב-Chrome עם `--disable-web-security` (בזהירות)
+- או התקן הרחבה כמו "CORS Unblock"
 
-### שגיאת CORS בטעינת JSON
+### הנתונים איטיים להיטען
 
-- השתמש בכפתור "פתח קישור" והעתק ידנית
-- התקן הרחבה כמו "CORS Unblock"
-- או השתמש בדפדפן עם `--disable-web-security`
+- זה תלוי במהירות ה-API של IBBA
+- המערכת מציגה progress bar במהלך הטעינה
+- אפשר לסנן לפי מחזור ספציפי לטעינה מהירה יותר
+
+## 🎯 היתרונות של Pure API
+
+1. **פשטות** - ללא צורך בהתקנה מורכבת או הגדרת מסד נתונים
+2. **עדכניות** - הנתונים תמיד מעודכנים מהמקור
+3. **אמינות** - ללא תלות בשרת חיצוני או מסד נתונים
+4. **נייד** - אפשר להעביר את כל הפרויקט בקובץ HTML בודד
+5. **חינמי** - ללא עלויות של Supabase או כל שירות cloud אחר
+
+## 📊 טכנולוגיות
+
+- **Frontend**: HTML5, CSS3, Vanilla JavaScript
+- **Styling**: Tailwind CSS (via CDN)
+- **API**: IBBA Official API (ibasketball.co.il)
+- **Deployment**: Vercel / GitHub Pages
 
 ## 🤝 Contributing
 
@@ -224,7 +193,15 @@ MIT License - ראה [LICENSE](LICENSE) לפרטים נוספים.
 
 יש שאלות? פתח Issue או צור קשר דרך GitHub.
 
+## 🔗 קישורים שימושיים
+
+- [Demo Live](https://basketball-stats-manager.vercel.app/)
+- [GitHub Repository](https://github.com/YOUR_USERNAME/basketball-stats-manager)
+- [IBBA Official Website](https://ibasketball.co.il)
+- [גרסת Supabase (ארכיון)](https://github.com/YOUR_USERNAME/basketball-stats-manager/tree/archive/supabase-version)
+
 ---
 
-Made with ❤️ for Israeli Basketball
+**Made with ❤️ for Israeli Basketball**
 
+**Version 2.0** - Pure API Edition

@@ -1,7 +1,7 @@
 {
   "name": "basketball-stats-manager",
-  "version": "1.0.0",
-  "description": "Basketball Stats Manager - IBBA Parser with Cloud Database",
+  "version": "2.0.0",
+  "description": "Basketball Stats Manager - Pure API (Real-time IBBA data)",
   "main": "index.html",
   "scripts": {
     "dev": "python -m http.server 8000",
