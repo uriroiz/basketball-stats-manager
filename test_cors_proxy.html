@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🧪 בדיקת CORS Proxy</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 30px;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 5px;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .result {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 14px;
+      white-space: pre-wrap;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .success {
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+    }
+    .error {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+    }
+    .info {
+      background: #d1ecf1;
+      border: 1px solid #bee5eb;
+      color: #0c5460;
+    }
+    .proxy-info {
+      background: #fff3cd;
+      border: 1px solid #ffeaa7;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 20px 0;
+    }
+    .proxy-info h3 {
+      margin-top: 0;
+      color: #856404;
+    }
+    .proxy-list {
+      list-style: none;
+      padding: 0;
+    }
+    .proxy-list li {
+      padding: 8px;
+      margin: 5px 0;
+      background: white;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧪 בדיקת CORS Proxy</h1>
+    <p class="subtitle">כלי לבדיקת תקינות ה-CORS proxies עבור טעינת טבלת הליגה</p>
+
+    <div class="proxy-info">
+      <h3>📋 CORS Proxies בשימוש:</h3>
+      <ul class="proxy-list">
+        <li>1️⃣ <strong>AllOrigins RAW:</strong> https://api.allorigins.win/raw?url=</li>
+        <li>2️⃣ <strong>AllOrigins JSON:</strong> https://api.allorigins.win/get?url=</li>
+        <li>3️⃣ <strong>CorsProxy.io:</strong> https://corsproxy.io/?</li>
+      </ul>
+    </div>
+
+    <button onclick="testAllProxies()">🔍 בדוק את כל ה-Proxies</button>
+    <button onclick="testProxy(0)">בדוק Proxy 1</button>
+    <button onclick="testProxy(1)">בדוק Proxy 2</button>
+    <button onclick="testProxy(2)">בדוק Proxy 3</button>
+    <button onclick="clearResults()">🗑️ נקה</button>
+
+    <div id="results"></div>
+  </div>
+
+  <script>
+    const leagueUrl = 'https://ibasketball.co.il/league/2025-2/';
+    
+    const proxies = [
+      { 
+        name: 'AllOrigins RAW',
+        url: 'https://api.allorigins.win/raw?url=',
+        parseResponse: (response) => response.text()
+      },
+      { 
+        name: 'AllOrigins JSON',
+        url: 'https://api.allorigins.win/get?url=',
+        parseResponse: async (response) => {
+          const data = await response.json();
+          return data.contents;
+        }
+      },
+      { 
+        name: 'CorsProxy.io',
+        url: 'https://corsproxy.io/?',
+        parseResponse: (response) => response.text()
+      }
+    ];
+
+    function addResult(message, type = 'info') {
+      const results = document.getElementById('results');
+      const div = document.createElement('div');
+      div.className = `result ${type}`;
+      div.textContent = message;
+      results.appendChild(div);
+      results.scrollTop = results.scrollHeight;
+    }
+
+    function clearResults() {
+      document.getElementById('results').innerHTML = '';
+    }
+
+    async function testProxy(index) {
+      const proxy = proxies[index];
+      addResult(`🔄 בודק ${proxy.name}...\nURL: ${proxy.url}`, 'info');
+      
+      const startTime = performance.now();
+      
+      try {
+        const proxyUrl = proxy.url + encodeURIComponent(leagueUrl);
+        console.log(`Testing: ${proxyUrl}`);
+        
+        const response = await fetch(proxyUrl);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status} ${response.statusText}`);
+        }
+        
+        const html = await proxy.parseResponse(response);
+        const endTime = performance.now();
+        const duration = (endTime - startTime).toFixed(0);
+        
+        if (!html || html.length < 1000) {
+          throw new Error(`Response too short (${html?.length || 0} bytes)`);
+        }
+        
+        // Check if it contains the standings table
+        const hasTable = html.includes('sp-league-table');
+        const hasTeams = html.includes('data-rank');
+        
+        if (!hasTable || !hasTeams) {
+          throw new Error('HTML received but no standings table found');
+        }
+        
+        const message = `✅ ${proxy.name} עובד!
+זמן תגובה: ${duration}ms
+גודל: ${(html.length / 1024).toFixed(1)}KB
+מכיל טבלת ליגה: ${hasTable ? '✓' : '✗'}
+מכיל נתוני קבוצות: ${hasTeams ? '✓' : '✗'}`;
+        
+        addResult(message, 'success');
+        return true;
+        
+      } catch (error) {
+        const endTime = performance.now();
+        const duration = (endTime - startTime).toFixed(0);
+        
+        const message = `❌ ${proxy.name} נכשל!
+זמן: ${duration}ms
+שגיאה: ${error.message}`;
+        
+        addResult(message, 'error');
+        return false;
+      }
+    }
+
+    async function testAllProxies() {
+      clearResults();
+      addResult(`🚀 בודק ${proxies.length} CORS proxies...\n`, 'info');
+      
+      let workingCount = 0;
+      
+      for (let i = 0; i < proxies.length; i++) {
+        const success = await testProxy(i);
+        if (success) workingCount++;
+        
+        // Small delay between tests
+        if (i < proxies.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+      
+      const summary = `\n📊 סיכום:
+${workingCount}/${proxies.length} proxies עובדים
+${workingCount === 0 ? '⚠️ אין proxy עובד - תצטרך להשתמש ב-fallback' : 
+  workingCount === proxies.length ? '✅ כל ה-proxies עובדים!' : 
+  '⚠️ חלק מה-proxies עובדים'}`;
+      
+      addResult(summary, workingCount > 0 ? 'success' : 'error');
+    }
+
+    // Auto-run test on load
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        addResult('💡 לחץ על "בדוק את כל ה-Proxies" כדי להתחיל', 'info');
+      }, 500);
+    });
+  </script>
+</body>
+</html>
+

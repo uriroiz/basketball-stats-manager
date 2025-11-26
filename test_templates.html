@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>בדיקת טמפלטים - Templates Test</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 20px;
+    }
+    .test-section {
+      margin-bottom: 30px;
+      padding: 20px;
+      background: #f9f9f9;
+      border-radius: 8px;
+    }
+    .test-section h2 {
+      color: #667eea;
+      margin-bottom: 15px;
+      font-size: 20px;
+    }
+    .variation {
+      padding: 10px;
+      margin: 5px 0;
+      background: white;
+      border-right: 4px solid #667eea;
+      border-radius: 4px;
+    }
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      margin: 10px 5px;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    .status {
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 8px;
+      font-weight: bold;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎯 בדיקת מערכת הטמפלטים הדינמית</h1>
+    <p>בדיקה זו מציגה 8 וריאציות שונות לכל סוג Insight. לחץ על הכפתור כדי לראות וריאציה רנדומלית.</p>
+    
+    <div id="status"></div>
+    
+    <button onclick="testTeamInsight('REBOUND_DOMINANCE')">בדוק - שליטה בריבאונד</button>
+    <button onclick="testTeamInsight('HIGH_SCORING_OFFENSE')">בדוק - התקפה פורייה</button>
+    <button onclick="testTeamInsight('DEFENSIVE_WALL')">בדוק - חומת הגנה</button>
+    <button onclick="testPlayerInsight('REBOUND_MACHINE')">בדוק - מכונת ריבאונד</button>
+    <button onclick="testStreakInsight('WINNING_STREAK')">בדוק - רצף ניצחונות</button>
+    <button onclick="showAllVariations()">הצג את כל 8 הוריאציות</button>
+    
+    <div id="results"></div>
+  </div>
+
+  <!-- Load Templates -->
+  <script src="js/ibba/ibba_insights_templates.js"></script>
+  
+  <script>
+    // בדיקת טעינת הטמפלטים
+    window.addEventListener('load', () => {
+      const statusDiv = document.getElementById('status');
+      
+      if (window.IBBAInsightTemplates) {
+        statusDiv.innerHTML = '<div class="status success">✅ הטמפלטים נטענו בהצלחה!</div>';
+        console.log('✅ Templates loaded:', window.IBBAInsightTemplates);
+      } else {
+        statusDiv.innerHTML = '<div class="status error">❌ שגיאה: הטמפלטים לא נטענו!</div>';
+      }
+    });
+    
+    function testTeamInsight(type) {
+      const variables = {
+        teamName: 'מכבי תל אביב',
+        rankText: ' (מקום 1 בליגה)',
+        diff: '8.5',
+        opponentName: 'הפועל ירושלים',
+        ppg: '85.3',
+        oppPpg: '68.4',
+        paintPct: '52',
+        paintPpg: '44.2',
+        fastBreakPpg: '18.7',
+        threePointPct: '43',
+        assistRatio: '68.5',
+        quarterName: 'השלישי'
+      };
+      
+      const text = window.IBBAInsightTemplates?.getRandomText('team', type, variables);
+      
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = `
+        <div class="test-section">
+          <h2>${type}</h2>
+          <div class="variation">${text || 'שגיאה: לא נמצא טמפלט'}</div>
+        </div>
+      ` + resultsDiv.innerHTML;
+    }
+    
+    function testPlayerInsight(type) {
+      const variables = {
+        playerName: 'שחקן #7',
+        rpg: '12.3',
+        apg: '8.5',
+        ppg: '22.1',
+        teamName: 'מכבי תל אביב',
+        pctText: ' (28% מנקודות הקבוצה)',
+        doubleDoubles: 8,
+        games: 12
+      };
+      
+      const text = window.IBBAInsightTemplates?.getRandomText('player', type, variables);
+      
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = `
+        <div class="test-section">
+          <h2>${type}</h2>
+          <div class="variation">${text || 'שגיאה: לא נמצא טמפלט'}</div>
+        </div>
+      ` + resultsDiv.innerHTML;
+    }
+    
+    function testStreakInsight(type) {
+      const variables = {
+        teamName: 'מכבי תל אביב (מקום 1)',
+        rankText: ' (מקום 1)',
+        wins: 5,
+        losses: 4,
+        clutchWins: 3,
+        blowouts: 3
+      };
+      
+      const text = window.IBBAInsightTemplates?.getRandomText('streaks', type, variables);
+      
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = `
+        <div class="test-section">
+          <h2>${type}</h2>
+          <div class="variation">${text || 'שגיאה: לא נמצא טמפלט'}</div>
+        </div>
+      ` + resultsDiv.innerHTML;
+    }
+    
+    function showAllVariations() {
+      const type = 'REBOUND_DOMINANCE';
+      const templates = window.IBBAInsightTemplates.templates.team[type];
+      const variables = {
+        teamName: 'מכבי תל אביב',
+        diff: '8.5',
+        opponentName: 'הפועל ירושלים'
+      };
+      
+      const resultsDiv = document.getElementById('results');
+      let html = '<div class="test-section"><h2>כל 8 הוריאציות של REBOUND_DOMINANCE</h2>';
+      
+      templates.forEach((template, index) => {
+        const filled = window.IBBAInsightTemplates.fillTemplate(template, variables);
+        html += `<div class="variation"><strong>וריאציה ${index + 1}:</strong> ${filled}</div>`;
+      });
+      
+      html += '</div>';
+      resultsDiv.innerHTML = html + resultsDiv.innerHTML;
+    }
+  </script>
+</body>
+</html>
+

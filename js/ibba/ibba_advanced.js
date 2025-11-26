@@ -8,6 +8,238 @@
 class IBBAAdvanced {
   constructor(analytics) {
     this.analytics = analytics;
+    this.standingsFromHTML = new Map(); // Cache for standings loaded from HTML
+    this.standingsLoaded = false;
+    this.leagueUrl = 'https://ibasketball.co.il/league/2025-2/';
+    this.standingsCacheKey = 'ibba_standings_html_2025-2_v1';
+    this.standingsCacheExpiry = 10 * 60 * 1000; // 10 minutes
+    this.playerNamesLoader = null; // Player names loader instance
+    
+    // Try loading from cache
+    this.loadStandingsFromCache();
+  }
+
+  /**
+   * הגדרת שמות שחקנים למנוע Insights
+   * @param {Object} playerNamesLoader - Instance של IBBAPlayerNames
+   */
+  setPlayerNames(playerNamesLoader) {
+    this.playerNamesLoader = playerNamesLoader;
+  }
+
+  /**
+   * ===============================================
+   * STANDINGS FROM HTML
+   * ===============================================
+   */
+
+  /**
+   * Load standings from sessionStorage cache
+   * @private
+   */
+  loadStandingsFromCache() {
+    try {
+      const cached = sessionStorage.getItem(this.standingsCacheKey);
+      if (!cached) return false;
+
+      const data = JSON.parse(cached);
+      const now = Date.now();
+
+      // Check expiry
+      if (data.timestamp && (now - data.timestamp) < this.standingsCacheExpiry) {
+        console.log('✅ Loaded standings from cache');
+        this.standingsFromHTML = new Map(data.standings);
+        this.standingsLoaded = true;
+        return true;
+      } else {
+        console.log('⏰ Standings cache expired');
+        sessionStorage.removeItem(this.standingsCacheKey);
+        return false;
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to load standings from cache:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Save standings to sessionStorage cache
+   * @private
+   */
+  saveStandingsToCache() {
+    try {
+      const data = {
+        standings: Array.from(this.standingsFromHTML.entries()),
+        timestamp: Date.now()
+      };
+      sessionStorage.setItem(this.standingsCacheKey, JSON.stringify(data));
+      console.log('💾 Saved standings to cache');
+    } catch (error) {
+      console.warn('⚠️ Failed to save standings to cache:', error);
+    }
+  }
+
+  /**
+   * Load league standings from HTML page
+   * @returns {Promise<Map>} Map of teamName -> standing data
+   */
+  async loadStandingsFromHTML() {
+    if (this.standingsLoaded && this.standingsFromHTML.size > 0) {
+      console.log('✅ Standings already loaded');
+      return this.standingsFromHTML;
+    }
+
+    try {
+      console.log('🔄 Loading league standings from HTML via CORS proxy...');
+      
+      let html = null;
+      
+      // Use CORS proxies (direct fetch will fail due to CORS policy)
+      const proxies = [
+        { 
+          url: 'https://api.allorigins.win/raw?url=',
+          parseResponse: (response) => response.text() // Returns raw HTML
+        },
+        { 
+          url: 'https://api.allorigins.win/get?url=',
+          parseResponse: async (response) => {
+            const data = await response.json();
+            return data.contents;
+          }
+        },
+        { 
+          url: 'https://corsproxy.io/?',
+          parseResponse: (response) => response.text()
+        }
+      ];
+      
+      for (let i = 0; i < proxies.length; i++) {
+        try {
+          const proxy = proxies[i];
+          const proxyUrl = proxy.url + encodeURIComponent(this.leagueUrl);
+          console.log(`🔄 Trying proxy ${i + 1}/${proxies.length}: ${proxy.url.split('?')[0]}...`);
+          
+          const response = await fetch(proxyUrl);
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          
+          html = await proxy.parseResponse(response);
+          
+          if (html && html.length > 1000) { // Basic validation
+            console.log(`✅ Proxy ${i + 1} succeeded! Got ${(html.length / 1024).toFixed(1)}KB of HTML`);
+            break;
+          } else {
+            throw new Error('Response too short, probably invalid');
+          }
+          
+        } catch (error) {
+          console.warn(`⚠️ Proxy ${i + 1} failed:`, error.message);
+          if (i === proxies.length - 1) {
+            throw new Error('All CORS proxies failed. Cannot load standings from HTML.');
+          }
+        }
+      }
+      
+      if (!html) {
+        throw new Error('Failed to fetch league HTML from any proxy');
+      }
+      
+      // Parse HTML to extract standings
+      this.parseStandingsFromHTML(html);
+      
+      // Save to cache
+      this.saveStandingsToCache();
+      
+      this.standingsLoaded = true;
+      console.log(`✅ Loaded standings for ${this.standingsFromHTML.size} teams`);
+      return this.standingsFromHTML;
+      
+    } catch (error) {
+      console.error('❌ Failed to load standings from HTML:', error);
+      console.error('⚠️ Will use fallback calculation (may be inaccurate)');
+      this.standingsLoaded = false;
+      return this.standingsFromHTML; // Return what we have (might be empty)
+    }
+  }
+
+  /**
+   * Parse standings from HTML
+   * @private
+   */
+  parseStandingsFromHTML(html) {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      
+      // Find the standings table
+      const table = doc.querySelector('.sp-league-table');
+      if (!table) {
+        console.warn('⚠️ Could not find standings table in HTML');
+        return;
+      }
+      
+      // Find all team rows
+      const rows = table.querySelectorAll('tbody tr');
+      console.log(`📊 Found ${rows.length} teams in standings table`);
+      
+      rows.forEach(row => {
+        try {
+          // Extract data from cells
+          const rankCell = row.querySelector('.data-rank');
+          const nameCell = row.querySelector('.data-name a');
+          const gpCell = row.querySelector('.data-gp');
+          const wCell = row.querySelector('.data-w');
+          const lCell = row.querySelector('.data-l');
+          const bfCell = row.querySelector('.data-bf'); // Points for
+          const baCell = row.querySelector('.data-ba'); // Points against
+          const bdCell = row.querySelector('.data-bd'); // Point differential
+          const ptsCell = row.querySelector('.data-pts'); // League points
+          
+          if (!rankCell || !nameCell) {
+            console.warn('⚠️ Missing rank or name in row, skipping');
+            return;
+          }
+          
+          const rank = parseInt(rankCell.textContent.trim());
+          const teamName = nameCell.textContent.trim();
+          const gamesPlayed = gpCell ? parseInt(gpCell.textContent.trim()) : 0;
+          const wins = wCell ? parseInt(wCell.textContent.trim()) : 0;
+          const losses = lCell ? parseInt(lCell.textContent.trim()) : 0;
+          const pointsFor = bfCell ? parseInt(bfCell.textContent.trim()) : 0;
+          const pointsAgainst = baCell ? parseInt(baCell.textContent.trim()) : 0;
+          const pointDiff = bdCell ? parseInt(bdCell.textContent.trim()) : 0;
+          const leaguePoints = ptsCell ? parseInt(ptsCell.textContent.trim()) : 0;
+          
+          // Calculate win percentage
+          const winPct = gamesPlayed > 0 ? (wins / gamesPlayed * 100).toFixed(1) : '0.0';
+          
+          // Store in map
+          this.standingsFromHTML.set(teamName, {
+            teamName,
+            rank,
+            gamesPlayed,
+            wins,
+            losses,
+            winPct: parseFloat(winPct),
+            pointsFor,
+            pointsAgainst,
+            pointDiff,
+            leaguePoints,
+            ppg: gamesPlayed > 0 ? (pointsFor / gamesPlayed).toFixed(1) : '0.0',
+            oppPpg: gamesPlayed > 0 ? (pointsAgainst / gamesPlayed).toFixed(1) : '0.0'
+          });
+          
+          console.log(`  ${rank}. ${teamName} (${wins}-${losses})`);
+          
+        } catch (error) {
+          console.warn('⚠️ Error parsing standings row:', error);
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ Error parsing HTML:', error);
+    }
   }
 
   /**
@@ -93,6 +325,126 @@ class IBBAAdvanced {
 
     console.timeEnd('⏱️ Advanced Team Metrics');
     return advancedMetrics;
+  }
+
+  /**
+   * קבלת דירוג הליגה
+   * @returns {Array} מערך ממוין של קבוצות לפי מקום בטבלה
+   */
+  getLeagueStandings() {
+    console.time('⏱️ League Standings');
+    
+    // אם יש נתונים מה-HTML, השתמש בהם
+    if (this.standingsLoaded && this.standingsFromHTML.size > 0) {
+      console.log('✅ Using real standings from HTML');
+      const standings = this.buildStandingsFromHTML();
+      console.timeEnd('⏱️ League Standings');
+      return standings;
+    }
+    
+    // Fallback - חישוב לפי Win% אם הטעינה נכשלה
+    console.log('⚠️ Using calculated standings (fallback)');
+    const standings = this.calculateStandingsFallback();
+    console.timeEnd('⏱️ League Standings');
+    return standings;
+  }
+
+  /**
+   * בניית מערך standings מהנתונים שנטענו מה-HTML
+   * @private
+   */
+  buildStandingsFromHTML() {
+    const teamAverages = this.analytics.getTeamAverages();
+    const standings = [];
+    
+    console.log('📊 Building standings from HTML data:');
+    
+    // עבור כל קבוצה שיש לנו משחקים עבורה
+    teamAverages.forEach(team => {
+      const htmlData = this.standingsFromHTML.get(team.teamName);
+      
+      if (htmlData) {
+        // השתמש ב-rank האמיתי מה-HTML
+        standings.push({
+          teamName: team.teamName,
+          rank: htmlData.rank, // ⭐ המיקום האמיתי מהליגה
+          wins: team.wins,
+          losses: team.losses,
+          gamesPlayed: team.gamesPlayed,
+          winPct: parseFloat(team.winPct),
+          ppg: parseFloat(team.ppg),
+          oppPpg: parseFloat(team.oppPpg),
+          pointDiff: parseFloat(team.pointDiff),
+          // נתונים נוספים מה-HTML
+          leaguePoints: htmlData.leaguePoints,
+          pointsFor: htmlData.pointsFor,
+          pointsAgainst: htmlData.pointsAgainst
+        });
+        
+        // Log for verification
+        console.log(`  ✅ מקום ${htmlData.rank}: ${team.teamName} (${team.wins}-${team.losses})`);
+      } else {
+        // אם הקבוצה לא נמצאה ב-HTML, נשתמש בחישוב fallback
+        console.warn(`⚠️ Team "${team.teamName}" not found in HTML standings`);
+        standings.push({
+          teamName: team.teamName,
+          rank: null, // לא ידוע
+          wins: team.wins,
+          losses: team.losses,
+          gamesPlayed: team.gamesPlayed,
+          winPct: parseFloat(team.winPct),
+          ppg: parseFloat(team.ppg),
+          oppPpg: parseFloat(team.oppPpg),
+          pointDiff: parseFloat(team.pointDiff)
+        });
+      }
+    });
+    
+    // מיון לפי rank (הנמוך ביותר = טוב ביותר)
+    standings.sort((a, b) => {
+      if (a.rank === null) return 1;
+      if (b.rank === null) return -1;
+      return a.rank - b.rank;
+    });
+    
+    console.log(`📋 Final standings: ${standings.length} teams sorted by official rank`);
+    
+    return standings;
+  }
+
+  /**
+   * חישוב standings לפי Win% (fallback)
+   * @private
+   */
+  calculateStandingsFallback() {
+    const teamAverages = this.analytics.getTeamAverages();
+    
+    // מיון לפי אחוז ניצחונות (Win%)
+    const standings = teamAverages
+      .map(team => ({
+        teamName: team.teamName,
+        wins: team.wins,
+        losses: team.losses,
+        gamesPlayed: team.gamesPlayed,
+        winPct: parseFloat(team.winPct),
+        ppg: parseFloat(team.ppg),
+        oppPpg: parseFloat(team.oppPpg),
+        pointDiff: parseFloat(team.pointDiff)
+      }))
+      .sort((a, b) => {
+        // מיון לפי Win% (גבוה יותר = טוב יותר)
+        if (b.winPct !== a.winPct) {
+          return b.winPct - a.winPct;
+        }
+        // במקרה של שוויון - לפי point differential
+        return b.pointDiff - a.pointDiff;
+      })
+      .map((team, index) => ({
+        ...team,
+        rank: index + 1
+      }));
+    
+    return standings;
   }
 
   /**
@@ -238,6 +590,215 @@ class IBBAAdvanced {
 
   /**
    * ===============================================
+   * INSIGHTS GENERATION - זיהוי אוטומטי של נתונים מעניינים
+   * ===============================================
+   */
+
+  /**
+   * יצירת Insights אוטומטיים למשחק
+   */
+  generateInsights(teamA, teamB, reportData) {
+    console.time('⏱️ Insights Generation');
+    
+    const insights = [];
+    const { teamAData, teamBData, h2h, homeAwayA, homeAwayB, rankA, rankB } = reportData;
+
+    // 1. רצף ארוך (4+)
+    if (teamAData.trend?.streak?.count >= 4) {
+      const streakType = teamAData.trend.streak.type === 'win' ? 'ניצחונות' : 'הפסדים';
+      insights.push({
+        icon: teamAData.trend.streak.type === 'win' ? '🔥' : '❄️',
+        text: `${teamA} ברצף של ${teamAData.trend.streak.count} ${streakType}`,
+        importance: 'high',
+        team: teamA
+      });
+    }
+    
+    if (teamBData.trend?.streak?.count >= 4) {
+      const streakType = teamBData.trend.streak.type === 'win' ? 'ניצחונות' : 'הפסדים';
+      insights.push({
+        icon: teamBData.trend.streak.type === 'win' ? '🔥' : '❄️',
+        text: `${teamB} ברצף של ${teamBData.trend.streak.count} ${streakType}`,
+        importance: 'high',
+        team: teamB
+      });
+    }
+
+    // 2. דומיננטיות בבית (80%+)
+    if (homeAwayA?.home?.games >= 3) {
+      const homeWinPct = (homeAwayA.home.wins / homeAwayA.home.games) * 100;
+      if (homeWinPct >= 80) {
+        insights.push({
+          icon: '🏠',
+          text: `${teamA} דומיננטית בבית - ${homeAwayA.home.wins}-${homeAwayA.home.losses} (${homeWinPct.toFixed(0)}%)`,
+          importance: 'medium',
+          team: teamA
+        });
+      }
+    }
+    
+    if (homeAwayB?.home?.games >= 3) {
+      const homeWinPct = (homeAwayB.home.wins / homeAwayB.home.games) * 100;
+      if (homeWinPct >= 80) {
+        insights.push({
+          icon: '🏠',
+          text: `${teamB} דומיננטית בבית - ${homeAwayB.home.wins}-${homeAwayB.home.losses} (${homeWinPct.toFixed(0)}%)`,
+          importance: 'medium',
+          team: teamB
+        });
+      }
+    }
+
+    // 3. משבר בחוץ (25%-)
+    if (homeAwayA?.away?.games >= 4) {
+      const awayWinPct = (homeAwayA.away.wins / homeAwayA.away.games) * 100;
+      if (awayWinPct <= 25) {
+        insights.push({
+          icon: '✈️',
+          text: `${teamA} מתקשה בחוץ - רק ${homeAwayA.away.wins} ניצחון מתוך ${homeAwayA.away.games} משחקים`,
+          importance: 'medium',
+          team: teamA
+        });
+      }
+    }
+    
+    if (homeAwayB?.away?.games >= 4) {
+      const awayWinPct = (homeAwayB.away.wins / homeAwayB.away.games) * 100;
+      if (awayWinPct <= 25) {
+        insights.push({
+          icon: '✈️',
+          text: `${teamB} מתקשה בחוץ - רק ${homeAwayB.away.wins} ניצחון מתוך ${homeAwayB.away.games} משחקים`,
+          importance: 'medium',
+          team: teamB
+        });
+      }
+    }
+
+    // 4. שליטה ב-H2H (75%+ עם לפחות 4 משחקים)
+    if (h2h.totalGames >= 4) {
+      const teamAH2HWinPct = (h2h.teamAWins / h2h.totalGames) * 100;
+      const teamBH2HWinPct = (h2h.teamBWins / h2h.totalGames) * 100;
+      
+      if (teamAH2HWinPct >= 75) {
+        insights.push({
+          icon: '👑',
+          text: `${teamA} שולטת במפגשים - ${h2h.teamAWins} מתוך ${h2h.totalGames}`,
+          importance: 'high',
+          team: teamA
+        });
+      } else if (teamBH2HWinPct >= 75) {
+        insights.push({
+          icon: '👑',
+          text: `${teamB} שולטת במפגשים - ${h2h.teamBWins} מתוך ${h2h.totalGames}`,
+          importance: 'high',
+          team: teamB
+        });
+      }
+    }
+
+    // 5. פער גדול בנקודות (10+)
+    const ppgA = parseFloat(teamAData.stats?.ppg || 0);
+    const ppgB = parseFloat(teamBData.stats?.ppg || 0);
+    const ppgDiff = Math.abs(ppgA - ppgB);
+    
+    if (ppgDiff >= 10) {
+      const leader = ppgA > ppgB ? teamA : teamB;
+      insights.push({
+        icon: '🎯',
+        text: `${leader} קולעת ${ppgDiff.toFixed(1)} נקודות יותר בממוצע`,
+        importance: 'medium',
+        team: leader
+      });
+    }
+
+    // 6. מאזן הפוך (same games, opposite records)
+    const winsA = teamAData.stats?.wins || 0;
+    const lossesA = teamAData.stats?.losses || 0;
+    const winsB = teamBData.stats?.wins || 0;
+    const lossesB = teamBData.stats?.losses || 0;
+    
+    if (winsA === lossesB && lossesA === winsB && (winsA + lossesA) === (winsB + lossesB)) {
+      insights.push({
+        icon: '⚖️',
+        text: `שתי הקבוצות באותו מאזן אבל הפוך - ${teamA}: ${winsA}-${lossesA}, ${teamB}: ${winsB}-${lossesB}`,
+        importance: 'medium',
+        team: null
+      });
+    }
+
+    // 7. ניצחון/הפסד גדול במפגש אחרון
+    if (h2h.lastMeeting && h2h.lastMeeting.margin >= 20) {
+      insights.push({
+        icon: '💥',
+        text: `במפגש האחרון: ${h2h.lastMeeting.winner} ניצחה ${h2h.lastMeeting.teamAScore}-${h2h.lastMeeting.teamBScore} (${h2h.lastMeeting.margin} נקודות!)`,
+        importance: 'high',
+        team: h2h.lastMeeting.winner
+      });
+    }
+
+    // 8. שיפור/ירידה ביצועים לעומת ממוצע העונה
+    if (teamAData.trend) {
+      const seasonPpg = parseFloat(teamAData.stats?.ppg || 0);
+      const lastNPpg = parseFloat(teamAData.trend.lastNPpg || 0);
+      const ppgChange = lastNPpg - seasonPpg;
+      
+      if (Math.abs(ppgChange) >= 5) {
+        if (ppgChange > 0) {
+          insights.push({
+            icon: '📈',
+            text: `${teamA} מציגה שיפור - ${lastNPpg.toFixed(1)} נק' למשחק ב-${teamAData.trend.lastN} אחרונים לעומת ${seasonPpg} בממוצע העונה (+${ppgChange.toFixed(1)})`,
+            importance: 'medium',
+            team: teamA
+          });
+        } else {
+          insights.push({
+            icon: '📉',
+            text: `${teamA} בירידה - ${lastNPpg.toFixed(1)} נק' למשחק ב-${teamAData.trend.lastN} אחרונים לעומת ${seasonPpg} בממוצע העונה (${ppgChange.toFixed(1)})`,
+            importance: 'medium',
+            team: teamA
+          });
+        }
+      }
+    }
+    
+    if (teamBData.trend) {
+      const seasonPpg = parseFloat(teamBData.stats?.ppg || 0);
+      const lastNPpg = parseFloat(teamBData.trend.lastNPpg || 0);
+      const ppgChange = lastNPpg - seasonPpg;
+      
+      if (Math.abs(ppgChange) >= 5) {
+        if (ppgChange > 0) {
+          insights.push({
+            icon: '📈',
+            text: `${teamB} מציגה שיפור - ${lastNPpg.toFixed(1)} נק' למשחק ב-${teamBData.trend.lastN} אחרונים לעומת ${seasonPpg} בממוצע העונה (+${ppgChange.toFixed(1)})`,
+            importance: 'medium',
+            team: teamB
+          });
+        } else {
+          insights.push({
+            icon: '📉',
+            text: `${teamB} בירידה - ${lastNPpg.toFixed(1)} נק' למשחק ב-${teamBData.trend.lastN} אחרונים לעומת ${seasonPpg} בממוצע העונה (${ppgChange.toFixed(1)})`,
+            importance: 'medium',
+            team: teamB
+          });
+        }
+      }
+    }
+
+    // הדירוג כבר מופיע ב-TL;DR, לא צריך להוסיף אותו פה
+
+    // מיון לפי חשיבות
+    insights.sort((a, b) => {
+      const importanceOrder = { high: 0, medium: 1, low: 2 };
+      return importanceOrder[a.importance] - importanceOrder[b.importance];
+    });
+
+    console.timeEnd('⏱️ Insights Generation');
+    return insights.slice(0, 5); // מקסימום 5 insights
+  }
+
+  /**
+   * ===============================================
    * HEAD-TO-HEAD ANALYSIS
    * ===============================================
    */
@@ -303,14 +864,21 @@ class IBBAAdvanced {
   /**
    * בניית דוח מקיף לפני משחק
    */
-  buildMatchupReport(teamA, teamB) {
+  async buildMatchupReport(teamA, teamB) {
     console.time('⏱️ Matchup Report');
+    
+    // טען את הטבלה מה-HTML אם עדיין לא נטענה
+    if (!this.standingsLoaded) {
+      await this.loadStandingsFromHTML();
+    }
     
     // Get all necessary data
     const teamAveragesArray = this.analytics.getTeamAverages(); // מחזיר מערך
     const advancedMetrics = this.getAdvancedTeamMetrics();
     const trends = this.getTeamTrends(5);
     const h2h = this.getH2HHistory(teamA, teamB);
+    const standings = this.getLeagueStandings();
+    const homeAwayRecords = this.analytics.getTeamHomeAwayRecords();
 
     // Find team data
     const teamAStats = teamAveragesArray.find(t => t.teamName === teamA);
@@ -319,6 +887,14 @@ class IBBAAdvanced {
     const teamBAdv = advancedMetrics[teamB];
     const teamATrend = trends[teamA];
     const teamBTrend = trends[teamB];
+    
+    // Find rankings
+    const teamARank = standings.find(s => s.teamName === teamA)?.rank || null;
+    const teamBRank = standings.find(s => s.teamName === teamB)?.rank || null;
+    
+    // Find home/away records
+    const homeAwayA = homeAwayRecords[teamA] || null;
+    const homeAwayB = homeAwayRecords[teamB] || null;
 
     // Build comparison
     const comparison = {
@@ -351,7 +927,43 @@ class IBBAAdvanced {
     comparison.pace.expectedPace = ((comparison.pace.teamAPace + comparison.pace.teamBPace) / 2).toFixed(1);
 
     // Build narrative
-    const narrative = this.buildNarrative(teamA, teamB, teamAStats, teamBStats, teamAAdv, teamBAdv, teamATrend, teamBTrend, h2h, comparison);
+    const narrative = this.buildNarrative(teamA, teamB, teamAStats, teamBStats, teamAAdv, teamBAdv, teamATrend, teamBTrend, h2h, comparison, teamARank, teamBRank);
+
+    // Generate insights - בדיקה אם יש מערכת Insights V2
+    let insights = [];
+    let insightsV2 = null;
+    
+    if (window.IBBAInsightsV2) {
+      // שימוש במערכת החדשה
+      const insightsEngine = new window.IBBAInsightsV2(this.analytics);
+      
+      // העבר שמות שחקנים אם זמין
+      if (this.playerNamesLoader && this.playerNamesLoader.namesMap) {
+        insightsEngine.setPlayerNames(this.playerNamesLoader.namesMap);
+      }
+      
+      insightsV2 = insightsEngine.generateMatchupInsights(teamA, teamB, {
+        games: this.analytics.games,
+        teamAData: { stats: teamAStats, advanced: teamAAdv, trend: teamATrend },
+        teamBData: { stats: teamBStats, advanced: teamBAdv, trend: teamBTrend },
+        h2h: h2h,
+        standings: standings
+      });
+      
+      // המרה לפורמט ישן (backward compatibility)
+      insights = insightsEngine.getTopInsights(insightsV2, 8);
+    } else {
+      // Fallback למערכת הישנה
+      insights = this.generateInsights(teamA, teamB, {
+        teamAData: { stats: teamAStats, advanced: teamAAdv, trend: teamATrend },
+        teamBData: { stats: teamBStats, advanced: teamBAdv, trend: teamBTrend },
+        h2h: h2h,
+        homeAwayA: homeAwayA,
+        homeAwayB: homeAwayB,
+        rankA: teamARank,
+        rankB: teamBRank
+      });
+    }
 
     console.timeEnd('⏱️ Matchup Report');
 
@@ -360,17 +972,23 @@ class IBBAAdvanced {
         name: teamA,
         stats: teamAStats,
         advanced: teamAAdv,
-        trend: teamATrend
+        trend: teamATrend,
+        rank: teamARank,
+        homeAwayRecord: homeAwayA
       },
       teamB: {
         name: teamB,
         stats: teamBStats,
         advanced: teamBAdv,
-        trend: teamBTrend
+        trend: teamBTrend,
+        rank: teamBRank,
+        homeAwayRecord: homeAwayB
       },
       h2h: h2h,
       comparison: comparison,
       narrative: narrative,
+      insights: insights,
+      insightsV2: insightsV2, // מערכת Insights מתקדמת עם קטגוריות
       generatedAt: new Date().toISOString()
     };
   }
@@ -378,65 +996,90 @@ class IBBAAdvanced {
   /**
    * בניית נרטיב לשדרן (מבוסס על preGameNarratives.js)
    */
-  buildNarrative(teamA, teamB, statsA, statsB, advA, advB, trendA, trendB, h2h, comparison) {
+  buildNarrative(teamA, teamB, statsA, statsB, advA, advB, trendA, trendB, h2h, comparison, rankA, rankB) {
     const tldr = [];
     const sections = {};
 
     // TL;DR - נקודות עיקריות
-    tldr.push(`${teamA} vs ${teamB} - ${h2h.totalGames} מפגשים קודמים (${teamA}: ${h2h.teamAWins} ניצחונות, ${teamB}: ${h2h.teamBWins})`);
     
-    if (comparison.offense.advantage === teamA) {
-      tldr.push(`יתרון התקפי ל-${teamA}: ${comparison.offense.teamAPpg} נק' למשחק לעומת ${comparison.offense.teamBPpg}`);
+    // 1. תמיד: דירוג ומאזן
+    const recordA = `${statsA?.wins || 0}-${statsA?.losses || 0}`;
+    const recordB = `${statsB?.wins || 0}-${statsB?.losses || 0}`;
+    if (rankA && rankB) {
+      tldr.push(`${teamA} במקום ${rankA} (${recordA}) מול ${teamB} במקום ${rankB} (${recordB})`);
     } else {
-      tldr.push(`יתרון התקפי ל-${teamB}: ${comparison.offense.teamBPpg} נק' למשחק לעומת ${comparison.offense.teamAPpg}`);
-    }
-
-    if (trendA && trendA.trend === 'improving') {
-      tldr.push(`${teamA} במגמת עלייה - ${trendA.lastNWins}/${trendA.lastN} ב-${trendA.lastN} משחקים אחרונים`);
+      tldr.push(`${teamA} (${recordA}) מול ${teamB} (${recordB})`);
     }
     
-    if (trendB && trendB.trend === 'improving') {
-      tldr.push(`${teamB} במגמת עלייה - ${trendB.lastNWins}/${trendB.lastN} ב-${trendB.lastN} משחקים אחרונים`);
+    // 2. אם יש H2H - להציג (רק אם יש לפחות משחק אחד)
+    if (h2h.totalGames > 0) {
+      tldr.push(`במפגשים העונה: ${teamA} ${h2h.teamAWins} ניצחונות, ${teamB} ${h2h.teamBWins} ניצחונות (${h2h.totalGames} משחקים)`);
     }
-
-    tldr.push(`קצב משחק צפוי: ${comparison.pace.expectedPace} פוזשנים למשחק`);
+    
+    // 3. רצף אם יש (3+)
+    if (trendA && trendA.streak && trendA.streak.count >= 3) {
+      const streakType = trendA.streak.type === 'win' ? 'ניצחונות' : 'הפסדים';
+      tldr.push(`${teamA} ברצף של ${trendA.streak.count} ${streakType}`);
+    } else if (trendB && trendB.streak && trendB.streak.count >= 3) {
+      const streakType = trendB.streak.type === 'win' ? 'ניצחונות' : 'הפסדים';
+      tldr.push(`${teamB} ברצף של ${trendB.streak.count} ${streakType}`);
+    }
+    
+    // 4. פער PPG אם משמעותי (>10)
+    const ppgDiff = Math.abs(comparison.offense.teamAPpg - comparison.offense.teamBPpg);
+    if (ppgDiff > 10) {
+      if (comparison.offense.advantage === teamA) {
+        tldr.push(`יתרון התקפי ל-${teamA}: ${comparison.offense.teamAPpg.toFixed(1)} נק' למשחק לעומת ${comparison.offense.teamBPpg.toFixed(1)}`);
+      } else {
+        tldr.push(`יתרון התקפי ל-${teamB}: ${comparison.offense.teamBPpg.toFixed(1)} נק' למשחק לעומת ${comparison.offense.teamAPpg.toFixed(1)}`);
+      }
+    }
+    
+    // 5. פורמה אחרונה
+    if (trendA && trendB) {
+      tldr.push(`פורמה אחרונה: ${teamA} ${trendA.lastNWins} ניצחונות מ-${trendA.lastN} משחקים, ${teamB} ${trendB.lastNWins} ניצחונות מ-${trendB.lastN} משחקים`);
+    }
 
     // Sections
-    sections['קצב צפוי'] = [
-      `משוקלל מקצב שתי הקבוצות: ${comparison.pace.expectedPace} פוזשנים למשחק`,
-      `${teamA}: ${advA?.pace || 'N/A'} | ${teamB}: ${advB?.pace || 'N/A'}`
-    ];
 
     sections['פרופיל קליעה'] = [
-      `${teamA} - TS%: ${advA?.tsPct || 'N/A'}% | eFG%: ${advA?.efgPct || 'N/A'}% | 3PAR: ${advA?.threePAR || 'N/A'}%`,
-      `${teamB} - TS%: ${advB?.tsPct || 'N/A'}% | eFG%: ${advB?.efgPct || 'N/A'}% | 3PAR: ${advB?.threePAR || 'N/A'}%`,
-      comparison.efficiency.advantage === teamA 
-        ? `יתרון יעילות ל-${teamA}`
-        : `יתרון יעילות ל-${teamB}`
+      `${teamA} - FG%: ${statsA?.fgPct || 'N/A'}% | 3P%: ${statsA?.threePtPct || 'N/A'}% | FT%: ${statsA?.ftPct || 'N/A'}%`,
+      `${teamB} - FG%: ${statsB?.fgPct || 'N/A'}% | 3P%: ${statsB?.threePtPct || 'N/A'}% | FT%: ${statsB?.ftPct || 'N/A'}%`
     ];
-
-    sections['פורמה אחרונה'] = [];
-    if (trendA) {
-      sections['פורמה אחרונה'].push(
-        `${teamA}: ${trendA.lastNWins}/${trendA.lastN} משחקים | ${trendA.lastNPpg} נק' למשחק | מגמה: ${trendA.trend === 'improving' ? 'עולה' : trendA.trend === 'declining' ? 'יורדת' : 'יציבה'}`
+    
+    // הוספת ניתוח עם נפח זריקות
+    const fgPctA = parseFloat(statsA?.fgPct || 0);
+    const fgPctB = parseFloat(statsB?.fgPct || 0);
+    const gamesA = statsA?.gamesPlayed || 1;
+    const gamesB = statsB?.gamesPlayed || 1;
+    const fgaA = (statsA?._totalFGA || 0) / gamesA;
+    const fgaB = (statsB?._totalFGA || 0) / gamesB;
+    
+    if (fgPctA > fgPctB) {
+      sections['פרופיל קליעה'].push(
+        `יתרון קליעה ל-${teamA} - ${fgPctA}% (${fgaA.toFixed(1)} ניסיונות למשחק) לעומת ${fgPctB}% של ${teamB} (${fgaB.toFixed(1)} ניסיונות למשחק)`
+      );
+    } else {
+      sections['פרופיל קליעה'].push(
+        `יתרון קליעה ל-${teamB} - ${fgPctB}% (${fgaB.toFixed(1)} ניסיונות למשחק) לעומת ${fgPctA}% של ${teamA} (${fgaA.toFixed(1)} ניסיונות למשחק)`
       );
     }
-    if (trendB) {
-      sections['פורמה אחרונה'].push(
-        `${teamB}: ${trendB.lastNWins}/${trendB.lastN} משחקים | ${trendB.lastNPpg} נק' למשחק | מגמה: ${trendB.trend === 'improving' ? 'עולה' : trendB.trend === 'declining' ? 'יורדת' : 'יציבה'}`
-      );
-    }
 
-    sections['מפגשים ישירים'] = [
-      `${h2h.totalGames} משחקים בעונה זו`,
-      `${teamA}: ${h2h.teamAWins} ניצחונות | ${teamB}: ${h2h.teamBWins} ניצחונות`,
-      `פער ממוצע: ${h2h.avgMargin} נקודות`
-    ];
+    // פורמה כבר מופיעה ב-TL;DR ובכרטיסים, לא צריך לחזור עליה
 
-    if (h2h.lastMeeting) {
-      sections['מפגשים ישירים'].push(
-        `מפגש אחרון: ${h2h.lastMeeting.winner} ניצחה ${h2h.lastMeeting.teamAScore}-${h2h.lastMeeting.teamBScore}`
-      );
+    // מפגשים ישירים - רק אם יש
+    if (h2h.totalGames > 0) {
+      sections['מפגשים ישירים'] = [
+        `${h2h.totalGames} משחקים בעונה זו`,
+        `${teamA}: ${h2h.teamAWins} ניצחונות | ${teamB}: ${h2h.teamBWins} ניצחונות`,
+        `פער ממוצע: ${h2h.avgMargin} נקודות`
+      ];
+
+      if (h2h.lastMeeting) {
+        sections['מפגשים ישירים'].push(
+          `מפגש אחרון: ${h2h.lastMeeting.winner} ניצחה ${h2h.lastMeeting.teamAScore}-${h2h.lastMeeting.teamBScore}`
+        );
+      }
     }
 
     return {

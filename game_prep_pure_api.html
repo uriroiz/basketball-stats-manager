@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎯 הכנה למשחק - Pure API</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .header {
+      background: white;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+    }
+
+    .header h1 {
+      font-size: 36px;
+      color: #333;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      color: #666;
+      font-size: 16px;
+    }
+
+    .team-selector {
+      background: white;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+    }
+
+    .team-selector h2 {
+      color: #333;
+      margin-bottom: 20px;
+      font-size: 24px;
+    }
+
+    .selector-grid {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 20px;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .team-select-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .team-select-wrapper label {
+      font-weight: 600;
+      color: #555;
+      font-size: 14px;
+    }
+
+    select {
+      padding: 12px 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 16px;
+      background: white;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    select:hover {
+      border-color: #667eea;
+    }
+
+    select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .vs-badge {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 50px;
+      font-weight: bold;
+      font-size: 18px;
+    }
+
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 16px 40px;
+      font-size: 18px;
+      font-weight: 600;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .loading {
+      background: white;
+      padding: 60px;
+      border-radius: 16px;
+      text-align: center;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    }
+
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #667eea;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    #results {
+      display: none;
+    }
+
+    #results.show {
+      display: block;
+    }
+
+    .section {
+      background: white;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+    }
+
+    .section h2 {
+      color: #333;
+      font-size: 24px;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 3px solid #667eea;
+    }
+
+    .tldr {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 16px;
+      margin-bottom: 30px;
+      box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+    }
+
+    .tldr h2 {
+      color: white;
+      border-bottom-color: rgba(255,255,255,0.3);
+      margin-bottom: 20px;
+    }
+
+    .tldr-point {
+      background: rgba(255,255,255,0.1);
+      padding: 15px 20px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      font-size: 16px;
+      line-height: 1.6;
+      backdrop-filter: blur(10px);
+    }
+
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 12px;
+      border: 2px solid #e9ecef;
+    }
+
+    .stat-card h3 {
+      color: #667eea;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 15px;
+    }
+
+    .stat-comparison {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .stat-value.winner {
+      color: #28a745;
+      font-weight: 900;
+    }
+
+    .advantage {
+      background: #e9ecef;
+      color: #666;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .narrative-section {
+      margin-bottom: 20px;
+    }
+
+    .narrative-section h3 {
+      color: #667eea;
+      font-size: 18px;
+      margin-bottom: 12px;
+    }
+
+    .narrative-point {
+      padding: 12px 16px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      line-height: 1.6;
+    }
+
+    .h2h-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+
+    .h2h-table th {
+      background: #f8f9fa;
+      padding: 12px;
+      text-align: right;
+      font-weight: 600;
+      border-bottom: 2px solid #dee2e6;
+    }
+
+    .h2h-table td {
+      padding: 12px;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .h2h-table tr:hover {
+      background: #f8f9fa;
+    }
+
+    .trend-indicator {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .trend-improving {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .trend-declining {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .trend-stable {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .insight-card {
+      background: #fff;
+      border: 2px solid #e9ecef;
+      border-right: 5px solid #667eea;
+      color: #333;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      transition: all 0.2s;
+    }
+
+    .insight-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.12);
+    }
+
+    .insight-card .icon {
+      font-size: 32px;
+      min-width: 40px;
+      text-align: center;
+    }
+
+    .insight-card .text {
+      font-size: 16px;
+      line-height: 1.6;
+      flex: 1;
+      color: #333;
+    }
+
+    .insight-card.high {
+      border-right-color: #dc3545;
+      background: linear-gradient(to left, rgba(220, 53, 69, 0.03), #fff);
+    }
+
+    .insight-card.medium {
+      border-right-color: #667eea;
+      background: linear-gradient(to left, rgba(102, 126, 234, 0.03), #fff);
+    }
+
+    .insight-card.low {
+      border-right-color: #28a745;
+      background: linear-gradient(to left, rgba(40, 167, 69, 0.03), #fff);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎯 הכנה למשחק - Pure API</h1>
+      <p>ניתוח מקיף ומקצועי לפני המשחק - מבוסס על נתונים בזמן אמת</p>
+      <p style="color: #999; font-size: 12px; margin-top: 8px;">גרסה 2.2.7 - מיקומים אמיתיים מטבלת הליגה 📊</p>
+    </div>
+
+    <div class="team-selector">
+      <h2>בחר קבוצות למשחק</h2>
+      <div class="selector-grid">
+        <div class="team-select-wrapper">
+          <label for="teamASelect">קבוצת בית</label>
+          <select id="teamASelect">
+            <option value="">בחר קבוצה...</option>
+          </select>
+        </div>
+        
+        <div class="vs-badge">VS</div>
+        
+        <div class="team-select-wrapper">
+          <label for="teamBSelect">קבוצת חוץ</label>
+          <select id="teamBSelect">
+            <option value="">בחר קבוצה...</option>
+          </select>
+        </div>
+      </div>
+      
+      <div style="text-align: center;">
+        <button id="analyzeBtn" onclick="analyzeMatchup()" disabled>
+          📊 נתח משחק
+        </button>
+        <p id="status" style="margin-top: 15px; color: #666; font-size: 14px;"></p>
+      </div>
+    </div>
+
+    <div id="loading" class="loading hidden">
+      <div class="spinner"></div>
+      <p style="font-size: 18px; color: #667eea; font-weight: 600;">מעבד נתונים...</p>
+    </div>
+
+    <div id="results">
+      <!-- TL;DR Section -->
+      <div class="tldr">
+        <h2>📋 סיכום מהיר לשדרן</h2>
+        <div id="tldrContent"></div>
+      </div>
+
+      <!-- Comparison Cards -->
+      <div class="comparison-grid" id="comparisonGrid"></div>
+
+      <!-- Team Details -->
+      <div class="section">
+        <h2>📊 נתונים מפורטים</h2>
+        <div id="teamDetails"></div>
+      </div>
+
+      <!-- H2H History -->
+      <div class="section" id="h2hSection">
+        <h2>🔄 מפגשים ישירים</h2>
+        <div id="h2hContent"></div>
+      </div>
+
+      <!-- Insights Section -->
+      <div class="section" id="insightsSection" style="display: none;">
+        <h2>💡 Insights מעניינים</h2>
+        <div id="insightsContent"></div>
+      </div>
+
+      <!-- Narrative Sections -->
+      <div class="section">
+        <h2>📝 ניתוח מעמיק</h2>
+        <div id="narrativeSections"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/ibba/ibba_adapter.js"></script>
+  <script src="js/ibba/ibba_analytics.js"></script>
+  <script src="js/ibba/ibba_insights_templates.js"></script>
+  <script src="js/ibba/ibba_insights_v2.js"></script>
+  <script src="js/ibba/ibba_advanced.js"></script>
+
+  <script>
+    let adapter, analytics, advanced;
+    let allGames = [];
+
+    // Initialize on page load
+    window.addEventListener('DOMContentLoaded', async () => {
+      console.log('🎯 Game Prep Pure API - Initializing...');
+      
+      try {
+        // Initialize modules
+        adapter = new window.IBBAAdapter();
+        analytics = new window.IBBAAnalytics();
+        
+        // Load games
+        console.log('📡 Loading games...');
+        document.getElementById('status').textContent = 'טוען משחקים...';
+        
+        const now = new Date().toISOString();
+        const rawGames = await adapter.fetchGames(100, now, null);
+        allGames = rawGames
+          .map(g => adapter.convertToInternalFormat(g))
+          .filter(g => g.players && g.players.length > 0);
+        
+        console.log(`✅ Loaded ${allGames.length} games`);
+        
+        // Set games in analytics
+        analytics.setGames(allGames);
+        advanced = new window.IBBAAdvanced(analytics);
+        
+        // Populate team selectors
+        populateTeamSelectors();
+        
+        document.getElementById('status').textContent = `✅ ${allGames.length} משחקים נטענו`;
+        
+      } catch (error) {
+        console.error('❌ Initialization failed:', error);
+        document.getElementById('status').innerHTML = 
+          `<span style="color: #dc3545;">❌ שגיאה: ${error.message}</span>`;
+      }
+    });
+
+    function populateTeamSelectors() {
+      const teams = analytics.getTeamAverages();
+      
+      const teamASelect = document.getElementById('teamASelect');
+      const teamBSelect = document.getElementById('teamBSelect');
+      
+      teams.forEach(team => {
+        const optionA = document.createElement('option');
+        optionA.value = team.teamName;
+        optionA.textContent = team.teamName;
+        teamASelect.appendChild(optionA);
+        
+        const optionB = document.createElement('option');
+        optionB.value = team.teamName;
+        optionB.textContent = team.teamName;
+        teamBSelect.appendChild(optionB);
+      });
+      
+      // Enable analyze button when both teams selected
+      teamASelect.addEventListener('change', checkSelection);
+      teamBSelect.addEventListener('change', checkSelection);
+    }
+
+    function checkSelection() {
+      const teamA = document.getElementById('teamASelect').value;
+      const teamB = document.getElementById('teamBSelect').value;
+      const btn = document.getElementById('analyzeBtn');
+      
+      btn.disabled = !(teamA && teamB && teamA !== teamB);
+    }
+
+    async function analyzeMatchup() {
+      const teamA = document.getElementById('teamASelect').value;
+      const teamB = document.getElementById('teamBSelect').value;
+      
+      if (!teamA || !teamB || teamA === teamB) {
+        alert('בחר שתי קבוצות שונות');
+        return;
+      }
+      
+      try {
+        // Show loading
+        document.getElementById('loading').classList.remove('hidden');
+        document.getElementById('results').classList.remove('show');
+        
+        console.log(`🔍 Analyzing: ${teamA} vs ${teamB}`);
+        console.time('⏱️ Matchup Analysis');
+        
+        // Build matchup report
+        const report = await advanced.buildMatchupReport(teamA, teamB);
+        
+        console.timeEnd('⏱️ Matchup Analysis');
+        console.log('📊 Report:', report);
+        
+        // Display results
+        displayReport(report);
+        
+        // Hide loading, show results
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('results').classList.add('show');
+        
+        // Scroll to results
+        document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+        
+      } catch (error) {
+        console.error('❌ Analysis failed:', error);
+        alert(`שגיאה בניתוח: ${error.message}`);
+        document.getElementById('loading').classList.add('hidden');
+      }
+    }
+
+    function displayReport(report) {
+      // TL;DR
+      const tldrContent = document.getElementById('tldrContent');
+      tldrContent.innerHTML = report.narrative.tldr.map(point => 
+        `<div class="tldr-point">• ${point}</div>`
+      ).join('');
+
+      // Comparison cards
+      const comparisonGrid = document.getElementById('comparisonGrid');
+      comparisonGrid.innerHTML = `
+        <div class="stat-card">
+          <h3>🎯 התקפה (PPG)</h3>
+          <div class="stat-comparison">
+            <div>
+              <div style="font-size: 12px; color: #666; margin-bottom: 4px;">${report.teamA.name}</div>
+              <div class="stat-value ${report.comparison.offense.teamAPpg > report.comparison.offense.teamBPpg ? 'winner' : ''}">${report.comparison.offense.teamAPpg.toFixed(1)}</div>
+            </div>
+            <div>
+              <div style="font-size: 12px; color: #666; margin-bottom: 4px;">${report.teamB.name}</div>
+              <div class="stat-value ${report.comparison.offense.teamBPpg > report.comparison.offense.teamAPpg ? 'winner' : ''}">${report.comparison.offense.teamBPpg.toFixed(1)}</div>
+            </div>
+          </div>
+          <div style="text-align: center; margin-top: 12px;">
+            <span class="advantage">נק' למשחק</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <h3>🛡️ הגנה (Opp PPG)</h3>
+          <div class="stat-comparison">
+            <div>
+              <div style="font-size: 12px; color: #666; margin-bottom: 4px;">${report.teamA.name}</div>
+              <div class="stat-value ${report.comparison.defense.teamAOppPpg < report.comparison.defense.teamBOppPpg ? 'winner' : ''}">${report.comparison.defense.teamAOppPpg.toFixed(1)}</div>
+            </div>
+            <div>
+              <div style="font-size: 12px; color: #666; margin-bottom: 4px;">${report.teamB.name}</div>
+              <div class="stat-value ${report.comparison.defense.teamBOppPpg < report.comparison.defense.teamAOppPpg ? 'winner' : ''}">${report.comparison.defense.teamBOppPpg.toFixed(1)}</div>
+            </div>
+          </div>
+          <div style="text-align: center; margin-top: 12px;">
+            <span class="advantage">נק' שמקבלים</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <h3>📊 FG%</h3>
+          <div class="stat-comparison">
+            <div>
+              <div style="font-size: 12px; color: #666; margin-bottom: 4px;">${report.teamA.name}</div>
+              <div class="stat-value ${parseFloat(report.teamA.stats?.fgPct || 0) > parseFloat(report.teamB.stats?.fgPct || 0) ? 'winner' : ''}">${report.teamA.stats?.fgPct || '0.0'}%</div>
+            </div>
+            <div>
+              <div style="font-size: 12px; color: #666; margin-bottom: 4px;">${report.teamB.name}</div>
+              <div class="stat-value ${parseFloat(report.teamB.stats?.fgPct || 0) > parseFloat(report.teamA.stats?.fgPct || 0) ? 'winner' : ''}">${report.teamB.stats?.fgPct || '0.0'}%</div>
+            </div>
+          </div>
+          <div style="text-align: center; margin-top: 12px;">
+            <span class="advantage">אחוז קליעה</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <h3>🎯 3P%</h3>
+          <div class="stat-comparison">
+            <div>
+              <div style="font-size: 12px; color: #666; margin-bottom: 4px;">${report.teamA.name}</div>
+              <div class="stat-value ${parseFloat(report.teamA.stats?.threePtPct || 0) > parseFloat(report.teamB.stats?.threePtPct || 0) ? 'winner' : ''}">${report.teamA.stats?.threePtPct || '0.0'}%</div>
+            </div>
+            <div>
+              <div style="font-size: 12px; color: #666; margin-bottom: 4px;">${report.teamB.name}</div>
+              <div class="stat-value ${parseFloat(report.teamB.stats?.threePtPct || 0) > parseFloat(report.teamA.stats?.threePtPct || 0) ? 'winner' : ''}">${report.teamB.stats?.threePtPct || '0.0'}%</div>
+            </div>
+          </div>
+          <div style="text-align: center; margin-top: 12px;">
+            <span class="advantage">אחוז שלשות</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <h3>🏆 Win%</h3>
+          <div class="stat-comparison">
+            <div>
+              <div style="font-size: 12px; color: #666; margin-bottom: 4px;">${report.teamA.name}</div>
+              <div class="stat-value ${parseFloat(report.teamA.stats?.winPct || 0) > parseFloat(report.teamB.stats?.winPct || 0) ? 'winner' : ''}">${report.teamA.stats?.winPct || '0.0'}%</div>
+            </div>
+            <div>
+              <div style="font-size: 12px; color: #666; margin-bottom: 4px;">${report.teamB.name}</div>
+              <div class="stat-value ${parseFloat(report.teamB.stats?.winPct || 0) > parseFloat(report.teamA.stats?.winPct || 0) ? 'winner' : ''}">${report.teamB.stats?.winPct || '0.0'}%</div>
+            </div>
+          </div>
+          <div style="text-align: center; margin-top: 12px;">
+            <span class="advantage">אחוז ניצחונות</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <h3>📈 פורמה</h3>
+          <div class="stat-comparison">
+            <div>
+              <div style="font-size: 12px; color: #666; margin-bottom: 4px;">${report.teamA.name}</div>
+              <div class="stat-value ${(report.teamA.trend?.lastNWins || 0) > (report.teamB.trend?.lastNWins || 0) ? 'winner' : ''}">${report.teamA.trend?.lastNWins || 0}W / ${report.teamA.trend?.lastN || 5}</div>
+            </div>
+            <div>
+              <div style="font-size: 12px; color: #666; margin-bottom: 4px;">${report.teamB.name}</div>
+              <div class="stat-value ${(report.teamB.trend?.lastNWins || 0) > (report.teamA.trend?.lastNWins || 0) ? 'winner' : ''}">${report.teamB.trend?.lastNWins || 0}W / ${report.teamB.trend?.lastN || 5}</div>
+            </div>
+          </div>
+          <div style="text-align: center; margin-top: 12px;">
+            <span class="advantage">ניצחונות אחרונים</span>
+          </div>
+        </div>
+      `;
+
+      // Team Details
+      const teamDetails = document.getElementById('teamDetails');
+      teamDetails.innerHTML = `
+        <table class="h2h-table">
+          <thead>
+            <tr>
+              <th>מדד</th>
+              <th style="text-align: center;">${report.teamA.name}</th>
+              <th style="text-align: center;">${report.teamB.name}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>משחקים</strong></td>
+              <td style="text-align: center;">${report.teamA.stats?.gamesPlayed || 0}</td>
+              <td style="text-align: center;">${report.teamB.stats?.gamesPlayed || 0}</td>
+            </tr>
+            <tr>
+              <td><strong>נצחונות-הפסדים</strong></td>
+              <td style="text-align: center;">${report.teamA.stats?.wins || 0}-${report.teamA.stats?.losses || 0}</td>
+              <td style="text-align: center;">${report.teamB.stats?.wins || 0}-${report.teamB.stats?.losses || 0}</td>
+            </tr>
+            <tr>
+              <td><strong>מאזן בבית</strong></td>
+              <td style="text-align: center;">
+                ${report.teamA.homeAwayRecord ? 
+                  `${report.teamA.homeAwayRecord.home.wins}-${report.teamA.homeAwayRecord.home.losses} (${report.teamA.homeAwayRecord.home.winPct}%)` 
+                  : 'N/A'}
+              </td>
+              <td style="text-align: center;">
+                ${report.teamB.homeAwayRecord ? 
+                  `${report.teamB.homeAwayRecord.home.wins}-${report.teamB.homeAwayRecord.home.losses} (${report.teamB.homeAwayRecord.home.winPct}%)` 
+                  : 'N/A'}
+              </td>
+            </tr>
+            <tr>
+              <td><strong>מאזן בחוץ</strong></td>
+              <td style="text-align: center;">
+                ${report.teamA.homeAwayRecord ? 
+                  `${report.teamA.homeAwayRecord.away.wins}-${report.teamA.homeAwayRecord.away.losses} (${report.teamA.homeAwayRecord.away.winPct}%)` 
+                  : 'N/A'}
+              </td>
+              <td style="text-align: center;">
+                ${report.teamB.homeAwayRecord ? 
+                  `${report.teamB.homeAwayRecord.away.wins}-${report.teamB.homeAwayRecord.away.losses} (${report.teamB.homeAwayRecord.away.winPct}%)` 
+                  : 'N/A'}
+              </td>
+            </tr>
+            <tr>
+              <td><strong>דירוג בטבלה</strong></td>
+              <td style="text-align: center;">${report.teamA.rank ? `מקום ${report.teamA.rank}` : 'N/A'}</td>
+              <td style="text-align: center;">${report.teamB.rank ? `מקום ${report.teamB.rank}` : 'N/A'}</td>
+            </tr>
+            <tr>
+              <td><strong>PPG</strong></td>
+              <td style="text-align: center;"><strong>${report.teamA.stats?.ppg || '0.0'}</strong></td>
+              <td style="text-align: center;"><strong>${report.teamB.stats?.ppg || '0.0'}</strong></td>
+            </tr>
+            <tr>
+              <td><strong>RPG</strong></td>
+              <td style="text-align: center;">${report.teamA.stats?.rpg || '0.0'}</td>
+              <td style="text-align: center;">${report.teamB.stats?.rpg || '0.0'}</td>
+            </tr>
+            <tr>
+              <td><strong>APG</strong></td>
+              <td style="text-align: center;">${report.teamA.stats?.apg || '0.0'}</td>
+              <td style="text-align: center;">${report.teamB.stats?.apg || '0.0'}</td>
+            </tr>
+            <tr>
+              <td><strong>FG%</strong></td>
+              <td style="text-align: center;">${report.teamA.stats?.fgPct || '0.0'}%</td>
+              <td style="text-align: center;">${report.teamB.stats?.fgPct || '0.0'}%</td>
+            </tr>
+            <tr>
+              <td><strong>3P%</strong></td>
+              <td style="text-align: center;">${report.teamA.stats?.threePtPct || '0.0'}%</td>
+              <td style="text-align: center;">${report.teamB.stats?.threePtPct || '0.0'}%</td>
+            </tr>
+            <tr>
+              <td><strong>מגמה</strong></td>
+              <td style="text-align: center;">
+                ${getTrendBadge(report.teamA.trend?.trend)}
+              </td>
+              <td style="text-align: center;">
+                ${getTrendBadge(report.teamB.trend?.trend)}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      `;
+
+      // H2H Content
+      const h2hSection = document.getElementById('h2hSection');
+      const h2hContent = document.getElementById('h2hContent');
+      
+      if (report.h2h.totalGames > 0) {
+        h2hSection.style.display = 'block';
+        
+        const gamesHTML = report.h2h.games.slice().reverse().slice(0, 5).map(game => `
+          <tr>
+            <td>${new Date(game.date).toLocaleDateString('he-IL')}</td>
+            <td style="text-align: center;"><strong>${game.teamAScore} - ${game.teamBScore}</strong></td>
+            <td style="text-align: center;">${game.winner}</td>
+            <td style="text-align: center;">${game.margin}</td>
+          </tr>
+        `).join('');
+
+        h2hContent.innerHTML = `
+          <p style="margin-bottom: 15px; font-size: 16px;">
+            <strong>${report.h2h.totalGames}</strong> משחקים בעונה זו | 
+            <strong>${report.teamA.name}:</strong> ${report.h2h.teamAWins} ניצחונות | 
+            <strong>${report.teamB.name}:</strong> ${report.h2h.teamBWins} ניצחונות
+          </p>
+          <table class="h2h-table">
+            <thead>
+              <tr>
+                <th>תאריך</th>
+                <th style="text-align: center;">תוצאה</th>
+                <th style="text-align: center;">מנצח</th>
+                <th style="text-align: center;">פער</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${gamesHTML}
+            </tbody>
+          </table>
+        `;
+      } else {
+        h2hSection.style.display = 'none';
+      }
+
+      // Insights
+      const insightsSection = document.getElementById('insightsSection');
+      const insightsContent = document.getElementById('insightsContent');
+
+      // אם יש InsightsV2 - הצג לפי קטגוריות
+      if (report.insightsV2) {
+        const categoriesOrder = ['STREAKS', 'PLAYERS', 'OFFENSE', 'DEFENSE', 'MOMENTUM', 'H2H', 'QUARTERS', 'LEAGUE'];
+        const categoryNames = {
+          'STREAKS': '🔥 רצפים ופטרנים',
+          'PLAYERS': '⭐ שחקנים',
+          'OFFENSE': '⚔️ התקפה',
+          'DEFENSE': '🛡️ הגנה',
+          'MOMENTUM': '📊 מומנטום',
+          'H2H': '🤝 מפגשים ישירים',
+          'QUARTERS': '⏱️ ניתוח רבעים',
+          'LEAGUE': '🏆 יחסי לליגה'
+        };
+
+        let hasInsights = false;
+        let html = '';
+
+        categoriesOrder.forEach(category => {
+          const categoryInsights = report.insightsV2[category];
+          if (categoryInsights && categoryInsights.length > 0) {
+            hasInsights = true;
+            html += `
+              <div style="margin-bottom: 25px;">
+                <h3 style="font-size: 18px; color: #667eea; margin-bottom: 12px; font-weight: 600;">
+                  ${categoryNames[category]}
+                </h3>
+                ${categoryInsights.map(insight => `
+                  <div class="insight-card ${insight.importance}">
+                    <div class="icon">${insight.icon}</div>
+                    <div class="text">${insight.text}</div>
+                  </div>
+                `).join('')}
+              </div>
+            `;
+          }
+        });
+
+        if (hasInsights) {
+          insightsSection.style.display = 'block';
+          insightsContent.innerHTML = html;
+        } else {
+          insightsSection.style.display = 'none';
+        }
+      }
+      // Fallback למערכת הישנה
+      else if (report.insights && report.insights.length > 0) {
+        insightsSection.style.display = 'block';
+        insightsContent.innerHTML = report.insights.map(insight => `
+          <div class="insight-card ${insight.importance}">
+            <div class="icon">${insight.icon}</div>
+            <div class="text">${insight.text}</div>
+          </div>
+        `).join('');
+      } else {
+        insightsSection.style.display = 'none';
+      }
+
+      // Narrative Sections
+      const narrativeSections = document.getElementById('narrativeSections');
+      narrativeSections.innerHTML = Object.entries(report.narrative.sections).map(([title, points]) => `
+        <div class="narrative-section">
+          <h3>${title}</h3>
+          ${points.map(point => `<div class="narrative-point">${point}</div>`).join('')}
+        </div>
+      `).join('');
+    }
+
+    function getTrendBadge(trend) {
+      if (trend === 'improving') {
+        return '<span class="trend-indicator trend-improving">📈 עולה</span>';
+      } else if (trend === 'declining') {
+        return '<span class="trend-indicator trend-declining">📉 יורדת</span>';
+      } else {
+        return '<span class="trend-indicator trend-stable">➡️ יציבה</span>';
+      }
+    }
+
+    console.log('🎯 Game Prep Pure API page loaded');
+  </script>
+</body>
+</html>
+
+
+
+
