@@ -57,7 +57,13 @@ class IBBAAnalytics {
             total3PA: 0,
             totalFTM: 0,
             totalFTA: 0,
-            totalEfficiency: 0
+            totalEfficiency: 0,
+            // סטטיסטיקות מתקדמות
+            totalPointsFastBreak: 0,
+            totalPointsFromTurnovers: 0,
+            totalPointsInPaint: 0,
+            totalPointsSecondChance: 0,
+            totalPointsBench: 0
           };
         }
 
@@ -96,6 +102,12 @@ class IBBAAnalytics {
           stats.total3PA += teamStatsForGame.threePointsAttempted || 0;
           stats.totalFTM += teamStatsForGame.freeThrowsMade || 0;
           stats.totalFTA += teamStatsForGame.freeThrowsAttempted || 0;
+          // סטטיסטיקות מתקדמות
+          stats.totalPointsFastBreak += teamStatsForGame.pointsFastBreak || 0;
+          stats.totalPointsFromTurnovers += teamStatsForGame.pointsFromTurnovers || 0;
+          stats.totalPointsInPaint += teamStatsForGame.pointsInPaint || 0;
+          stats.totalPointsSecondChance += teamStatsForGame.pointsSecondChance || 0;
+          stats.totalPointsBench += teamStatsForGame.pointsBench || 0;
         } else {
           // Fallback: אם אין teamStats, סכום מהשחקנים (backwards compatibility)
           const teamPlayers = game.players.filter(p => p.teamName === teamName);
@@ -167,11 +179,27 @@ class IBBAAnalytics {
         // יעילות (מסכום השחקנים מה-API)
         efficiencyAvg: (team.totalEfficiency / games).toFixed(1),
         
-        // סכומים (לצורך מיון מתקדם)
+        // סטטיסטיקות מתקדמות - ממוצעים
+        fastBreakPpg: (team.totalPointsFastBreak / games).toFixed(1),
+        pointsFromToPpg: (team.totalPointsFromTurnovers / games).toFixed(1),
+        paintPpg: (team.totalPointsInPaint / games).toFixed(1),
+        secondChancePpg: (team.totalPointsSecondChance / games).toFixed(1),
+        benchPpg: (team.totalPointsBench / games).toFixed(1),
+        
+        // סכומים (לצורך מיון מתקדם ו-insights)
         _totalPoints: team.totalPoints,
         _totalRebounds: team.totalRebounds,
         _totalAssists: team.totalAssists,
-        _totalEfficiency: team.totalEfficiency
+        _totalEfficiency: team.totalEfficiency,
+        _totalFGA: team.totalFGA,
+        _totalFGM: team.totalFGM,
+        _total3PA: team.total3PA,
+        _total3PM: team.total3PM,
+        _totalPointsFastBreak: team.totalPointsFastBreak,
+        _totalPointsFromTurnovers: team.totalPointsFromTurnovers,
+        _totalPointsInPaint: team.totalPointsInPaint,
+        _totalPointsSecondChance: team.totalPointsSecondChance,
+        _totalPointsBench: team.totalPointsBench
       });
     });
 
@@ -180,6 +208,76 @@ class IBBAAnalytics {
 
     console.timeEnd('⏱️ Team Averages Calculation');
     return teamAverages;
+  }
+
+  /**
+   * קבלת מאזן בית/חוץ לכל קבוצה
+   * @returns {Object} מפה של teamName -> { home: {...}, away: {...} }
+   */
+  getTeamHomeAwayRecords() {
+    console.time('⏱️ Home/Away Records Calculation');
+    
+    const homeAwayRecords = {};
+
+    this.games.forEach(game => {
+      game.teams.forEach(team => {
+        const teamName = team.name;
+        const isHome = team.isHome;
+        
+        if (!homeAwayRecords[teamName]) {
+          homeAwayRecords[teamName] = {
+            teamName: teamName,
+            home: {
+              games: 0,
+              wins: 0,
+              losses: 0,
+              totalPoints: 0,
+              totalPointsAgainst: 0
+            },
+            away: {
+              games: 0,
+              wins: 0,
+              losses: 0,
+              totalPoints: 0,
+              totalPointsAgainst: 0
+            }
+          };
+        }
+
+        const record = homeAwayRecords[teamName];
+        const location = isHome ? record.home : record.away;
+        
+        // ניקוד
+        const teamScore = isHome ? game.homeScore : game.awayScore;
+        const oppScore = isHome ? game.awayScore : game.homeScore;
+        
+        location.games++;
+        location.totalPoints += teamScore || 0;
+        location.totalPointsAgainst += oppScore || 0;
+        
+        // ניצחונות/הפסדים
+        if (teamScore > oppScore) {
+          location.wins++;
+        } else if (teamScore < oppScore) {
+          location.losses++;
+        }
+      });
+    });
+
+    // חישוב ממוצעים
+    Object.values(homeAwayRecords).forEach(record => {
+      ['home', 'away'].forEach(location => {
+        const loc = record[location];
+        const games = loc.games || 1;
+        
+        loc.ppg = (loc.totalPoints / games).toFixed(1);
+        loc.oppPpg = (loc.totalPointsAgainst / games).toFixed(1);
+        loc.winPct = loc.games > 0 ? ((loc.wins / loc.games) * 100).toFixed(1) : '0.0';
+      });
+    });
+
+    console.timeEnd('⏱️ Home/Away Records Calculation');
+    return homeAwayRecords;
   }
 
   /**
