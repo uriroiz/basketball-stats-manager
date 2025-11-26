@@ -678,6 +678,114 @@
             </div>
           </div>
         </div>
+
+        <!-- ============================================ -->
+        <!-- ADVANCED INSIGHTS V2 (NEW SECTION)          -->
+        <!-- ============================================ -->
+        <div id="advancedAnalysis" class="hidden">
+          <!-- Loading indicator -->
+          <div id="analysisLoading" class="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center mb-6">
+            <div class="text-4xl mb-3">⏳</div>
+            <p class="text-blue-800 font-semibold">מבצע ניתוח מתקדם...</p>
+            <p class="text-sm text-blue-600 mt-2">טוען טבלת ליגה, נתונים מתקדמים וטרנדים אחרונים</p>
+            <p class="text-xs text-blue-500 mt-3">⏱️ אנא המתינו עד 60 שניות</p>
+          </div>
+
+          <!-- TL;DR Section -->
+          <div id="tldrSection" class="hidden bg-gradient-to-br from-purple-50 to-blue-50 border-2 border-purple-300 rounded-lg p-5 mb-6 shadow-md">
+            <h3 class="text-xl font-bold text-purple-900 mb-4 flex items-center gap-2">
+              ⚡ סיכום מהיר לשדרן
+            </h3>
+            <div id="tldrContent" class="space-y-2 text-gray-800">
+              <!-- TL;DR bullets will be populated here -->
+            </div>
+          </div>
+
+          <!-- Teams Comparison Cards -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <!-- Team A Card -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-5 shadow-sm">
+              <h4 id="teamAHeaderAdvanced" class="text-lg font-bold text-blue-900 mb-4 flex items-center gap-2">
+                🏀 קבוצה א'
+              </h4>
+              <div id="teamAStatsAdvanced" class="space-y-2 text-sm">
+                <!-- Team A stats will be populated here -->
+              </div>
+            </div>
+
+            <!-- Team B Card -->
+            <div class="bg-green-50 border border-green-200 rounded-lg p-5 shadow-sm">
+              <h4 id="teamBHeaderAdvanced" class="text-lg font-bold text-green-900 mb-4 flex items-center gap-2">
+                🏀 קבוצה ב'
+              </h4>
+              <div id="teamBStatsAdvanced" class="space-y-2 text-sm">
+                <!-- Team B stats will be populated here -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Insights V2 Section -->
+          <div class="bg-amber-50 border border-amber-200 rounded-lg p-5 mb-6 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-bold text-amber-900 flex items-center gap-2">
+                💡 תובנות מרכזיות למשחק
+              </h3>
+              <button onclick="regenerateInsights()" class="text-xs bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-md transition-colors">
+                🎲 וריאציות חדשות
+              </button>
+            </div>
+
+            <!-- Insights Categories Tabs -->
+            <div class="flex flex-wrap gap-2 mb-4 border-b border-amber-300 pb-3">
+              <button onclick="showInsightCategory('all')" class="insight-cat-tab active px-3 py-1.5 text-sm rounded-md bg-amber-200 text-amber-900 font-medium hover:bg-amber-300 transition-colors">
+                🎯 הכל
+              </button>
+              <button onclick="showInsightCategory('STREAKS')" class="insight-cat-tab px-3 py-1.5 text-sm rounded-md hover:bg-amber-100 transition-colors">
+                🔥 רצפים
+              </button>
+              <button onclick="showInsightCategory('PLAYERS')" class="insight-cat-tab px-3 py-1.5 text-sm rounded-md hover:bg-amber-100 transition-colors">
+                👤 שחקנים
+              </button>
+              <button onclick="showInsightCategory('OFFENSE')" class="insight-cat-tab px-3 py-1.5 text-sm rounded-md hover:bg-amber-100 transition-colors">
+                ⚡ התקפה
+              </button>
+              <button onclick="showInsightCategory('DEFENSE')" class="insight-cat-tab px-3 py-1.5 text-sm rounded-md hover:bg-amber-100 transition-colors">
+                🛡️ הגנה
+              </button>
+              <button onclick="showInsightCategory('LEAGUE')" class="insight-cat-tab px-3 py-1.5 text-sm rounded-md hover:bg-amber-100 transition-colors">
+                📊 ליגה
+              </button>
+              <button onclick="showInsightCategory('MOMENTUM')" class="insight-cat-tab px-3 py-1.5 text-sm rounded-md hover:bg-amber-100 transition-colors">
+                📈 מומנטום
+              </button>
+              <button onclick="showInsightCategory('H2H')" class="insight-cat-tab px-3 py-1.5 text-sm rounded-md hover:bg-amber-100 transition-colors">
+                🤝 H2H
+              </button>
+              <button onclick="showInsightCategory('QUARTERS')" class="insight-cat-tab px-3 py-1.5 text-sm rounded-md hover:bg-amber-100 transition-colors">
+                🕐 רבעים
+              </button>
+            </div>
+
+            <!-- Insights Counter -->
+            <div id="insightsCounter" class="text-xs text-amber-700 mb-3 font-medium">
+              <!-- Will show insight counts -->
+            </div>
+
+            <!-- Insights Display -->
+            <div id="insightsDisplay" class="space-y-3">
+              <!-- Insights will be populated here -->
+            </div>
+          </div>
+
+          <!-- H2H Advanced Section -->
+          <div id="h2hAdvancedSection" class="hidden bg-indigo-50 border border-indigo-200 rounded-lg p-5 shadow-sm">
+            <h3 class="text-lg font-bold text-indigo-900 mb-4">📜 מפגשים ישירים - ניתוח מפורט</h3>
+            <div id="h2hAdvancedContent" class="space-y-3">
+              <!-- H2H advanced data will be populated here -->
+            </div>
+          </div>
+        </div>
+        <!-- END ADVANCED INSIGHTS V2 -->
       </div>
     </section>
   </div>
@@ -689,6 +797,11 @@
   <script src="js/ibba/ibba_analytics.js?v=7"></script>
   <script src="js/ibba/ibba_player_names.js?v=8" defer></script>
   <script src="js/app_upcoming_games_pure.js?v=2" defer></script>
+  
+  <!-- Insights V2 System -->
+  <script src="js/ibba/ibba_insights_templates.js"></script>
+  <script src="js/ibba/ibba_insights_v2.js"></script>
+  <script src="js/ibba/ibba_advanced.js"></script>
 
   <script>
     // ========================================
@@ -2295,13 +2408,16 @@
         analysisSection.classList.remove('hidden');
       }
       
-      // Load all analyses
+      // Load all analyses (existing functionality)
       loadTeamAverages(homeTeamName, awayTeamName);
       loadLastFiveGames(homeTeamName, awayTeamName);
       loadHeadToHeadHistory(homeTeamName, awayTeamName);
       loadPlayersForComparison(homeTeamName, awayTeamName);
       
-      console.log('✅ Game analysis complete');
+      // NEW: Perform advanced analysis with Insights V2
+      await performAdvancedAnalysis(homeTeamName, awayTeamName);
+      
+      console.log('✅ Game analysis complete (including advanced insights)');
     }
     
     /**
@@ -2931,6 +3047,380 @@
           setTimeout(() => statusDiv.style.display = 'none', 3000);
         }
       }
+    }
+
+    // ========================================
+    // ADVANCED INSIGHTS V2 INTEGRATION
+    // ========================================
+    
+    // Store current report for insights regeneration
+    let currentAdvancedReport = null;
+    
+    /**
+     * Perform advanced analysis using Insights V2 system
+     */
+    async function performAdvancedAnalysis(homeTeam, awayTeam) {
+      console.log(`🔬 Performing advanced analysis: ${homeTeam} vs ${awayTeam}`);
+      
+      // Show advanced section and loading
+      const advancedSection = document.getElementById('advancedAnalysis');
+      const loadingDiv = document.getElementById('analysisLoading');
+      const tldrSection = document.getElementById('tldrSection');
+      
+      if (advancedSection) advancedSection.classList.remove('hidden');
+      if (loadingDiv) loadingDiv.classList.remove('hidden');
+      if (tldrSection) tldrSection.classList.add('hidden');
+      
+      try {
+        // Initialize analytics with all games
+        if (!window.IBBAAnalytics) {
+          throw new Error('IBBAAnalytics not loaded');
+        }
+        if (!window.IBBAAdvanced) {
+          throw new Error('IBBAAdvanced not loaded');
+        }
+        
+        const analytics = new window.IBBAAnalytics(allGames);
+        const advanced = new window.IBBAAdvanced(analytics);
+        
+        // העבר שמות שחקנים אם זמין
+        if (window.playerNamesLoader) {
+          advanced.setPlayerNames(window.playerNamesLoader);
+          console.log('✅ Player names connected to Insights V2');
+        }
+        
+        // Build matchup report (this will load standings from HTML)
+        const report = await advanced.buildMatchupReport(homeTeam, awayTeam);
+        currentAdvancedReport = report;
+        
+        console.log('📊 Advanced report generated:', report);
+        
+        // Hide loading
+        if (loadingDiv) loadingDiv.classList.add('hidden');
+        
+        // Display results
+        displayAdvancedAnalysis(report);
+        
+      } catch (error) {
+        console.error('❌ Advanced analysis failed:', error);
+        if (loadingDiv) {
+          loadingDiv.innerHTML = `
+            <div class="text-red-600">
+              <div class="text-4xl mb-3">⚠️</div>
+              <p class="font-semibold">שגיאה בניתוח מתקדם</p>
+              <p class="text-sm mt-2">${error.message}</p>
+            </div>
+          `;
+        }
+      }
+    }
+    
+    /**
+     * Display advanced analysis results
+     */
+    function displayAdvancedAnalysis(report) {
+      console.log('🎨 Displaying advanced analysis results');
+      
+      // Display TL;DR
+      displayTLDR(report.narrative.tldr);
+      
+      // Display team cards
+      displayTeamCard('teamAHeaderAdvanced', 'teamAStatsAdvanced', report.teamA, report.comparison);
+      displayTeamCard('teamBHeaderAdvanced', 'teamBStatsAdvanced', report.teamB, report.comparison);
+      
+      // Display Insights V2
+      displayInsightsV2(report.insightsV2);
+      
+      // Display H2H if available
+      if (report.h2h.totalGames > 0) {
+        displayH2HAdvanced(report.h2h);
+      }
+      
+      // Show TL;DR section
+      const tldrSection = document.getElementById('tldrSection');
+      if (tldrSection) tldrSection.classList.remove('hidden');
+    }
+    
+    /**
+     * Display TL;DR (quick summary for broadcasters)
+     */
+    function displayTLDR(tldrItems) {
+      const container = document.getElementById('tldrContent');
+      if (!container || !tldrItems) return;
+      
+      container.innerHTML = tldrItems.map(item => `
+        <div class="flex items-start gap-3 bg-white/60 rounded-lg p-3 border border-purple-200">
+          <span class="text-purple-600 text-lg">▪</span>
+          <span class="text-gray-800 leading-relaxed">${item}</span>
+        </div>
+      `).join('');
+    }
+    
+    /**
+     * Display team card with stats
+     */
+    function displayTeamCard(headerId, statsId, teamData, comparison) {
+      const header = document.getElementById(headerId);
+      const stats = document.getElementById(statsId);
+      
+      if (!header || !stats) return;
+      
+      const team = teamData.name;
+      const rank = teamData.rank || '?';
+      const record = `${teamData.stats?.wins || 0}-${teamData.stats?.losses || 0}`;
+      
+      // Update header with rank
+      header.innerHTML = `
+        🏀 ${team}
+        <span class="text-sm font-normal">מקום ${rank} (${record})</span>
+      `;
+      
+      // Build stats HTML
+      const statsData = teamData.stats || {};
+      const trend = teamData.trend || {};
+      
+      stats.innerHTML = `
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-white/70 rounded p-2">
+            <div class="text-xs text-gray-600">ניקוד</div>
+            <div class="font-bold text-lg">${parseFloat(statsData.ppg || 0).toFixed(1)}</div>
+          </div>
+          <div class="bg-white/70 rounded p-2">
+            <div class="text-xs text-gray-600">הגנה</div>
+            <div class="font-bold text-lg">${parseFloat(statsData.oppPpg || 0).toFixed(1)}</div>
+          </div>
+          <div class="bg-white/70 rounded p-2">
+            <div class="text-xs text-gray-600">ריבאונדים</div>
+            <div class="font-bold text-lg">${parseFloat(statsData.rpg || 0).toFixed(1)}</div>
+          </div>
+          <div class="bg-white/70 rounded p-2">
+            <div class="text-xs text-gray-600">אסיסטים</div>
+            <div class="font-bold text-lg">${parseFloat(statsData.apg || 0).toFixed(1)}</div>
+          </div>
+        </div>
+        
+        ${trend.streak ? `
+          <div class="mt-3 p-2 rounded ${trend.streak.type === 'win' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+            <div class="text-xs font-medium">רצף נוכחי</div>
+            <div class="font-bold">${trend.streak.count} ${trend.streak.type === 'win' ? 'ניצחונות' : 'הפסדים'}</div>
+          </div>
+        ` : ''}
+        
+        ${trend.lastNWins !== undefined ? `
+          <div class="mt-2 p-2 bg-white/70 rounded">
+            <div class="text-xs text-gray-600">5 משחקים אחרונים</div>
+            <div class="font-bold">${trend.lastNWins}/${trend.lastN || 5} ניצחונות</div>
+          </div>
+        ` : ''}
+      `;
+    }
+    
+    /**
+     * Display Insights V2
+     */
+    function displayInsightsV2(insightsV2) {
+      if (!insightsV2) {
+        console.warn('⚠️ No insights V2 data');
+        return;
+      }
+      
+      // Store all insights globally for filtering
+      window.currentInsights = insightsV2;
+      
+      // Count insights by category
+      const counts = {};
+      let totalCount = 0;
+      Object.entries(insightsV2).forEach(([category, insights]) => {
+        counts[category] = insights.length;
+        totalCount += insights.length;
+      });
+      
+      // Update counter
+      const counter = document.getElementById('insightsCounter');
+      if (counter) {
+        counter.innerHTML = `
+          סה"כ ${totalCount} תובנות:
+          ${Object.entries(counts).filter(([_, count]) => count > 0).map(([cat, count]) => 
+            `<span class="mr-2">${getCategoryIcon(cat)} ${count}</span>`
+          ).join(' • ')}
+        `;
+      }
+      
+      // Show all insights initially
+      showInsightCategory('all');
+    }
+    
+    /**
+     * Get category icon
+     */
+    function getCategoryIcon(category) {
+      const icons = {
+        'STREAKS': '🔥',
+        'PLAYERS': '👤',
+        'OFFENSE': '⚡',
+        'DEFENSE': '🛡️',
+        'MOMENTUM': '📈',
+        'H2H': '🤝',
+        'QUARTERS': '🕐',
+        'LEAGUE': '📊'
+      };
+      return icons[category] || '💡';
+    }
+    
+    /**
+     * Show insights by category
+     */
+    function showInsightCategory(category) {
+      const insights = window.currentInsights;
+      if (!insights) return;
+      
+      // Update active tab
+      document.querySelectorAll('.insight-cat-tab').forEach(btn => {
+        btn.classList.remove('active', 'bg-amber-200', 'text-amber-900', 'font-medium');
+      });
+      
+      // Add active class to clicked button or first button for 'all'
+      if (typeof event !== 'undefined' && event.target) {
+        event.target.classList.add('active', 'bg-amber-200', 'text-amber-900', 'font-medium');
+      } else if (category === 'all') {
+        // Auto-select first button when called without event
+        const firstButton = document.querySelector('.insight-cat-tab');
+        if (firstButton) {
+          firstButton.classList.add('active', 'bg-amber-200', 'text-amber-900', 'font-medium');
+        }
+      }
+      
+      // Collect insights to display
+      let insightsToShow = [];
+      
+      if (category === 'all') {
+        // Show all categories
+        Object.entries(insights).forEach(([cat, items]) => {
+          items.forEach(item => {
+            insightsToShow.push({ ...item, category: cat });
+          });
+        });
+      } else {
+        // Show specific category
+        insightsToShow = (insights[category] || []).map(item => ({ ...item, category }));
+      }
+      
+      // Sort by importance
+      const importanceOrder = { 'high': 0, 'medium': 1, 'low': 2 };
+      insightsToShow.sort((a, b) => {
+        const aImp = importanceOrder[a.importance] || 2;
+        const bImp = importanceOrder[b.importance] || 2;
+        return aImp - bImp;
+      });
+      
+      // Render insights
+      const container = document.getElementById('insightsDisplay');
+      if (!container) return;
+      
+      if (insightsToShow.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-8 text-gray-500">
+            <div class="text-4xl mb-2">🤷</div>
+            <p>אין תובנות בקטגוריה זו</p>
+          </div>
+        `;
+        return;
+      }
+      
+      container.innerHTML = insightsToShow.map(insight => {
+        const importanceColors = {
+          'high': 'bg-red-50 border-red-300 text-red-900',
+          'medium': 'bg-blue-50 border-blue-300 text-blue-900',
+          'low': 'bg-gray-50 border-gray-300 text-gray-900'
+        };
+        const colorClass = importanceColors[insight.importance] || importanceColors['low'];
+        
+        return `
+          <div class="insight-item ${colorClass} border rounded-lg p-3 hover:shadow-md transition-shadow">
+            <div class="flex items-start gap-3">
+              <span class="text-2xl">${insight.icon || '💡'}</span>
+              <div class="flex-1">
+                <div class="text-sm font-medium leading-relaxed">${insight.text}</div>
+              </div>
+              <span class="text-xs px-2 py-1 bg-white/60 rounded-full whitespace-nowrap">
+                ${getCategoryIcon(insight.category)} ${getCategoryName(insight.category)}
+              </span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    /**
+     * Get category name in Hebrew
+     */
+    function getCategoryName(category) {
+      const names = {
+        'STREAKS': 'רצפים',
+        'PLAYERS': 'שחקנים',
+        'OFFENSE': 'התקפה',
+        'DEFENSE': 'הגנה',
+        'MOMENTUM': 'מומנטום',
+        'H2H': 'H2H',
+        'QUARTERS': 'רבעים',
+        'LEAGUE': 'ליגה'
+      };
+      return names[category] || category;
+    }
+    
+    /**
+     * Regenerate insights with new variations
+     */
+    function regenerateInsights() {
+      if (!currentAdvancedReport) {
+        console.warn('⚠️ No report to regenerate');
+        return;
+      }
+      
+      console.log('🎲 Regenerating insights with new variations...');
+      
+      // Just re-display the insights (templates are randomly selected each time)
+      displayInsightsV2(currentAdvancedReport.insightsV2);
+    }
+    
+    /**
+     * Display H2H advanced data
+     */
+    function displayH2HAdvanced(h2h) {
+      const section = document.getElementById('h2hAdvancedSection');
+      const container = document.getElementById('h2hAdvancedContent');
+      
+      if (!section || !container) return;
+      
+      section.classList.remove('hidden');
+      
+      container.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div class="bg-white rounded-lg p-4 text-center">
+            <div class="text-3xl font-bold text-indigo-600">${h2h.totalGames}</div>
+            <div class="text-sm text-gray-600">סה"כ משחקים</div>
+          </div>
+          <div class="bg-white rounded-lg p-4 text-center">
+            <div class="text-3xl font-bold text-green-600">${h2h.teamAWins}-${h2h.teamBWins}</div>
+            <div class="text-sm text-gray-600">מאזן ניצחונות</div>
+          </div>
+          <div class="bg-white rounded-lg p-4 text-center">
+            <div class="text-3xl font-bold text-orange-600">${h2h.avgMargin}</div>
+            <div class="text-sm text-gray-600">פער ממוצע</div>
+          </div>
+        </div>
+        
+        ${h2h.lastMeeting ? `
+          <div class="bg-white rounded-lg p-4">
+            <h4 class="font-semibold text-indigo-800 mb-2">מפגש אחרון</h4>
+            <p class="text-gray-800">
+              <span class="font-bold">${h2h.lastMeeting.winner}</span> ניצחה 
+              ${h2h.lastMeeting.teamAScore}-${h2h.lastMeeting.teamBScore}
+              (פער: ${h2h.lastMeeting.margin} נקודות)
+            </p>
+          </div>
+        ` : ''}
+      `;
     }
     
   </script>
