@@ -2500,7 +2500,7 @@ class IBBAInsightsV2 {
         halftimeDeficits,
         percentage: (comebackPct * 100).toFixed(0),
         icon: '🐢',
-        text: `${teamName} מתחילה לאט אבל מסיימת חזק - ${comebackWins} ניצחונות מתוך ${halftimeDeficits} משחקים שפיגרו במחצית (${(comebackPct * 100).toFixed(0)}%)`,
+        text: `${teamName} מתחילה לאט אבל מסיימת חזק - ${comebackWins} ניצחונות מתוך ${halftimeDeficits} משחקים שבהם פיגרה במחצית המשחק (${(comebackPct * 100).toFixed(0)}%)`,
         textShort: `${comebackWins}/${halftimeDeficits} קאמבקים ממחצית`
       };
     }
