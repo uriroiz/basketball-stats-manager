@@ -389,11 +389,13 @@ class IBBAInsightsV2 {
   /**
    * זיהוי שחקן "בוער" (Hot Hand)
    * שחקן שקולע מעל 150% מהממוצע שלו ב-3 משחקים אחרונים
+   * + בדיקה אם השיפור נובע מדקות נוספות
    */
   detectHotHand(teamName, games) {
     const MIN_GAMES = 5; // מינימום משחקים לחישוב ממוצע עונתי
     const RECENT_WINDOW = 3;
     const THRESHOLD = 1.5; // 150%
+    const MIN_MINUTES_INCREASE = 1.25; // אם שחקן שיחק יותר מ-125% מהדקות הרגילות
     
     // אסוף נתוני שחקנים
     const playerGames = {};
@@ -416,7 +418,8 @@ class IBBAInsightsV2 {
         
         playerGames[playerId].games.push({
           date: game.date,
-          points: player.stats?.points || 0
+          points: player.stats?.points || 0,
+          minutes: player.stats?.minutes || 0
         });
       });
     });
@@ -428,17 +431,34 @@ class IBBAInsightsV2 {
       // מיון לפי תאריך
       data.games.sort((a, b) => new Date(b.date) - new Date(a.date));
       
-      // חישוב ממוצע עונתי
+      // חישוב נקודות
       const seasonAvg = data.games.reduce((sum, g) => sum + g.points, 0) / data.games.length;
-      
-      // חישוב ממוצע ב-3 אחרונים
       const recentGames = data.games.slice(0, RECENT_WINDOW);
       const recentAvg = recentGames.reduce((sum, g) => sum + g.points, 0) / recentGames.length;
+      
+      // חישוב דקות
+      const seasonMinutesAvg = data.games.reduce((sum, g) => sum + g.minutes, 0) / data.games.length;
+      const recentMinutesAvg = recentGames.reduce((sum, g) => sum + g.minutes, 0) / recentGames.length;
       
       // בדיקת סף
       if (recentAvg >= seasonAvg * THRESHOLD && seasonAvg >= 8) { // מינימום 8 נק' בממוצע
         const percentAbove = ((recentAvg / seasonAvg - 1) * 100).toFixed(0);
         const playerName = this.getPlayerDisplayName(playerId, data.jersey, teamName);
+        
+        // בדיקה: האם השיפור נובע מעלייה בדקות?
+        let minutesNote = '';
+        if (seasonMinutesAvg > 5) { // רק אם יש לנו נתוני דקות משמעותיים
+          const minutesRatio = recentMinutesAvg / seasonMinutesAvg;
+          
+          if (minutesRatio > MIN_MINUTES_INCREASE) {
+            // הדקות עלו משמעותית - השיפור מוסבר חלקית
+            const minutesPercentIncrease = ((minutesRatio - 1) * 100).toFixed(0);
+            minutesNote = ` (עם ${recentMinutesAvg.toFixed(1)} דק' למשחק לעומת ${seasonMinutesAvg.toFixed(1)} בממוצע העונה)`;
+          } else if (minutesRatio <= 1.1) {
+            // הדקות דומות - השיפור מרשים יותר
+            minutesNote = ` (עם ${recentMinutesAvg.toFixed(1)} דק' למשחק כרגיל!)`;
+          }
+        }
         
         return {
           type: 'HOT_HAND',
@@ -451,8 +471,10 @@ class IBBAInsightsV2 {
           seasonAvg: seasonAvg.toFixed(1),
           recentAvg: recentAvg.toFixed(1),
           percentAbove,
+          seasonMinutesAvg: seasonMinutesAvg.toFixed(1),
+          recentMinutesAvg: recentMinutesAvg.toFixed(1),
           icon: '🔥',
-          text: `${playerName} של ${teamName} בוער! ${recentAvg.toFixed(1)} נק' ב-3 משחקים אחרונים (לעומת ${seasonAvg.toFixed(1)} עונתי) - +${percentAbove}%`,
+          text: `${playerName} בוער! ${recentAvg.toFixed(1)} נק' ב-3 משחקים אחרונים (לעומת ${seasonAvg.toFixed(1)} עונתי) - +${percentAbove}%${minutesNote}`,
           textShort: `${playerName} בוער (${recentAvg.toFixed(1)} vs ${seasonAvg.toFixed(1)})`
         };
       }
@@ -464,11 +486,13 @@ class IBBAInsightsV2 {
   /**
    * זיהוי שחקן "קר" (Cold Spell)
    * שחקן שקולע מתחת ל-60% מהממוצע שלו ב-3 משחקים אחרונים
+   * + בדיקה אם הירידה נובעת מדקות פחותות
    */
   detectColdSpell(teamName, games) {
     const MIN_GAMES = 5;
     const RECENT_WINDOW = 3;
     const THRESHOLD = 0.6; // 60%
+    const MIN_MINUTES_DROP = 0.75; // אם שחקן שיחק פחות מ-75% מהדקות הרגילות
     
     const playerGames = {};
     
@@ -490,7 +514,8 @@ class IBBAInsightsV2 {
         
         playerGames[playerId].games.push({
           date: game.date,
-          points: player.stats?.points || 0
+          points: player.stats?.points || 0,
+          minutes: player.stats?.minutes || 0
         });
       });
     });
@@ -500,13 +525,33 @@ class IBBAInsightsV2 {
       
       data.games.sort((a, b) => new Date(b.date) - new Date(a.date));
       
+      // חישוב נקודות
       const seasonAvg = data.games.reduce((sum, g) => sum + g.points, 0) / data.games.length;
       const recentGames = data.games.slice(0, RECENT_WINDOW);
       const recentAvg = recentGames.reduce((sum, g) => sum + g.points, 0) / recentGames.length;
       
+      // חישוב דקות
+      const seasonMinutesAvg = data.games.reduce((sum, g) => sum + g.minutes, 0) / data.games.length;
+      const recentMinutesAvg = recentGames.reduce((sum, g) => sum + g.minutes, 0) / recentGames.length;
+      
       if (recentAvg <= seasonAvg * THRESHOLD && seasonAvg >= 10) {
         const percentBelow = ((1 - recentAvg / seasonAvg) * 100).toFixed(0);
         const playerName = this.getPlayerDisplayName(playerId, data.jersey, teamName);
+        
+        // בדיקה: האם הירידה בנקודות נובעת מירידה בדקות?
+        let minutesNote = '';
+        if (seasonMinutesAvg > 5) { // רק אם יש לנו נתוני דקות משמעותיים
+          const minutesRatio = recentMinutesAvg / seasonMinutesAvg;
+          
+          if (minutesRatio < MIN_MINUTES_DROP) {
+            // הדקות ירדו משמעותית - הירידה מוסברת
+            const minutesPercentDrop = ((1 - minutesRatio) * 100).toFixed(0);
+            minutesNote = ` (שיחק רק ${recentMinutesAvg.toFixed(1)} דק' למשחק לעומת ${seasonMinutesAvg.toFixed(1)} בממוצע העונה)`;
+          } else if (minutesRatio >= 0.9) {
+            // הדקות דומות - הירידה מדאיגה יותר
+            minutesNote = ` (למרות ${recentMinutesAvg.toFixed(1)} דק' למשחק כרגיל)`;
+          }
+        }
         
         return {
           type: 'COLD_SPELL',
@@ -519,8 +564,10 @@ class IBBAInsightsV2 {
           seasonAvg: seasonAvg.toFixed(1),
           recentAvg: recentAvg.toFixed(1),
           percentBelow,
+          seasonMinutesAvg: seasonMinutesAvg.toFixed(1),
+          recentMinutesAvg: recentMinutesAvg.toFixed(1),
           icon: '❄️',
-          text: `${playerName} של ${teamName} במשבר - רק ${recentAvg.toFixed(1)} נק' ב-3 משחקים אחרונים (לעומת ${seasonAvg.toFixed(1)} עונתי) - ירידה של ${percentBelow}%`,
+          text: `${playerName} במשבר - רק ${recentAvg.toFixed(1)} נק' ב-3 משחקים אחרונים (לעומת ${seasonAvg.toFixed(1)} עונתי) - ירידה של ${percentBelow}%${minutesNote}`,
           textShort: `${playerName} במשבר (${recentAvg.toFixed(1)} vs ${seasonAvg.toFixed(1)})`
         };
       }
@@ -579,7 +626,7 @@ class IBBAInsightsV2 {
       
       if (h2hAvg >= seasonAvg * THRESHOLD && seasonAvg >= 8) {
         const percentAbove = ((h2hAvg / seasonAvg - 1) * 100).toFixed(0);
-        const playerName = this.getPlayerDisplayName(playerId, data.jersey);
+        const playerName = this.getPlayerDisplayName(playerId, data.jersey, teamName);
         
         return {
           type: 'KILLER_VS_TEAM',
@@ -595,7 +642,7 @@ class IBBAInsightsV2 {
           h2hGames: h2hData.games,
           percentAbove,
           icon: '🎯',
-          text: `${playerName} של ${teamName} = הרוצח של ${opponentName}! ממוצע של ${h2hAvg.toFixed(1)} נק' במפגשים (לעומת ${seasonAvg.toFixed(1)} עונתי) - +${percentAbove}%`,
+          text: `${playerName} = הרוצח של ${opponentName}! ממוצע של ${h2hAvg.toFixed(1)} נק' במפגשים (לעומת ${seasonAvg.toFixed(1)} עונתי) - +${percentAbove}%`,
           textShort: `${playerName} רוצח של ${opponentName}`
         };
       }
@@ -936,7 +983,7 @@ class IBBAInsightsV2 {
     });
     
     if (mostConsistent) {
-      const playerName = this.getPlayerDisplayName(mostConsistent.playerId, mostConsistent.jersey);
+      const playerName = this.getPlayerDisplayName(mostConsistent.playerId, mostConsistent.jersey, teamName);
       return {
         type: 'MR_CONSISTENT',
         category: 'PLAYERS',
@@ -944,7 +991,7 @@ class IBBAInsightsV2 {
         teamName,
         playerName,
         icon: '📊',
-        text: `${playerName} של ${teamName} = עקביות מוחלטת! ${mostConsistent.mean.toFixed(1)} נק' בממוצע עם סטיית תקן ${mostConsistent.stdDev.toFixed(1)} בלבד`,
+        text: `${playerName} = עקביות מוחלטת! ${mostConsistent.mean.toFixed(1)} נק' בממוצע עם סטיית תקן ${mostConsistent.stdDev.toFixed(1)} בלבד`,
         textShort: `${playerName}: עקביות גבוהה`
       };
     }
@@ -993,7 +1040,7 @@ class IBBAInsightsV2 {
     });
     
     if (mostVolatile) {
-      const playerName = this.getPlayerDisplayName(mostVolatile.playerId, mostVolatile.jersey);
+      const playerName = this.getPlayerDisplayName(mostVolatile.playerId, mostVolatile.jersey, teamName);
       return {
         type: 'BOOM_OR_BUST',
         category: 'PLAYERS',
@@ -1001,7 +1048,7 @@ class IBBAInsightsV2 {
         teamName,
         playerName,
         icon: '🎢',
-        text: `${playerName} של ${teamName} = לא צפוי! ${mostVolatile.mean.toFixed(1)} נק' בממוצע אבל סטיית תקן ${mostVolatile.stdDev.toFixed(1)} - גבוה או נמוך`,
+        text: `${playerName} = לא צפוי! ${mostVolatile.mean.toFixed(1)} נק' בממוצע אבל סטיית תקן ${mostVolatile.stdDev.toFixed(1)} - גבוה או נמוך`,
         textShort: `${playerName}: לא עקבי`
       };
     }
@@ -1058,7 +1105,7 @@ class IBBAInsightsV2 {
     });
     
     if (hero) {
-      const playerName = this.getPlayerDisplayName(hero.playerId, hero.jersey);
+      const playerName = this.getPlayerDisplayName(hero.playerId, hero.jersey, teamName);
       return {
         type: 'HOME_COURT_HERO',
         category: 'PLAYERS',
@@ -1066,7 +1113,7 @@ class IBBAInsightsV2 {
         teamName,
         playerName,
         icon: '🏠',
-        text: `${playerName} של ${teamName} אוהב את הבית! ${hero.homePpg.toFixed(1)} נק' בבית לעומת ${hero.awayPpg.toFixed(1)} בחוץ (+${hero.diff.toFixed(1)})`,
+        text: `${playerName} אוהב את הבית! ${hero.homePpg.toFixed(1)} נק' בבית לעומת ${hero.awayPpg.toFixed(1)} בחוץ (+${hero.diff.toFixed(1)})`,
         textShort: `${playerName}: +${hero.diff.toFixed(1)} נק' בבית`
       };
     }
@@ -1125,7 +1172,7 @@ class IBBAInsightsV2 {
     });
     
     if (star) {
-      const playerName = this.getPlayerDisplayName(star.playerId, star.jersey);
+      const playerName = this.getPlayerDisplayName(star.playerId, star.jersey, teamName);
       return {
         type: 'RISING_STAR',
         category: 'PLAYERS',
@@ -1133,7 +1180,7 @@ class IBBAInsightsV2 {
         teamName,
         playerName,
         icon: '📈',
-        text: `${playerName} של ${teamName} במגמת עלייה! ${star.firstAvg.toFixed(1)} נק' בתחילה → ${star.secondAvg.toFixed(1)} נק' לאחרונה (+${star.improvementPct.toFixed(0)}%)`,
+        text: `${playerName} במגמת עלייה! ${star.firstAvg.toFixed(1)} נק' בתחילה → ${star.secondAvg.toFixed(1)} נק' לאחרונה (+${star.improvementPct.toFixed(0)}%)`,
         textShort: `${playerName}: +${star.improvementPct.toFixed(0)}% שיפור`
       };
     }
