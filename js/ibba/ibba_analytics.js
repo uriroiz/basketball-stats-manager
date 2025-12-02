@@ -281,6 +281,44 @@ class IBBAAnalytics {
   }
 
   /**
+   * קבלת סטטיסטיקות ליגה לניצחונות בבית/חוץ
+   * @returns {Object} ממוצעי ליגה לניצחונות
+   */
+  getLeagueHomeAwayStats() {
+    let homeWins = { count: 0, totalPoints: 0, totalPointsAgainst: 0 };
+    let awayWins = { count: 0, totalPoints: 0, totalPointsAgainst: 0 };
+    
+    this.games.forEach(game => {
+      if (game.homeScore > game.awayScore) {
+        // ניצחון בית
+        homeWins.count++;
+        homeWins.totalPoints += game.homeScore;
+        homeWins.totalPointsAgainst += game.awayScore;
+      } else if (game.awayScore > game.homeScore) {
+        // ניצחון חוץ
+        awayWins.count++;
+        awayWins.totalPoints += game.awayScore;
+        awayWins.totalPointsAgainst += game.homeScore;
+      }
+    });
+    
+    return {
+      // ממוצע נקודות בניצחון בית
+      homeWinAvgPpg: homeWins.count > 0 ? (homeWins.totalPoints / homeWins.count).toFixed(1) : '0',
+      homeWinAvgOppPpg: homeWins.count > 0 ? (homeWins.totalPointsAgainst / homeWins.count).toFixed(1) : '0',
+      // ממוצע נקודות בניצחון חוץ
+      awayWinAvgPpg: awayWins.count > 0 ? (awayWins.totalPoints / awayWins.count).toFixed(1) : '0',
+      awayWinAvgOppPpg: awayWins.count > 0 ? (awayWins.totalPointsAgainst / awayWins.count).toFixed(1) : '0',
+      // אחוז ניצחונות בית בליגה
+      homeWinPct: this.games.length > 0 ? ((homeWins.count / this.games.length) * 100).toFixed(1) : '0',
+      // סה"כ
+      homeWinsCount: homeWins.count,
+      awayWinsCount: awayWins.count,
+      totalGames: this.games.length
+    };
+  }
+
+  /**
    * ===============================================
    * PLAYER ANALYTICS - סטטיסטיקות שחקנים
    * ===============================================

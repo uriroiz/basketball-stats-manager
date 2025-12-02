@@ -1,5 +1,44 @@
 # Basketball Stats Manager - Changelog
 
+## [v2.4.0] - 2025-12-02 🏠
+
+### 🏠 New Features: Home/Away Venue Insights
+
+#### **New Analytics Function**
+- **`getLeagueHomeAwayStats()`** in `ibba_analytics.js`
+  - Calculates league-wide averages for home and away wins
+  - Returns: `homeWinAvgPpg`, `awayWinAvgPpg`, `homeWinPct`, etc.
+
+#### **6 New Venue Insights**
+
+| Insight | Description | Threshold |
+|---------|-------------|-----------|
+| **HOME_FORTRESS** (🏠) | Team dominant at home | 80%+ wins, 5+ games |
+| **AWAY_STRUGGLE** (✈️) | Team struggles away | <25% wins, 4+ games |
+| **ROAD_WARRIOR** (🛣️) | Team strong on the road | 65%+ wins, 5+ games |
+| **VENUE_SPLIT** (📊) | Big gap between home/away | 40%+ difference |
+| **HOME_WIN_ABOVE_AVG** (📈) | Wins at home with high scoring | +8 above league avg |
+| **AWAY_WIN_EFFICIENT** (🎯) | Wins away with low scoring | -5 below league avg |
+
+#### **Hebrew Templates**
+- Added 48 new Hebrew variations (8 per insight type)
+- Natural broadcaster-friendly language
+
+#### **Example Outputs**
+```
+"מכבי תל אביב מבצר בבית - 8-1 השנה (89%)"
+"הפועל ירושלים מתקשים בחוץ - 1 נצחון מ-7 משחקים (14%)"
+"פער דרמטי: מכבי חיפה 7-1 בבית (88%) אבל 2-6 בחוץ (25%)"
+"מכבי ת"א מנצחים בבית עם 91 נק' - 9 מעל ממוצע הליגה (82)"
+```
+
+### 📊 Technical Details
+- New category `VENUE` added to insights object
+- Insights generated for both teams in matchup
+- Compares team stats to league averages
+
+---
+
 ## [v2.3.0] - 2025-12-02 🧹
 
 ### 🧹 Cleanup & UX Improvements

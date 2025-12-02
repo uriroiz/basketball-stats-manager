@@ -254,6 +254,74 @@ const IBBAInsightTemplates = {
       "ספסל חלש יחסית ב-${teamName} - רק ${benchPct}% מסך הייצור",
       "המחליפים של ${teamName} תורמים רק ${benchPct}% מהנקודות",
       "${teamName} צריכה יותר מהספסל - כרגע רק ${benchPct}% מהייצור"
+    ],
+    
+    // ========== Home/Away Venue Insights (v2.4.0) ==========
+    
+    HOME_FORTRESS: [
+      "${teamName} מבצר בבית - ${wins}-${losses} השנה (${pct}%)",
+      "קשה לנצח את ${teamName} אצלם: ${pct}% נצחונות בבית",
+      "${teamName} כמעט בלתי מנוצחים בבית (${wins}-${losses})",
+      "היתרון הביתי של ${teamName} אמיתי: ${wins}-${losses} בבית",
+      "${teamName} שולטים בפרקט הביתי - ${pct}% נצחונות",
+      "הביתיות של ${teamName} מרשימה: ${wins} נצחונות מ-${wins}+${losses} משחקים",
+      "לא מפתיע לראות את ${teamName} מנצחים בבית (${wins}-${losses})",
+      "הביתיות משחקת ל-${teamName}: ${wins} נצחונות ורק ${losses} הפסדים"
+    ],
+    
+    AWAY_STRUGGLE: [
+      "${teamName} מתקשים בחוץ - ${wins} נצחונות מ-${games} משחקים (${pct}%)",
+      "בעיית החוץ של ${teamName}: רק ${wins}-${losses} הרחק מהבית",
+      "${teamName} לא מוצאים את עצמם בחוץ - ${pct}% נצחונות",
+      "קשה ל-${teamName} לנצח בחוץ: ${wins}-${losses} השנה",
+      "${teamName} עם מאזן חוץ חלש: ${wins} נצחונות מ-${games}",
+      "ההרחקה מהבית לא עושה טוב ל-${teamName}: ${pct}% נצחונות",
+      "${teamName} צריכים לשפר בחוץ - רק ${wins}-${losses}",
+      "מאזן חוץ בעייתי ל-${teamName}: ${wins}-${losses} (${pct}%)"
+    ],
+    
+    ROAD_WARRIOR: [
+      "${teamName} לוחמי חוץ - ${wins}-${losses} הרחק מהבית (${pct}%)",
+      "מפתיע: ${teamName} עם ${pct}% נצחונות בחוץ!",
+      "${teamName} מצטיינים דווקא בחוץ: ${wins}-${losses}",
+      "קבוצת חוץ: ${teamName} עם ${wins} נצחונות מ-${wins}+${losses} משחקים",
+      "${teamName} לא מפחדים לשחק בחוץ - ${pct}% נצחונות",
+      "הדרך לא מפריעה ל-${teamName}: ${wins}-${losses} בחוץ",
+      "${teamName} עם מאזן חוץ מרשים - ${pct}% נצחונות",
+      "לוחמי כביש: ${teamName} ${wins}-${losses} הרחק מהבית"
+    ],
+    
+    VENUE_SPLIT: [
+      "פער דרמטי: ${teamName} ${homeWins}-${homeLosses} בבית (${homePct}%) אבל ${awayWins}-${awayLosses} בחוץ (${awayPct}%)",
+      "שתי קבוצות שונות: ${teamName} בבית (${homePct}%) לעומת חוץ (${awayPct}%)",
+      "${teamName} עם פער של ${gap}% בין בית לחוץ",
+      "הבדל משמעותי: ${teamName} ${homeWins}-${homeLosses} בבית, ${awayWins}-${awayLosses} בחוץ",
+      "${teamName}: ${homePct}% בבית לעומת ${awayPct}% בחוץ - פער של ${gap}%",
+      "הביתיות קריטית ל-${teamName}: ${homePct}% בבית מול ${awayPct}% בחוץ",
+      "פערי מגרש: ${teamName} הרבה יותר טובים בבית (${homePct}%) מאשר בחוץ (${awayPct}%)",
+      "${teamName} קבוצה אחרת לגמרי בחוץ: ${awayPct}% לעומת ${homePct}% בבית"
+    ],
+    
+    HOME_WIN_ABOVE_AVG: [
+      "${teamName} מנצחים בבית עם ${ppg} נק' - ${diff} מעל ממוצע הליגה (${leagueAvg})",
+      "כשמנצחים בבית, ${teamName} עושים את זה בגדול: ${ppg} נק' (ממוצע: ${leagueAvg})",
+      "${teamName} מייצרים ${ppg} נק' בבית - +${diff} מממוצע הליגה",
+      "התקפה ביתית חזקה: ${teamName} עם ${ppg} נק' (${diff} מעל הממוצע)",
+      "${teamName} בבית = הרבה נקודות: ${ppg} בממוצע (+${diff} מהליגה)",
+      "ניקוד גבוה בבית: ${teamName} ${ppg} נק' (ממוצע ליגה ${leagueAvg})",
+      "${teamName} פורצים בבית: ${ppg} נק' בממוצע - ${diff} יותר מהממוצע",
+      "כוח התקפי ביתי: ${teamName} עם ${ppg} נק' (+${diff} מהליגה)"
+    ],
+    
+    AWAY_WIN_EFFICIENT: [
+      "${teamName} יודעים לנצח בחוץ גם עם מעט נקודות - ${ppg} נק' (ממוצע: ${leagueAvg})",
+      "יעילות בחוץ: ${teamName} מנצחים עם ${ppg} נק' (${diff} פחות מהממוצע)",
+      "${teamName} מנצחים צמוד בחוץ: ${ppg} נק' בממוצע",
+      "ניצחונות יעילים בחוץ: ${teamName} עם ${ppg} נק' (ליגה: ${leagueAvg})",
+      "${teamName} לא צריכים הרבה כדי לנצח בחוץ: ${ppg} נק'",
+      "ניצחונות צמודים בחוץ: ${teamName} ${ppg} נק' בממוצע",
+      "${teamName} משחקים חכם בחוץ - ${ppg} נק' מספיקים לנצח",
+      "יעילות התקפית בחוץ: ${teamName} מנצחים עם ${ppg} נק' בממוצע"
     ]
   }
 };
