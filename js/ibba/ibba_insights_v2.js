@@ -1781,9 +1781,11 @@ class IBBAInsightsV2 {
     
     // סף: 30%+ מהנקודות מהספסל OR 22+ נק' למשחק (יותר ריאליסטי)
     if (benchPct >= 30 || benchPpg >= 22) {
-      const template = window.IBBAInsightTemplates?.team?.STRONG_BENCH || [
-        '{teamName} נהנית מספסל חזק: {benchPpg} נק\' למשחק ({benchPct}% מהייצור)'
-      ];
+      const text = window.IBBAInsightTemplates?.getRandomText('team', 'STRONG_BENCH', {
+        teamName: teamName,
+        benchPpg: benchPpg.toFixed(1),
+        benchPct: benchPct.toFixed(0)
+      }) || `${teamName} נהנית מספסל חזק: ${benchPpg.toFixed(1)} נק' למשחק (${benchPct.toFixed(0)}% מהייצור)`;
       
       return {
         type: 'STRONG_BENCH',
@@ -1793,11 +1795,7 @@ class IBBAInsightsV2 {
         benchPpg: benchPpg.toFixed(1),
         benchPct: benchPct.toFixed(0),
         icon: '🪑',
-        text: this.formatTemplate(template, {
-          teamName: teamName,
-          benchPpg: benchPpg.toFixed(1),
-          benchPct: benchPct.toFixed(0)
-        }),
+        text,
         textShort: `ספסל ${benchPpg.toFixed(1)} נק\'`
       };
     }
@@ -1824,9 +1822,10 @@ class IBBAInsightsV2 {
     
     // סף: פחות מ-25% מהספסל = תלות גבוהה בחמישייה (עודכן להיות יותר ריאליסטי)
     if (benchPct <= 25) {
-      const template = window.IBBAInsightTemplates?.team?.LINEUP_DEPENDENT || [
-        '{teamName} תלויה בחמישייה הפותחת - רק {benchPct}% מהנקודות מהספסל'
-      ];
+      const text = window.IBBAInsightTemplates?.getRandomText('team', 'LINEUP_DEPENDENT', {
+        teamName: teamName,
+        benchPct: benchPct.toFixed(0)
+      }) || `${teamName} תלויה בחמישייה הפותחת - רק ${benchPct.toFixed(0)}% מהנקודות מהספסל`;
       
       return {
         type: 'LINEUP_DEPENDENT',
@@ -1835,10 +1834,7 @@ class IBBAInsightsV2 {
         teamName,
         benchPct: benchPct.toFixed(0),
         icon: '⚠️',
-        text: this.formatTemplate(template, {
-          teamName: teamName,
-          benchPct: benchPct.toFixed(0)
-        }),
+        text,
         textShort: `ספסל חלש (${benchPct.toFixed(0)}%)`
       };
     }
@@ -1887,9 +1883,11 @@ class IBBAInsightsV2 {
       .sort((a, b) => b.ppg - a.ppg)[0];
     
     if (topSub) {
-      const template = window.IBBAInsightTemplates?.team?.SUPER_SUB || [
-        '{player} עולה מהספסל של {teamName} ומוסיף {ppg} נק\' בממוצע'
-      ];
+      const text = window.IBBAInsightTemplates?.getRandomText('player', 'SUPER_SUB', {
+        teamName: teamName,
+        playerName: topSub.name,
+        ppg: topSub.ppg.toFixed(1)
+      }) || `${topSub.name} עולה מהספסל של ${teamName} ומוסיף ${topSub.ppg.toFixed(1)} נק' בממוצע`;
       
       return {
         type: 'SUPER_SUB',
@@ -1899,11 +1897,7 @@ class IBBAInsightsV2 {
         player: topSub.name,
         ppg: topSub.ppg.toFixed(1),
         icon: '⭐',
-        text: this.formatTemplate(template, {
-          teamName: teamName,
-          player: topSub.name,
-          ppg: topSub.ppg.toFixed(1)
-        }),
+        text,
         textShort: `${topSub.name}: ${topSub.ppg.toFixed(1)} נק\' (מחליף)`
       };
     }
