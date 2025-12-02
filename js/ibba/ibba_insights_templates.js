@@ -173,6 +173,17 @@ const IBBAInsightTemplates = {
       "עקביות מרשימה: ${playerName} עם ${doubleDoubles} דאבל-דאבלים ב-${games} משחקים",
       "${playerName} שחקן השלם - ${doubleDoubles}/${games} דאבל-דאבל",
       "כוח עבודה: ${playerName} עם ${doubleDoubles} דאבל-דאבלים ב-${games} משחקים"
+    ],
+    
+    SUPER_SUB: [
+      "${playerName} עולה מהספסל של ${teamName} ומוסיף ${ppg} נק' בממוצע",
+      "מחליף זהב: ${playerName} (${teamName}) עם ${ppg} נק' למשחק",
+      "${teamName} נהנית מ-${playerName} שמייצר ${ppg} נק' כמחליף",
+      "${playerName} - מחליף מפתיע של ${teamName} עם ${ppg} נקודות בממוצע",
+      "שחקן השישי של ${teamName}: ${playerName} מוסיף ${ppg} נק'",
+      "${teamName}: ${playerName} עולה מהספסל ומתפוצץ עם ${ppg} נק'",
+      "מחליף איכותי ב-${teamName} - ${playerName} (${ppg} נק' למשחק)",
+      "${playerName} של ${teamName}: ${ppg} נקודות כשחקן ספסל"
     ]
   },
   
@@ -243,17 +254,6 @@ const IBBAInsightTemplates = {
       "ספסל דל ב-${teamName} - רק ${benchPct}% מהייצור",
       "${teamName} מסתמכת על החמישייה הפותחת (${benchPct}% מהספסל)",
       "תרומת ספסל נמוכה ב-${teamName}: ${benchPct}%"
-    ],
-    
-    SUPER_SUB: [
-      "${player} עולה מהספסל של ${teamName} ומוסיף ${ppg} נק' בממוצע",
-      "מחליף זהב: ${player} (${teamName}) עם ${ppg} נק' למשחק",
-      "${teamName} נהנית מ-${player} שמייצר ${ppg} נק' כמחליף",
-      "${player} - מחליף מפתיע של ${teamName} עם ${ppg} נקודות בממוצע",
-      "שחקן השישי של ${teamName}: ${player} מוסיף ${ppg} נק'",
-      "${teamName}: ${player} עולה מהספסל ומתפוצץ עם ${ppg} נק'",
-      "מחליף איכותי ב-${teamName} - ${player} (${ppg} נק' למשחק)",
-      "${player} של ${teamName}: ${ppg} נקודות כשחקן ספסל"
     ]
   }
 };
