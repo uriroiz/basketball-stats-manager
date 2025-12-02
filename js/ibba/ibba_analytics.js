@@ -232,14 +232,16 @@ class IBBAAnalytics {
               wins: 0,
               losses: 0,
               totalPoints: 0,
-              totalPointsAgainst: 0
+              totalPointsAgainst: 0,
+              winPoints: 0  // נקודות רק בניצחונות
             },
             away: {
               games: 0,
               wins: 0,
               losses: 0,
               totalPoints: 0,
-              totalPointsAgainst: 0
+              totalPointsAgainst: 0,
+              winPoints: 0  // נקודות רק בניצחונות
             }
           };
         }
@@ -258,6 +260,7 @@ class IBBAAnalytics {
         // ניצחונות/הפסדים
         if (teamScore > oppScore) {
           location.wins++;
+          location.winPoints += teamScore || 0;  // נקודות רק בניצחונות
         } else if (teamScore < oppScore) {
           location.losses++;
         }
@@ -273,6 +276,7 @@ class IBBAAnalytics {
         loc.ppg = (loc.totalPoints / games).toFixed(1);
         loc.oppPpg = (loc.totalPointsAgainst / games).toFixed(1);
         loc.winPct = loc.games > 0 ? ((loc.wins / loc.games) * 100).toFixed(1) : '0.0';
+        loc.winPpg = loc.wins > 0 ? (loc.winPoints / loc.wins).toFixed(1) : '0';  // ממוצע נקודות בניצחונות בלבד
       });
     });
 

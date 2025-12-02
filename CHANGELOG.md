@@ -1,5 +1,28 @@
 # Basketball Stats Manager - Changelog
 
+## [v2.4.1] - 2025-12-02 🔧
+
+### 🐛 Bug Fix: Home/Away PPG Metrics Mismatch
+
+#### **Issue**
+The `detectHomeWinAboveAvg` and `detectAwayWinEfficient` functions were comparing mismatched metrics:
+- Team's overall home/away PPG (all games: wins + losses)
+- League's PPG for wins only
+
+This caused incorrect comparisons and misleading insights.
+
+#### **Fix**
+- Added `winPoints` and `winPpg` fields to `getTeamHomeAwayRecords()` in `ibba_analytics.js`
+- `winPpg` calculates average points scored only in wins (home/away)
+- Updated `detectHomeWinAboveAvg` to use `record.home.winPpg` instead of `record.home.ppg`
+- Updated `detectAwayWinEfficient` to use `record.away.winPpg` instead of `record.away.ppg`
+- Includes fallback to overall PPG for backward compatibility
+
+#### **Result**
+Fair comparison: team's win PPG vs league's win PPG
+
+---
+
 ## [v2.4.0] - 2025-12-02 🏠
 
 ### 🏠 New Features: Home/Away Venue Insights

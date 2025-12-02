@@ -2026,7 +2026,7 @@ class IBBAInsightsV2 {
     const record = homeAwayRecords[teamName];
     if (!record || !record.home || record.home.wins < MIN_WINS) return null;
     
-    const teamHomePpg = parseFloat(record.home.ppg);
+    const teamHomePpg = parseFloat(record.home.winPpg || record.home.ppg);
     const leagueAvg = parseFloat(leagueStats?.homeWinAvgPpg || 0);
     const diff = teamHomePpg - leagueAvg;
     
@@ -2065,7 +2065,7 @@ class IBBAInsightsV2 {
     const record = homeAwayRecords[teamName];
     if (!record || !record.away || record.away.wins < MIN_WINS) return null;
     
-    const teamAwayPpg = parseFloat(record.away.ppg);
+    const teamAwayPpg = parseFloat(record.away.winPpg || record.away.ppg);
     const leagueAvg = parseFloat(leagueStats?.awayWinAvgPpg || 0);
     const diff = teamAwayPpg - leagueAvg;
     
