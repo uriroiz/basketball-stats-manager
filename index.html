@@ -3088,6 +3088,28 @@
     let currentAdvancedReport = null;
     
     /**
+     * Find game by team names
+     */
+    function findGameByTeams(homeTeam, awayTeam) {
+      if (!allGames || allGames.length === 0) {
+        console.warn('⚠️ No games available to find match');
+        return null;
+      }
+      
+      const game = allGames.find(g => 
+        g.homeTeam === homeTeam && g.awayTeam === awayTeam
+      );
+      
+      if (game) {
+        console.log(`✅ Found game: ${homeTeam} vs ${awayTeam} on ${game.date}`);
+      } else {
+        console.warn(`⚠️ No game found for ${homeTeam} vs ${awayTeam}`);
+      }
+      
+      return game;
+    }
+
+    /**
      * Perform advanced analysis using Insights V2 system
      */
     async function performAdvancedAnalysis(homeTeam, awayTeam) {
@@ -3123,6 +3145,12 @@
         // Build matchup report (this will load standings from HTML)
         const report = await advanced.buildMatchupReport(homeTeam, awayTeam);
         currentAdvancedReport = report;
+        
+        // Find and save game info (including date) for export
+        const gameInfo = findGameByTeams(homeTeam, awayTeam);
+        if (gameInfo) {
+          currentAdvancedReport.gameInfo = gameInfo;
+        }
         
         console.log('📊 Advanced report generated:', report);
         
@@ -3536,13 +3564,20 @@
         const homeTeam = homeSelect?.selectedOptions?.[0]?.text || 'קבוצת-בית';
         const awayTeam = awaySelect?.selectedOptions?.[0]?.text || 'קבוצת-חוץ';
         
-        // Format date as DDMMYYYY
-        const now = new Date();
-        const day = String(now.getDate()).padStart(2, '0');
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const year = now.getFullYear();
-        const dateStr = `${day}${month}${year}`;
+        // Format date as DDMMYYYY (use game date if available)
+        let dateToUse;
+        if (currentAdvancedReport.gameInfo && currentAdvancedReport.gameInfo.date) {
+          dateToUse = new Date(currentAdvancedReport.gameInfo.date);
+          console.log('📅 Using game date:', currentAdvancedReport.gameInfo.date);
+        } else {
+          dateToUse = new Date();
+          console.log('📅 Using current date (no game date found)');
+        }
         
+        const day = String(dateToUse.getDate()).padStart(2, '0');
+        const month = String(dateToUse.getMonth() + 1).padStart(2, '0');
+        const year = dateToUse.getFullYear();
+        const dateStr = `${day}${month}${year}`;
         // Filename format: "הכנה למשחק_DDMMYYYY_שם-קבוצת-בית_נגד_שם-קבוצת-חוץ"
         const filename = `הכנה למשחק_${dateStr}_${homeTeam}_נגד_${awayTeam}.xlsx`;
 

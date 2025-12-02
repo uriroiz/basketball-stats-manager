@@ -1,5 +1,33 @@
 # Basketball Stats Manager - Changelog
 
+## [v2.4.6] - 2025-12-02 📅
+
+### 🐛 Fix: Excel Export Now Uses Game Date
+
+#### **Issue**
+The exported Excel file used today's date (file creation date) instead of the actual game date in the filename.
+
+#### **Fix**
+1. **Added `findGameByTeams()` function**:
+   - Searches `allGames` for a match between the selected home and away teams
+   - Returns the full game object including the date
+
+2. **Modified `performAdvancedAnalysis()`**:
+   - Calls `findGameByTeams()` after building the matchup report
+   - Saves the game info in `currentAdvancedReport.gameInfo`
+
+3. **Modified `exportInsightsToExcel()`**:
+   - Checks if `currentAdvancedReport.gameInfo.date` exists
+   - Uses the game date if available, falls back to current date if not
+   - Logs which date source is being used
+
+#### **Result**
+Excel files now have the correct game date in the filename:
+- Before: `הכנה למשחק_02122025_מכבי-תל-אביב_נגד_הפועל-ירושלים.xlsx` (today)
+- After: `הכנה למשחק_15122025_מכבי-תל-אביב_נגד_הפועל-ירושלים.xlsx` (actual game date)
+
+---
+
 ## [v2.4.5] - 2025-12-02 🐛🔧
 
 ### 🐛 Critical Fix: Excel RTL Actually Working Now
