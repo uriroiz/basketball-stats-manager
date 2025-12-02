@@ -1,5 +1,35 @@
 # Basketball Stats Manager - Changelog
 
+## [v2.4.4] - 2025-12-02 🔧
+
+### 🔧 Fix: Excel RTL with JSZip Post-Processing
+
+#### **Problem**
+SheetJS Community Edition (v0.20.1) does not serialize the `rightToLeft` property to XLSX files. The previous attempt with `ws['!views'][0] = { rightToLeft: true }` was ignored by Excel because it wasn't written to the OOXML.
+
+#### **Solution**
+Implemented post-processing with JSZip to inject `rightToLeft="1"` into the worksheet XML:
+- Added JSZip library (v3.10.1) via CDN
+- Modified `exportInsightsToExcel()` to be an async function
+- Write workbook to ArrayBuffer using SheetJS
+- Unzip the XLSX with JSZip
+- Patch `xl/worksheets/sheet1.xml` to add `<sheetView rightToLeft="1" .../>`
+- Re-zip and download the modified file
+
+#### **Technical Details**
+- Uses regex to inject `rightToLeft="1"` into existing `<sheetView>` or create new `<sheetViews>` section
+- Handles both cases: existing sheetViews and missing sheetViews
+- Replaces `XLSX.writeFile()` with Blob download for better control
+- Added error handling with try-catch and user-friendly alerts
+
+#### **Result**
+Excel files now correctly open in Right-to-Left mode with:
+- Hebrew text aligned right
+- Columns flowing from right to left (D → C → B → A)
+- Proper RTL reading direction
+
+---
+
 ## [v2.4.3] - 2025-12-02 🐛
 
 ### 🐛 Bug Fix: Excel Export Filename
