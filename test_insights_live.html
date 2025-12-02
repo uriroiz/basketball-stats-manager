@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>🔍 בדיקת Insights בזמן אמת</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+  <div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold mb-6">🔍 בדיקת Insights בזמן אמת</h1>
+    
+    <div class="bg-white rounded-lg shadow p-6 mb-4">
+      <h2 class="text-xl font-bold mb-4">בדיקה</h2>
+      <button onclick="testInsights()" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+        🧪 הרץ בדיקה
+      </button>
+    </div>
+    
+    <div id="results" class="space-y-4"></div>
+  </div>
+
+  <script src="js/ibba/ibba_adapter.js?v=2.2.7"></script>
+  <script src="js/ibba/ibba_analytics.js?v=2.2.7"></script>
+  <script src="js/ibba/ibba_insights_v2.js?v=2.2.7"></script>
+  <script src="js/ibba/ibba_insights_templates.js?v=2.2.7"></script>
+  
+  <script>
+    async function testInsights() {
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = '<div class="bg-blue-50 p-4 rounded">⏳ טוען נתונים...</div>';
+      
+      let html = '';
+      
+      try {
+        console.log('=== Starting Insights Test ===');
+        
+        // 1. בדוק שהפונקציות קיימות
+        html += '<div class="bg-white rounded-lg shadow p-6 mb-4">';
+        html += '<h3 class="text-lg font-bold mb-3">✅ בדיקת קיום פונקציות</h3>';
+        html += '<div class="space-y-2 text-sm">';
+        
+        const functionsToCheck = [
+          'detectStrongBench',
+          'detectLineupDependent',
+          'detectSuperSub'
+        ];
+        
+        functionsToCheck.forEach(funcName => {
+          const exists = typeof IBBAInsightsV2.prototype[funcName] === 'function';
+          const icon = exists ? '✅' : '❌';
+          html += `<div>${icon} ${funcName}: ${exists ? 'קיים' : 'לא קיים'}</div>`;
+          console.log(`${funcName}: ${exists}`);
+        });
+        
+        html += '</div></div>';
+        
+        // 2. טען משחקים ואנליטיקה
+        html += '<div class="bg-white rounded-lg shadow p-6 mb-4">';
+        html += '<h3 class="text-lg font-bold mb-3">📊 טעינת נתונים</h3>';
+        
+        const adapter = new IBBAAdapter();
+        const games = await adapter.fetchGames(50);
+        const convertedGames = games.map(g => adapter.convertToInternalFormat(g));
+        
+        html += `<div class="text-sm">✅ נטענו ${convertedGames.length} משחקים</div>`;
+        console.log(`Loaded ${convertedGames.length} games`);
+        
+        const analytics = new IBBAAnalytics(convertedGames);
+        const teamStats = analytics.getTeamStats();
+        const teamAverages = analytics.getTeamAverages();
+        
+        html += `<div class="text-sm">✅ ${Object.keys(teamStats).length} קבוצות</div>`;
+        html += '</div>';
+        
+        // 3. בדוק את הפונקציות החדשות
+        const insights = new IBBAInsightsV2(analytics);
+        
+        html += '<div class="bg-white rounded-lg shadow p-6 mb-4">';
+        html += '<h3 class="text-lg font-bold mb-3">🧪 קריאה לפונקציות</h3>';
+        html += '<div class="space-y-4">';
+        
+        let foundInsights = 0;
+        
+        // בדיקת כל קבוצה
+        teamAverages.forEach(team => {
+          const teamName = team.teamName;
+          const benchPpg = team.totalPointsBench / team.gamesPlayed;
+          const benchPct = (team.totalPointsBench / team.totalPoints) * 100;
+          
+          // נסה detectStrongBench
+          const strongBench = insights.detectStrongBench(teamName, team, teamAverages);
+          if (strongBench) {
+            foundInsights++;
+            html += `<div class="bg-green-50 border border-green-200 p-3 rounded">`;
+            html += `<div class="font-bold">🪑 Strong Bench - ${teamName}</div>`;
+            html += `<div class="text-sm mt-1">נק' ספסל: ${benchPpg.toFixed(1)} (${benchPct.toFixed(0)}%)</div>`;
+            html += `<div class="text-sm text-gray-600 mt-1">${strongBench.text}</div>`;
+            html += `</div>`;
+            console.log('Strong Bench found:', teamName, strongBench);
+          }
+          
+          // נסה detectLineupDependent
+          const lineupDep = insights.detectLineupDependent(teamName, team, teamAverages);
+          if (lineupDep) {
+            foundInsights++;
+            html += `<div class="bg-yellow-50 border border-yellow-200 p-3 rounded">`;
+            html += `<div class="font-bold">⚠️ Lineup Dependent - ${teamName}</div>`;
+            html += `<div class="text-sm mt-1">נק' ספסל: ${benchPct.toFixed(0)}%</div>`;
+            html += `<div class="text-sm text-gray-600 mt-1">${lineupDep.text}</div>`;
+            html += `</div>`;
+            console.log('Lineup Dependent found:', teamName, lineupDep);
+          }
+        });
+        
+        if (foundInsights === 0) {
+          html += '<div class="bg-red-50 border border-red-200 p-3 rounded">';
+          html += '❌ לא נמצאו Insights! בדוק את הסיפים או את הנתונים.';
+          html += '</div>';
+        } else {
+          html += `<div class="bg-blue-50 border border-blue-200 p-3 rounded">`;
+          html += `✅ נמצאו ${foundInsights} Insights חדשים!`;
+          html += `</div>`;
+        }
+        
+        html += '</div></div>';
+        
+        // 4. הצג דוגמה של נתונים
+        html += '<div class="bg-white rounded-lg shadow p-6 mb-4">';
+        html += '<h3 class="text-lg font-bold mb-3">📋 דוגמת נתונים (3 קבוצות ראשונות)</h3>';
+        html += '<div class="overflow-x-auto">';
+        html += '<table class="min-w-full text-xs">';
+        html += '<thead class="bg-gray-50"><tr>';
+        html += '<th class="px-2 py-1">קבוצה</th>';
+        html += '<th class="px-2 py-1">משחקים</th>';
+        html += '<th class="px-2 py-1">נק\' ספסל</th>';
+        html += '<th class="px-2 py-1">נק\' כולל</th>';
+        html += '<th class="px-2 py-1">%</th>';
+        html += '<th class="px-2 py-1">ממוצע</th>';
+        html += '<th class="px-2 py-1">סף Strong?</th>';
+        html += '<th class="px-2 py-1">סף Lineup?</th>';
+        html += '</tr></thead><tbody>';
+        
+        teamAverages.slice(0, 3).forEach(team => {
+          const benchPpg = team.totalPointsBench / team.gamesPlayed;
+          const benchPct = (team.totalPointsBench / team.totalPoints) * 100;
+          const strongCheck = benchPct >= 30 || benchPpg >= 22;
+          const lineupCheck = benchPct <= 25;
+          
+          html += '<tr class="border-t">';
+          html += `<td class="px-2 py-1">${team.teamName}</td>`;
+          html += `<td class="px-2 py-1 text-center">${team.gamesPlayed}</td>`;
+          html += `<td class="px-2 py-1 text-center">${team.totalPointsBench}</td>`;
+          html += `<td class="px-2 py-1 text-center">${team.totalPoints}</td>`;
+          html += `<td class="px-2 py-1 text-center font-bold">${benchPct.toFixed(1)}%</td>`;
+          html += `<td class="px-2 py-1 text-center">${benchPpg.toFixed(1)}</td>`;
+          html += `<td class="px-2 py-1 text-center">${strongCheck ? '✅' : '❌'}</td>`;
+          html += `<td class="px-2 py-1 text-center">${lineupCheck ? '⚠️' : '✅'}</td>`;
+          html += '</tr>';
+        });
+        
+        html += '</tbody></table></div>';
+        html += '<div class="mt-3 text-xs text-gray-500">';
+        html += '<p>Strong Bench: 30% OR 22+ ppg</p>';
+        html += '<p>Lineup Dependent: ≤25%</p>';
+        html += '</div>';
+        html += '</div>';
+        
+        resultsDiv.innerHTML = html;
+        
+      } catch (error) {
+        html += `<div class="bg-red-50 border border-red-200 p-4 rounded">`;
+        html += `<h3 class="font-bold text-red-800 mb-2">❌ שגיאה</h3>`;
+        html += `<p class="text-red-700">${error.message}</p>`;
+        html += `<pre class="mt-2 text-xs overflow-x-auto">${error.stack}</pre>`;
+        html += `</div>`;
+        resultsDiv.innerHTML = html;
+        console.error('Test error:', error);
+      }
+    }
+  </script>
+</body>
+</html>
+
