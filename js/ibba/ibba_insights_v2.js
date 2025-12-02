@@ -1764,7 +1764,7 @@ class IBBAInsightsV2 {
   /**
    * זיהוי קבוצה עם ספסל חזק
    * מבוסס על pbc (pointsBench) שכבר מחושב ב-API
-   * סף: 35%+ מהנקודות מהספסל או 25+ נק' למשחק
+   * סף: 30%+ מהנקודות מהספסל OR 22+ נק' למשחק
    */
   detectStrongBench(teamName, teamData, allTeams) {
     const MIN_GAMES = 3;
@@ -1777,8 +1777,8 @@ class IBBAInsightsV2 {
     const totalPpg = teamData.totalPoints / teamData.gamesPlayed;
     const benchPct = (teamData.totalPointsBench / teamData.totalPoints) * 100;
     
-    // סף: 35%+ מהנקודות מהספסל AND 25+ נק' למשחק
-    if (benchPct >= 35 && benchPpg >= 25) {
+    // סף: 30%+ מהנקודות מהספסל OR 22+ נק' למשחק (יותר ריאליסטי)
+    if (benchPct >= 30 || benchPpg >= 22) {
       const template = window.IBBAInsightTemplates?.team?.STRONG_BENCH || [
         '{teamName} נהנית מספסל חזק: {benchPpg} נק\' למשחק ({benchPct}% מהייצור)'
       ];
@@ -1806,7 +1806,7 @@ class IBBAInsightsV2 {
   /**
    * זיהוי קבוצה תלויה בחמישייה הפותחת (ספסל חלש)
    * מבוסס על pbc (pointsBench) שכבר מחושב ב-API
-   * סף: פחות מ-20% מהנקודות מהספסל
+   * סף: פחות מ-25% מהנקודות מהספסל
    */
   detectLineupDependent(teamName, teamData, allTeams) {
     const MIN_GAMES = 3;
@@ -1817,8 +1817,8 @@ class IBBAInsightsV2 {
     
     const benchPct = (teamData.totalPointsBench / teamData.totalPoints) * 100;
     
-    // סף: פחות מ-20% מהספסל = תלות גבוהה בחמישייה
-    if (benchPct <= 20) {
+    // סף: פחות מ-25% מהספסל = תלות גבוהה בחמישייה (עודכן להיות יותר ריאליסטי)
+    if (benchPct <= 25) {
       const template = window.IBBAInsightTemplates?.team?.LINEUP_DEPENDENT || [
         '{teamName} תלויה בחמישייה הפותחת - רק {benchPct}% מהנקודות מהספסל'
       ];
@@ -1844,7 +1844,7 @@ class IBBAInsightsV2 {
   /**
    * זיהוי שחקן מחליף עם impact גבוה (Super Sub)
    * מבוסס על status: "sub" שכבר מגיע מה-API
-   * סף: 12+ נק' בממוצע כמחליף
+   * סף: 10+ נק' בממוצע כמחליף
    */
   detectSuperSub(teamName, teamGames) {
     const MIN_GAMES = 3;
@@ -1875,10 +1875,10 @@ class IBBAInsightsV2 {
         });
     });
     
-    // מצא את המחליף עם הממוצע הגבוה ביותר (12+ נק')
+    // מצא את המחליף עם הממוצע הגבוה ביותר (10+ נק' - עודכן להיות יותר ריאליסטי)
     const topSub = Object.values(subs)
       .map(s => ({ ...s, ppg: s.points / s.games }))
-      .filter(s => s.ppg >= 12 && s.games >= MIN_GAMES)
+      .filter(s => s.ppg >= 10 && s.games >= MIN_GAMES)
       .sort((a, b) => b.ppg - a.ppg)[0];
     
     if (topSub) {

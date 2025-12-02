@@ -5,22 +5,22 @@
 ### 🎯 New Features: Bench & Lineup Insights
 
 #### **Strong Bench Detection**
-- **Detection Logic**: Identifies teams with powerful bench players contributing 35%+ of total points
-- **Threshold**: 25+ points per game from bench AND 35%+ of team scoring
+- **Detection Logic**: Identifies teams with powerful bench players contributing significantly
+- **Threshold**: 30%+ of team scoring OR 22+ points per game from bench (more realistic)
 - **Data Source**: Uses `pbc` (Bench Points) from IBBA API's `sp_teams` - pre-calculated by the client
 - **Insight Example**: "מכבי תל אביב נהנית מספסל חזק: 32.5 נק' למשחק (38% מהייצור)"
 - **Category**: OFFENSE
 
 #### **Lineup Dependent Detection**
 - **Detection Logic**: Identifies teams heavily reliant on starting lineup (weak bench)
-- **Threshold**: Less than 20% of points from bench players
+- **Threshold**: Less than 25% of points from bench players (updated for better detection)
 - **Data Source**: Uses `pbc` (Bench Points) from IBBA API's `sp_teams`
 - **Insight Example**: "הפועל ירושלים תלויה בחמישייה הפותחת - רק 18% מהנקודות מהספסל"
 - **Category**: OFFENSE
 
 #### **Super Sub Detection**
-- **Detection Logic**: Identifies individual bench players with high impact (12+ ppg)
-- **Threshold**: 12+ points per game as a substitute, minimum 3 games
+- **Detection Logic**: Identifies individual bench players with high impact
+- **Threshold**: 10+ points per game as a substitute, minimum 3 games (updated for better detection)
 - **Data Source**: Uses `status: "lineup"` or `status: "sub"` from IBBA API's player performance data
 - **Insight Example**: "#23 עולה מהספסל של מכבי חיפה ומוסיף 14.2 נק' בממוצע"
 - **Category**: PLAYERS

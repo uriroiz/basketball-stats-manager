@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Debug Bench Insights</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+  <div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold mb-6">🔍 Debug: Bench Insights</h1>
+    
+    <div class="bg-white rounded-lg shadow p-6 mb-4">
+      <h2 class="text-xl font-bold mb-4">בדיקת נתונים מה-API</h2>
+      <button onclick="debugBenchData()" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+        🔍 בדוק נתונים
+      </button>
+    </div>
+    
+    <div id="results" class="space-y-4"></div>
+  </div>
+
+  <script src="js/ibba/ibba_adapter.js"></script>
+  <script src="js/ibba/ibba_analytics.js"></script>
+  <script src="js/ibba/ibba_insights_v2.js"></script>
+  <script src="js/ibba/ibba_insights_templates.js"></script>
+  
+  <script>
+    async function debugBenchData() {
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = '<div class="bg-blue-50 p-4 rounded">⏳ טוען נתונים...</div>';
+      
+      try {
+        // 1. טען משחקים
+        const adapter = new IBBAAdapter();
+        console.log('📡 Fetching games...');
+        const games = await adapter.fetchGames(50);
+        console.log(`✅ Loaded ${games.length} games`);
+        
+        // 2. המר לפורמט פנימי
+        const convertedGames = games.map(g => adapter.convertToInternalFormat(g));
+        console.log(`✅ Converted ${convertedGames.length} games`);
+        
+        // 3. חשב אנליטיקה
+        const analytics = new IBBAAnalytics(convertedGames);
+        const teamStats = analytics.getTeamStats();
+        const teamAverages = analytics.getTeamAverages();
+        
+        // 4. הצג תוצאות
+        let html = '<div class="bg-white rounded-lg shadow p-6">';
+        html += '<h3 class="text-xl font-bold mb-4">📊 נתוני ספסל לכל קבוצה</h3>';
+        html += '<div class="overflow-x-auto"><table class="min-w-full text-sm">';
+        html += '<thead class="bg-gray-50"><tr>';
+        html += '<th class="px-4 py-2 text-right">קבוצה</th>';
+        html += '<th class="px-4 py-2 text-center">משחקים</th>';
+        html += '<th class="px-4 py-2 text-center">נק\' ספסל</th>';
+        html += '<th class="px-4 py-2 text-center">נק\' כולל</th>';
+        html += '<th class="px-4 py-2 text-center">% ספסל</th>';
+        html += '<th class="px-4 py-2 text-center">ממוצע ספסל</th>';
+        html += '<th class="px-4 py-2 text-center">Strong Bench?</th>';
+        html += '<th class="px-4 py-2 text-center">Lineup Dep?</th>';
+        html += '</tr></thead><tbody>';
+        
+        teamAverages.sort((a, b) => {
+          const pctA = (a.totalPointsBench / a.totalPoints) * 100;
+          const pctB = (b.totalPointsBench / b.totalPoints) * 100;
+          return pctB - pctA;
+        });
+        
+        teamAverages.forEach(team => {
+          const benchPpg = team.totalPointsBench / team.gamesPlayed;
+          const benchPct = (team.totalPointsBench / team.totalPoints) * 100;
+          
+          // בדיקת תנאים
+          const isStrongBench = benchPct >= 35 && benchPpg >= 25;
+          const isLineupDep = benchPct <= 20;
+          
+          const rowClass = isStrongBench ? 'bg-green-50' : isLineupDep ? 'bg-yellow-50' : '';
+          
+          html += `<tr class="${rowClass}">`;
+          html += `<td class="px-4 py-2 font-medium">${team.teamName}</td>`;
+          html += `<td class="px-4 py-2 text-center">${team.gamesPlayed}</td>`;
+          html += `<td class="px-4 py-2 text-center">${team.totalPointsBench}</td>`;
+          html += `<td class="px-4 py-2 text-center">${team.totalPoints}</td>`;
+          html += `<td class="px-4 py-2 text-center font-bold">${benchPct.toFixed(1)}%</td>`;
+          html += `<td class="px-4 py-2 text-center">${benchPpg.toFixed(1)}</td>`;
+          html += `<td class="px-4 py-2 text-center">${isStrongBench ? '✅' : '❌'}</td>`;
+          html += `<td class="px-4 py-2 text-center">${isLineupDep ? '⚠️' : '✅'}</td>`;
+          html += '</tr>';
+        });
+        
+        html += '</tbody></table></div>';
+        
+        // הסברים
+        html += '<div class="mt-6 space-y-2 text-sm text-gray-600">';
+        html += '<p><strong>Strong Bench:</strong> 35%+ AND 25+ נק\' למשחק</p>';
+        html += '<p><strong>Lineup Dependent:</strong> מתחת ל-20%</p>';
+        html += '<p class="mt-4"><span class="bg-green-100 px-2 py-1 rounded">ירוק</span> = Strong Bench</p>';
+        html += '<p><span class="bg-yellow-100 px-2 py-1 rounded">צהוב</span> = Lineup Dependent</p>';
+        html += '</div>';
+        
+        html += '</div>';
+        
+        // בדיקת משחק בודד
+        html += '<div class="bg-white rounded-lg shadow p-6 mt-4">';
+        html += '<h3 class="text-xl font-bold mb-4">🎮 דוגמה ממשחק בודד</h3>';
+        const sampleGame = convertedGames[0];
+        if (sampleGame) {
+          html += '<pre class="bg-gray-50 p-4 rounded overflow-x-auto text-xs">';
+          html += 'Game ID: ' + sampleGame.gameId + '\n';
+          html += 'Teams: ' + sampleGame.homeTeam + ' vs ' + sampleGame.awayTeam + '\n\n';
+          html += 'Home Team Stats:\n';
+          html += JSON.stringify(sampleGame.teamStats?.home, null, 2) + '\n\n';
+          html += 'Away Team Stats:\n';
+          html += JSON.stringify(sampleGame.teamStats?.away, null, 2);
+          html += '</pre>';
+        }
+        html += '</div>';
+        
+        resultsDiv.innerHTML = html;
+        
+      } catch (error) {
+        resultsDiv.innerHTML = `
+          <div class="bg-red-50 border border-red-200 rounded p-4">
+            <h3 class="font-bold text-red-800 mb-2">❌ שגיאה</h3>
+            <p class="text-red-700">${error.message}</p>
+            <pre class="mt-2 text-xs">${error.stack}</pre>
+          </div>
+        `;
+        console.error('Debug error:', error);
+      }
+    }
+  </script>
+</body>
+</html>
+
