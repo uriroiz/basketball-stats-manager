@@ -1,5 +1,21 @@
 # Basketball Stats Manager - Changelog
 
+## [v2.2.9] - 2025-12-02 🔧
+
+### 🔧 Template Fixes
+
+#### **Fixed Template System Integration**
+- **Problem**: New insights were calling `this.formatTemplate()` which doesn't exist
+- **Solution**: Changed to use `window.IBBAInsightTemplates?.getRandomText()` like all other insights
+- **Problem**: `SUPER_SUB` template was in `team` category but code was looking in `player` category
+- **Solution**: Moved `SUPER_SUB` from `team` to `player` category and updated variable names (`${player}` → `${playerName}`)
+- **Impact**: All new insights (Strong Bench, Lineup Dependent, Super Sub) now work correctly
+- **Files Changed**: 
+  - `js/ibba/ibba_insights_v2.js` (template function calls)
+  - `js/ibba/ibba_insights_templates.js` (template location)
+
+---
+
 ## [v2.2.8] - 2025-12-02 🐛
 
 ### 🐛 Critical Bug Fix

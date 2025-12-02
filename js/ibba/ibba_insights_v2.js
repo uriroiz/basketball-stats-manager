@@ -1,6 +1,6 @@
 /**
  * IBBA Insights V2 - מערכת Insights מתקדמת לשדרני כדורסל
- * Version: 2.2.7 - Bench & Lineup Analysis
+ * Version: 2.2.9 - Bench & Lineup Analysis (Template Fixes)
  * 
  * קטגוריות:
  * 1. STREAKS - רצפים ופטרנים
