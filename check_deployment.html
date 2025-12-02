@@ -26,9 +26,9 @@
       
       const checks = [];
       
-      // 1. בדיקת ibba_insights_v2.js
+      // 1. בדיקת ibba_insights_v2.js (עם cache busting)
       try {
-        const response = await fetch('/js/ibba/ibba_insights_v2.js');
+        const response = await fetch('/js/ibba/ibba_insights_v2.js?v=2.2.7&t=' + Date.now());
         const text = await response.text();
         
         checks.push({
@@ -73,9 +73,9 @@
         });
       }
       
-      // 2. בדיקת ibba_insights_templates.js
+      // 2. בדיקת ibba_insights_templates.js (עם cache busting)
       try {
-        const response = await fetch('/js/ibba/ibba_insights_templates.js');
+        const response = await fetch('/js/ibba/ibba_insights_templates.js?v=2.2.7&t=' + Date.now());
         const text = await response.text();
         
         checks.push({
