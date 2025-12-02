@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>בדיקת Deployment</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+  <div class="max-w-2xl mx-auto">
+    <h1 class="text-3xl font-bold mb-6">🔍 בדיקת Deployment v2.2.7</h1>
+    
+    <div class="bg-white rounded-lg shadow p-6 mb-4">
+      <h2 class="text-xl font-bold mb-4">בדיקה אוטומטית</h2>
+      <button onclick="checkDeployment()" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+        ✅ בדוק עכשיו
+      </button>
+    </div>
+    
+    <div id="results" class="space-y-4"></div>
+  </div>
+
+  <script>
+    async function checkDeployment() {
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = '<div class="bg-blue-50 p-4 rounded">⏳ בודק...</div>';
+      
+      const checks = [];
+      
+      // 1. בדיקת ibba_insights_v2.js
+      try {
+        const response = await fetch('/js/ibba/ibba_insights_v2.js');
+        const text = await response.text();
+        
+        checks.push({
+          name: 'קובץ ibba_insights_v2.js',
+          items: [
+            {
+              check: 'detectStrongBench קיים',
+              pass: text.includes('detectStrongBench'),
+              expected: 'true',
+              actual: text.includes('detectStrongBench').toString()
+            },
+            {
+              check: 'detectLineupDependent קיים',
+              pass: text.includes('detectLineupDependent'),
+              expected: 'true',
+              actual: text.includes('detectLineupDependent').toString()
+            },
+            {
+              check: 'detectSuperSub קיים',
+              pass: text.includes('detectSuperSub'),
+              expected: 'true',
+              actual: text.includes('detectSuperSub').toString()
+            },
+            {
+              check: 'גרסה 2.2.7',
+              pass: text.includes('Version: 2.2.7'),
+              expected: '2.2.7',
+              actual: text.match(/Version: ([\d.]+)/)?.[1] || 'לא נמצא'
+            },
+            {
+              check: 'סיפים מעודכנים (30% OR 22+)',
+              pass: text.includes('benchPct >= 30 || benchPpg >= 22'),
+              expected: 'true',
+              actual: text.includes('benchPct >= 30 || benchPpg >= 22').toString()
+            }
+          ]
+        });
+      } catch (error) {
+        checks.push({
+          name: 'קובץ ibba_insights_v2.js',
+          error: error.message
+        });
+      }
+      
+      // 2. בדיקת ibba_insights_templates.js
+      try {
+        const response = await fetch('/js/ibba/ibba_insights_templates.js');
+        const text = await response.text();
+        
+        checks.push({
+          name: 'קובץ ibba_insights_templates.js',
+          items: [
+            {
+              check: 'STRONG_BENCH תבניות',
+              pass: text.includes('STRONG_BENCH'),
+              expected: 'true',
+              actual: text.includes('STRONG_BENCH').toString()
+            },
+            {
+              check: 'LINEUP_DEPENDENT תבניות',
+              pass: text.includes('LINEUP_DEPENDENT'),
+              expected: 'true',
+              actual: text.includes('LINEUP_DEPENDENT').toString()
+            },
+            {
+              check: 'SUPER_SUB תבניות',
+              pass: text.includes('SUPER_SUB'),
+              expected: 'true',
+              actual: text.includes('SUPER_SUB').toString()
+            }
+          ]
+        });
+      } catch (error) {
+        checks.push({
+          name: 'קובץ ibba_insights_templates.js',
+          error: error.message
+        });
+      }
+      
+      // הצגת תוצאות
+      let html = '';
+      checks.forEach(check => {
+        html += '<div class="bg-white rounded-lg shadow p-6">';
+        html += `<h3 class="text-lg font-bold mb-3">${check.name}</h3>`;
+        
+        if (check.error) {
+          html += `<div class="bg-red-50 border border-red-200 p-3 rounded">❌ שגיאה: ${check.error}</div>`;
+        } else {
+          const allPass = check.items.every(item => item.pass);
+          
+          html += '<div class="space-y-2">';
+          check.items.forEach(item => {
+            const icon = item.pass ? '✅' : '❌';
+            const color = item.pass ? 'green' : 'red';
+            html += `<div class="flex items-start gap-2 text-sm">`;
+            html += `<span class="text-${color}-600">${icon}</span>`;
+            html += `<div class="flex-1">`;
+            html += `<div class="font-medium">${item.check}</div>`;
+            if (!item.pass) {
+              html += `<div class="text-gray-500 text-xs mt-1">`;
+              html += `צפוי: ${item.expected}, קיבלתי: ${item.actual}`;
+              html += `</div>`;
+            }
+            html += `</div>`;
+            html += `</div>`;
+          });
+          html += '</div>';
+          
+          if (allPass) {
+            html += '<div class="mt-4 bg-green-50 border border-green-200 p-3 rounded">';
+            html += '🎉 הכל תקין! הקובץ עודכן בהצלחה';
+            html += '</div>';
+          } else {
+            html += '<div class="mt-4 bg-red-50 border border-red-200 p-3 rounded">';
+            html += '⚠️ הקובץ לא עודכן! צריך Purge Cache או Redeploy';
+            html += '</div>';
+          }
+        }
+        
+        html += '</div>';
+      });
+      
+      resultsDiv.innerHTML = html;
+    }
+  </script>
+</body>
+</html>
+
