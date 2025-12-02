@@ -13,12 +13,13 @@
 - Exports all insights to Excel (.xlsx format)
 - Organized by category (Streaks, Players, Offense, Defense, etc.)
 - Includes columns: Category, Importance, Team, Insight Text
-- Hebrew-formatted with proper RTL support
+- **RTL (Right-to-Left) enabled** - Excel opens with proper Hebrew text direction
 - Auto-sized columns for optimal readability
 
 #### **File Naming**
-- Automatic filename: `insights_{HomeTeam}_vs_{AwayTeam}_{Date}.xlsx`
-- Example: `insights_מכבי-תל-אביב_vs_הפועל-ירושלים_2025-12-02.xlsx`
+- Automatic filename: `הכנה למשחק_DDMMYYYY_שם-קבוצת-בית_נגד_שם-קבוצת-חוץ.xlsx`
+- Example: `הכנה למשחק_02122025_מכבי-תל-אביב_נגד_הפועל-ירושלים.xlsx`
+- Date format: DDMMYYYY (day/month/year)
 
 #### **Technical Details**
 - Uses SheetJS library (xlsx v0.20.1)

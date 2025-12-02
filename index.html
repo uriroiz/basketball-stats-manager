@@ -3477,6 +3477,10 @@
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet(excelData);
       
+      // Set RTL (Right-to-Left) for the worksheet
+      if (!ws['!views']) ws['!views'] = [{}];
+      ws['!views'][0] = { rightToLeft: true };
+      
       // Set column widths
       ws['!cols'] = [
         { wch: 15 },  // Category
@@ -3489,10 +3493,21 @@
       XLSX.utils.book_append_sheet(wb, ws, 'תובנות');
 
       // Generate filename with team names and date
-      const homeTeam = currentAdvancedReport.homeTeam || 'קבוצה-בית';
-      const awayTeam = currentAdvancedReport.awayTeam || 'קבוצה-חוץ';
-      const date = new Date().toISOString().split('T')[0];
-      const filename = `insights_${homeTeam}_vs_${awayTeam}_${date}.xlsx`;
+      // Get team names from selectors
+      const homeSelect = document.getElementById('teamASelect');
+      const awaySelect = document.getElementById('teamBSelect');
+      const homeTeam = homeSelect?.selectedOptions[0]?.text || 'קבוצת-בית';
+      const awayTeam = awaySelect?.selectedOptions[0]?.text || 'קבוצת-חוץ';
+      
+      // Format date as DDMMYYYY
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, '0');
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const year = now.getFullYear();
+      const dateStr = `${day}${month}${year}`;
+      
+      // Filename format: "הכנה למשחק_DDMMYYYY_שם-קבוצת-בית_נגד_שם-קבוצת-חוץ"
+      const filename = `הכנה למשחק_${dateStr}_${homeTeam}_נגד_${awayTeam}.xlsx`;
 
       // Save file
       XLSX.writeFile(wb, filename);
