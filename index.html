@@ -737,7 +737,7 @@
                 💡 תובנות מרכזיות למשחק
               </h3>
               <div class="flex gap-2">
-                <button onclick="exportInsightsToExcel()" class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-md transition-colors flex items-center gap-1">
+                <button onclick="handleExcelExport()" class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-md transition-colors flex items-center gap-1">
                   📊 ייצוא לאקסל
                 </button>
                 <button onclick="regenerateInsights()" class="text-xs bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-md transition-colors">
@@ -3417,6 +3417,14 @@
     /**
      * Export insights to Excel
      */
+    // Wrapper function for proper async error handling
+    function handleExcelExport() {
+      exportInsightsToExcel().catch(error => {
+        console.error('❌ Unhandled error in Excel export:', error);
+        alert('שגיאה לא צפויה ביצירת קובץ Excel: ' + error.message);
+      });
+    }
+
     async function exportInsightsToExcel() {
       if (!currentAdvancedReport || !currentAdvancedReport.insightsV2) {
         alert('אין תובנות לייצוא. אנא בחר משחק ובצע ניתוח תחילה.');
@@ -3506,7 +3514,7 @@
           // Inject rightToLeft="1" into sheetView
           if (xml.includes('<sheetViews')) {
             xml = xml.replace(
-              /<sheetView([^>]*)>/,
+              /<sheetView\\b([^>]*)>/,
               (m, attrs) =>
                 attrs.includes('rightToLeft=')
                   ? m.replace(/rightToLeft="[^"]*"/, 'rightToLeft="1"')
@@ -3514,7 +3522,7 @@
             );
           } else {
             xml = xml.replace(
-              /<worksheet([^>]*)>/,
+              /<worksheet\\b([^>]*)>/,
               `<worksheet$1><sheetViews><sheetView rightToLeft="1" workbookViewId="0"/></sheetViews>`
             );
           }

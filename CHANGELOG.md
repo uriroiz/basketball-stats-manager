@@ -1,5 +1,35 @@
 # Basketball Stats Manager - Changelog
 
+## [v2.4.5] - 2025-12-02 🐛🔧
+
+### 🐛 Critical Fix: Excel RTL Actually Working Now
+
+#### **Issues Found**
+1. **Async function called without await**: The `onclick` handler called `exportInsightsToExcel()` directly without proper error handling, causing silent failures.
+2. **Broken regex patterns**: The word boundary `\b` was incorrectly escaped as `\x08` (backspace character) instead of `\\b`, preventing the XML patching from matching correctly. This is why Excel files were still LTR in production!
+
+#### **Fixes Applied**
+1. **Added `handleExcelExport()` wrapper function**:
+   - Properly handles the async call with `.catch()`
+   - Surfaces any unhandled errors to the user with alerts
+   - Changed button onclick from `exportInsightsToExcel()` to `handleExcelExport()`
+
+2. **Fixed regex patterns**:
+   - Changed `/<sheetView\x08([^>]*)>/` → `/<sheetView\\b([^>]*)>/`
+   - Changed `/<worksheet\x08([^>]*)>/` → `/<worksheet\\b([^>]*)>/`
+   - Now properly matches XML elements with word boundaries
+   - The JSZip patching will now correctly inject `rightToLeft="1"`
+
+#### **Technical Details**
+- In JavaScript regex literals within strings, `\b` must be written as `\\b`
+- The previous fix incorrectly resulted in backspace characters (`\x08`)
+- Fixed using binary replacement to ensure correct escape sequences
+
+#### **Result**
+Excel files will NOW correctly open in RTL mode! The regex will properly match and modify the worksheet XML.
+
+---
+
 ## [v2.4.4] - 2025-12-02 🔧
 
 ### 🔧 Fix: Excel RTL with JSZip Post-Processing
