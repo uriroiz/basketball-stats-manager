@@ -235,25 +235,25 @@ const IBBAInsightTemplates = {
     // ========== Bench & Lineup Insights (v2.2.7) ==========
     
     STRONG_BENCH: [
-      "${teamName} נהנית מספסל חזק: ${benchPpg} נק' למשחק (${benchPct}% מהייצור)",
-      "ספסל עמוק ב-${teamName} - ${benchPpg} נקודות בממוצע (${benchPct}%)",
-      "${teamName}: ${benchPct}% מהנקודות מהספסל, ${benchPpg} נק' למשחק",
-      "עומק בספסל של ${teamName} - ${benchPpg} נקודות למשחק",
-      "${teamName} עם ספסל מפתיע: ${benchPct}% מהנקודות (${benchPpg} למשחק)",
-      "כוח הספסל של ${teamName}: ${benchPpg} נק' בממוצע",
-      "${teamName} - המחליפים מייצרים ${benchPpg} נקודות (${benchPct}%)",
-      "ספסל איכותי ב-${teamName}: ${benchPct}% מהייצור ההתקפי"
+      "${teamName} עם ספסל חזק - ${benchPpg} נק' למשחק מהמחליפים (${benchPct}%)",
+      "המחליפים של ${teamName} מייצרים ${benchPpg} נק' בממוצע - ${benchPct}% מהנקודות",
+      "ספסל עמוק ב-${teamName}: ${benchPpg} נק' למשחק (${benchPct}% מהייצור)",
+      "${teamName} מקבלת תרומה משמעותית מהספסל: ${benchPpg} נק' (${benchPct}%)",
+      "כוח הספסל של ${teamName}: ${benchPpg} נק' בממוצע, ${benchPct}% מהנקודות",
+      "עומק איכותי ב-${teamName} - המחליפים תורמים ${benchPpg} נק' למשחק",
+      "${teamName}: הספסל מוסיף ${benchPpg} נק' בממוצע (${benchPct}% מסך הייצור)",
+      "ספסל מרשים ב-${teamName} עם ${benchPpg} נק' למשחק - ${benchPct}% מהנקודות"
     ],
     
     LINEUP_DEPENDENT: [
       "${teamName} תלויה בחמישייה הפותחת - רק ${benchPct}% מהנקודות מהספסל",
-      "תלות בחמישייה: ${teamName} מקבלת רק ${benchPct}% מהספסל",
-      "${teamName} - הספסל תורם רק ${benchPct}% מהנקודות",
-      "חמישייה דומיננטית ב-${teamName}, הספסל רק ${benchPct}%",
-      "${teamName}: ${benchPct}% בלבד מהנקודות מהמחליפים",
-      "ספסל דל ב-${teamName} - רק ${benchPct}% מהייצור",
-      "${teamName} מסתמכת על החמישייה הפותחת (${benchPct}% מהספסל)",
-      "תרומת ספסל נמוכה ב-${teamName}: ${benchPct}%"
+      "החמישייה הפותחת סוחבת את ${teamName}: הספסל רק ${benchPct}%",
+      "${teamName} מסתמכת על החמישייה - הספסל תורם רק ${benchPct}%",
+      "תרומה נמוכה מהספסל ב-${teamName}: רק ${benchPct}% מהנקודות",
+      "${teamName}: ${benchPct}% בלבד מהנקודות מגיעות מהמחליפים",
+      "ספסל חלש יחסית ב-${teamName} - רק ${benchPct}% מסך הייצור",
+      "המחליפים של ${teamName} תורמים רק ${benchPct}% מהנקודות",
+      "${teamName} צריכה יותר מהספסל - כרגע רק ${benchPct}% מהייצור"
     ]
   }
 };

@@ -1,5 +1,25 @@
 # Basketball Stats Manager - Changelog
 
+## [v2.3.0] - 2025-12-02 🧹
+
+### 🧹 Cleanup & UX Improvements
+
+#### **Removed Duplicate Bench Insights**
+- **Problem**: Both `detectBenchPower` (old) and `detectStrongBench` (new) were active, causing duplicate insights for the same team
+- **Solution**: Removed `detectBenchPower` function and its calls, keeping only `detectStrongBench`
+- **Impact**: Each team now gets only ONE bench insight (no duplicates)
+
+#### **Improved Hebrew Templates**
+- **STRONG_BENCH**: Changed from "נהנית מספסל חזק" to more natural Hebrew like "עם ספסל חזק" or "המחליפים מייצרים"
+- **LINEUP_DEPENDENT**: Improved readability with "החמישייה הפותחת סוחבת" and "תרומה נמוכה מהספסל"
+- All templates now sound more natural and broadcaster-friendly
+
+#### **Files Changed**
+- `js/ibba/ibba_insights_v2.js` (removed detectBenchPower, updated calls)
+- `js/ibba/ibba_insights_templates.js` (improved Hebrew templates)
+
+---
+
 ## [v2.2.9] - 2025-12-02 🔧
 
 ### 🔧 Template Fixes

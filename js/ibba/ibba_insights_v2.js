@@ -1,6 +1,6 @@
 /**
  * IBBA Insights V2 - מערכת Insights מתקדמת לשדרני כדורסל
- * Version: 2.2.9 - Bench & Lineup Analysis (Template Fixes)
+ * Version: 2.3.0 - Clean Bench Insights (No Duplicates)
  * 
  * קטגוריות:
  * 1. STREAKS - רצפים ופטרנים
@@ -1475,53 +1475,7 @@ class IBBAInsightsV2 {
     return null;
   }
 
-  /**
-   * זיהוי Bench Power - ספסל חזק
-   */
-  detectBenchPower(teamName, teamData, allTeams) {
-    const THRESHOLD = 30; // 30 נק' למשחק
-    const MAX_RANK = 6; // רק חצי עליון
-    
-    if (!teamData || !teamData.benchPpg) return null;
-    
-    const benchPpg = parseFloat(teamData.benchPpg);
-    const benchPct = teamData._totalPointsBench && teamData._totalPoints 
-      ? (teamData._totalPointsBench / teamData._totalPoints * 100).toFixed(0)
-      : 0;
-    
-    if (benchPpg >= THRESHOLD) {
-      // חשב דירוג בליגה בנקודות מהספסל
-      const rank = this.getTeamRankInCategory(teamName, 'benchPpg', allTeams, false);
-      
-      // רק קבוצות בחצי העליון מקבלות Insight
-      if (!rank || rank > MAX_RANK) return null;
-      
-      const rankText = rank ? ` (מקום ${rank} בליגה בתרומת ספסל)` : '';
-      
-      // ניסוח דינמי לפי דירוג
-      let actionText;
-      if (rank === 1) {
-        actionText = 'הספסל הטוב ביותר בליגה';
-      } else if (rank === 2) {
-        actionText = 'ספסל מצוין';
-      } else {
-        actionText = 'ספסל חזק';
-      }
-      
-      return {
-        type: 'BENCH_POWER',
-        category: 'OFFENSE',
-        importance: rank === 1 ? 'high' : 'medium',
-        teamName,
-        value: benchPpg.toFixed(1),
-        rank,
-        icon: '🪑',
-        text: `${teamName}${rankText} - ${actionText}! ${benchPpg} נק' למשחק מהספסל (${benchPct}% מהנקודות)`,
-        textShort: `${benchPpg} נק' מהספסל`
-      };
-    }
-    return null;
-  }
+  // detectBenchPower removed - replaced by detectStrongBench (v2.2.7+)
 
   /**
    * זיהוי Worst Category - הקטגוריה החלשה ביותר (אתגר עיקרי)
@@ -3163,12 +3117,6 @@ class IBBAInsightsV2 {
     
     const paintDomB = this.detectPaintDominance(teamB, teamBData.stats, allTeams);
     if (paintDomB) insights.OFFENSE.push(paintDomB);
-    
-    const benchA = this.detectBenchPower(teamA, teamAData.stats, allTeams);
-    if (benchA) insights.OFFENSE.push(benchA);
-    
-    const benchB = this.detectBenchPower(teamB, teamBData.stats, allTeams);
-    if (benchB) insights.OFFENSE.push(benchB);
     
     // חמישייה מול ספסל - תמיד מעניין לשידור
     const startingVsBenchA = this.detectStartingVsBench(teamA, teamAData.stats, allTeams);

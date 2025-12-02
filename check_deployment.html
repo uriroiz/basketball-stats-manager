@@ -7,7 +7,7 @@
 </head>
 <body class="bg-gray-100 p-8">
   <div class="max-w-2xl mx-auto">
-    <h1 class="text-3xl font-bold mb-6">🔍 בדיקת Deployment v2.2.9</h1>
+    <h1 class="text-3xl font-bold mb-6">🔍 בדיקת Deployment v2.3.0</h1>
     
     <div class="bg-white rounded-lg shadow p-6 mb-4">
       <h2 class="text-xl font-bold mb-4">בדיקה אוטומטית</h2>
@@ -28,7 +28,7 @@
       
       // 1. בדיקת ibba_insights_v2.js (עם cache busting)
       try {
-        const response = await fetch('/js/ibba/ibba_insights_v2.js?v=2.2.9&t=' + Date.now());
+        const response = await fetch('/js/ibba/ibba_insights_v2.js?v=2.3.0&t=' + Date.now());
         const text = await response.text();
         
         checks.push({
