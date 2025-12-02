@@ -235,25 +235,25 @@ const IBBAInsightTemplates = {
     // ========== Bench & Lineup Insights (v2.2.7) ==========
     
     STRONG_BENCH: [
-      "${teamName} עם ספסל חזק - ${benchPpg} נק' למשחק מהמחליפים (${benchPct}%)",
-      "המחליפים של ${teamName} מייצרים ${benchPpg} נק' בממוצע - ${benchPct}% מהנקודות",
-      "ספסל עמוק ב-${teamName}: ${benchPpg} נק' למשחק (${benchPct}% מהייצור)",
-      "${teamName} מקבלת תרומה משמעותית מהספסל: ${benchPpg} נק' (${benchPct}%)",
-      "כוח הספסל של ${teamName}: ${benchPpg} נק' בממוצע, ${benchPct}% מהנקודות",
-      "עומק איכותי ב-${teamName} - המחליפים תורמים ${benchPpg} נק' למשחק",
-      "${teamName}: הספסל מוסיף ${benchPpg} נק' בממוצע (${benchPct}% מסך הייצור)",
-      "ספסל מרשים ב-${teamName} עם ${benchPpg} נק' למשחק - ${benchPct}% מהנקודות"
+      "${benchPct}% מהנקודות של ${teamName} מגיעות מהספסל - ${benchPpg} נק' למשחק, הרבה מעל הממוצע בליגה",
+      "הספסל של ${teamName} תורם ${benchPpg} נק' למשחק (${benchPct}%) - מהחזקים בליגה",
+      "המחליפים של ${teamName} מייצרים ${benchPct}% מהנקודות - ${benchPpg} למשחק",
+      "${teamName} עם ספסל עמוק: ${benchPpg} נק' מהמחליפים, ${benchPct}% מסך הנקודות",
+      "תרומה משמעותית מהספסל: ${teamName} מקבלת ${benchPpg} נק' למשחק מהמחליפים (${benchPct}%)",
+      "${benchPct}% מהייצור של ${teamName} מגיע מהספסל - ${benchPpg} נק' בממוצע",
+      "הספסל של ${teamName} לא מפסיק לייצר: ${benchPpg} נק' למשחק (${benchPct}%)",
+      "עומק סגל ל${teamName}: המחליפים עם ${benchPpg} נק' - ${benchPct}% מהנקודות"
     ],
     
     LINEUP_DEPENDENT: [
-      "${teamName} תלויה בחמישייה הפותחת - רק ${benchPct}% מהנקודות מהספסל",
-      "החמישייה הפותחת סוחבת את ${teamName}: הספסל רק ${benchPct}%",
-      "${teamName} מסתמכת על החמישייה - הספסל תורם רק ${benchPct}%",
-      "תרומה נמוכה מהספסל ב-${teamName}: רק ${benchPct}% מהנקודות",
-      "${teamName}: ${benchPct}% בלבד מהנקודות מגיעות מהמחליפים",
-      "ספסל חלש יחסית ב-${teamName} - רק ${benchPct}% מסך הייצור",
-      "המחליפים של ${teamName} תורמים רק ${benchPct}% מהנקודות",
-      "${teamName} צריכה יותר מהספסל - כרגע רק ${benchPct}% מהייצור"
+      "רק ${benchPct}% מהנקודות של ${teamName} מגיעות מהספסל - ${benchPpg} נק' למשחק, הרבה מתחת לממוצע בליגה",
+      "${teamName} תלויה בחמישייה הפותחת: הספסל תורם רק ${benchPct}% (${benchPpg} נק')",
+      "המחליפים של ${teamName} מייצרים רק ${benchPct}% מהנקודות - ${benchPpg} למשחק",
+      "${teamName} עם ספסל חלש: רק ${benchPpg} נק' מהמחליפים, ${benchPct}% מסך הנקודות",
+      "תרומה נמוכה מהספסל: ${teamName} מקבלת רק ${benchPpg} נק' למשחק מהמחליפים (${benchPct}%)",
+      "${benchPct}% בלבד מהייצור של ${teamName} מגיע מהספסל - ${benchPpg} נק' בממוצע",
+      "הספסל של ${teamName} צריך לעזור יותר: רק ${benchPpg} נק' למשחק (${benchPct}%)",
+      "חוסר עומק ב${teamName}: המחליפים עם רק ${benchPpg} נק' - ${benchPct}% מהנקודות"
     ],
     
     // ========== Home/Away Venue Insights (v2.4.0) ==========

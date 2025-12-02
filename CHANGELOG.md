@@ -1,5 +1,32 @@
 # Basketball Stats Manager - Changelog
 
+## [v2.4.7] - 2025-12-02 ✍️
+
+### ✨ Improved: Bench Insights Text
+
+#### **Changes**
+Updated the Hebrew text templates for bench-related insights to be more natural and informative:
+
+**STRONG_BENCH (High Bench Contribution):**
+- Now leads with the percentage for emphasis
+- Adds league comparison: "הרבה מעל הממוצע בליגה"
+- Before: "הפועל מגדל העמק עם ספסל חזק - 31.7 נק' למשחק מהמחליפים (37%)"
+- After: "37% מהנקודות של הפועל מגדל העמק מגיעות מהספסל - 31.7 נק' למשחק, הרבה מעל הממוצע בליגה"
+
+**LINEUP_DEPENDENT (Low Bench Contribution):**
+- Now includes actual bench PPG, not just percentage
+- Adds league comparison: "הרבה מתחת לממוצע בליגה"
+- Before: "הפועל מגדל העמק תלויה בחמישייה הפותחת - רק 18% מהנקודות מהספסל"
+- After: "רק 18% מהנקודות של הפועל מגדל העמק מגיעות מהספסל - 14.2 נק' למשחק, הרבה מתחת לממוצע בליגה"
+
+#### **Result**
+- More natural Hebrew flow ("מגיעות מהספסל" instead of "נהנית מספסל חזק")
+- Better emphasis on the key metric (percentage first)
+- Clearer context with league comparison
+- All 16 variations (8 for strong, 8 for weak) updated
+
+---
+
 ## [v2.4.6] - 2025-12-02 📅
 
 ### 🐛 Fix: Excel Export Now Uses Game Date
