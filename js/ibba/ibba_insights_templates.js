@@ -219,6 +219,41 @@ const IBBAInsightTemplates = {
       "${teamName} השיגה ${blowouts} ניצחונות דומיננטיים ב-5 המשחקים האחרונים",
       "יכולת דומיננטית: ${teamName} ניצחה ${blowouts} פעמים בהפרש דו-ספרתי גבוה",
       "${teamName} מציגה עוצמה התקפית – ${blowouts} ניצחונות גדולים ב-5 האחרונים"
+    ],
+    
+    // ========== Bench & Lineup Insights (v2.2.7) ==========
+    
+    STRONG_BENCH: [
+      "${teamName} נהנית מספסל חזק: ${benchPpg} נק' למשחק (${benchPct}% מהייצור)",
+      "ספסל עמוק ב-${teamName} - ${benchPpg} נקודות בממוצע (${benchPct}%)",
+      "${teamName}: ${benchPct}% מהנקודות מהספסל, ${benchPpg} נק' למשחק",
+      "עומק בספסל של ${teamName} - ${benchPpg} נקודות למשחק",
+      "${teamName} עם ספסל מפתיע: ${benchPct}% מהנקודות (${benchPpg} למשחק)",
+      "כוח הספסל של ${teamName}: ${benchPpg} נק' בממוצע",
+      "${teamName} - המחליפים מייצרים ${benchPpg} נקודות (${benchPct}%)",
+      "ספסל איכותי ב-${teamName}: ${benchPct}% מהייצור ההתקפי"
+    ],
+    
+    LINEUP_DEPENDENT: [
+      "${teamName} תלויה בחמישייה הפותחת - רק ${benchPct}% מהנקודות מהספסל",
+      "תלות בחמישייה: ${teamName} מקבלת רק ${benchPct}% מהספסל",
+      "${teamName} - הספסל תורם רק ${benchPct}% מהנקודות",
+      "חמישייה דומיננטית ב-${teamName}, הספסל רק ${benchPct}%",
+      "${teamName}: ${benchPct}% בלבד מהנקודות מהמחליפים",
+      "ספסל דל ב-${teamName} - רק ${benchPct}% מהייצור",
+      "${teamName} מסתמכת על החמישייה הפותחת (${benchPct}% מהספסל)",
+      "תרומת ספסל נמוכה ב-${teamName}: ${benchPct}%"
+    ],
+    
+    SUPER_SUB: [
+      "${player} עולה מהספסל של ${teamName} ומוסיף ${ppg} נק' בממוצע",
+      "מחליף זהב: ${player} (${teamName}) עם ${ppg} נק' למשחק",
+      "${teamName} נהנית מ-${player} שמייצר ${ppg} נק' כמחליף",
+      "${player} - מחליף מפתיע של ${teamName} עם ${ppg} נקודות בממוצע",
+      "שחקן השישי של ${teamName}: ${player} מוסיף ${ppg} נק'",
+      "${teamName}: ${player} עולה מהספסל ומתפוצץ עם ${ppg} נק'",
+      "מחליף איכותי ב-${teamName} - ${player} (${ppg} נק' למשחק)",
+      "${player} של ${teamName}: ${ppg} נקודות כשחקן ספסל"
     ]
   }
 };

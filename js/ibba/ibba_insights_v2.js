@@ -1,6 +1,6 @@
 /**
  * IBBA Insights V2 - מערכת Insights מתקדמת לשדרני כדורסל
- * Version: 2.2.6 - Advanced Team Balance
+ * Version: 2.2.7 - Bench & Lineup Analysis
  * 
  * קטגוריות:
  * 1. STREAKS - רצפים ופטרנים
@@ -1761,6 +1761,151 @@ class IBBAInsightsV2 {
     return null;
   }
 
+  /**
+   * זיהוי קבוצה עם ספסל חזק
+   * מבוסס על pbc (pointsBench) שכבר מחושב ב-API
+   * סף: 35%+ מהנקודות מהספסל או 25+ נק' למשחק
+   */
+  detectStrongBench(teamName, teamData, allTeams) {
+    const MIN_GAMES = 3;
+    
+    if (!teamData || !teamData.gamesPlayed || teamData.gamesPlayed < MIN_GAMES) {
+      return null;
+    }
+    
+    const benchPpg = teamData.totalPointsBench / teamData.gamesPlayed;
+    const totalPpg = teamData.totalPoints / teamData.gamesPlayed;
+    const benchPct = (teamData.totalPointsBench / teamData.totalPoints) * 100;
+    
+    // סף: 35%+ מהנקודות מהספסל AND 25+ נק' למשחק
+    if (benchPct >= 35 && benchPpg >= 25) {
+      const template = window.IBBAInsightTemplates?.team?.STRONG_BENCH || [
+        '{teamName} נהנית מספסל חזק: {benchPpg} נק\' למשחק ({benchPct}% מהייצור)'
+      ];
+      
+      return {
+        type: 'STRONG_BENCH',
+        category: 'OFFENSE',
+        importance: 'high',
+        teamName,
+        benchPpg: benchPpg.toFixed(1),
+        benchPct: benchPct.toFixed(0),
+        icon: '🪑',
+        text: this.formatTemplate(template, {
+          teamName: teamName,
+          benchPpg: benchPpg.toFixed(1),
+          benchPct: benchPct.toFixed(0)
+        }),
+        textShort: `ספסל ${benchPpg.toFixed(1)} נק\'`
+      };
+    }
+    
+    return null;
+  }
+
+  /**
+   * זיהוי קבוצה תלויה בחמישייה הפותחת (ספסל חלש)
+   * מבוסס על pbc (pointsBench) שכבר מחושב ב-API
+   * סף: פחות מ-20% מהנקודות מהספסל
+   */
+  detectLineupDependent(teamName, teamData, allTeams) {
+    const MIN_GAMES = 3;
+    
+    if (!teamData || !teamData.gamesPlayed || teamData.gamesPlayed < MIN_GAMES) {
+      return null;
+    }
+    
+    const benchPct = (teamData.totalPointsBench / teamData.totalPoints) * 100;
+    
+    // סף: פחות מ-20% מהספסל = תלות גבוהה בחמישייה
+    if (benchPct <= 20) {
+      const template = window.IBBAInsightTemplates?.team?.LINEUP_DEPENDENT || [
+        '{teamName} תלויה בחמישייה הפותחת - רק {benchPct}% מהנקודות מהספסל'
+      ];
+      
+      return {
+        type: 'LINEUP_DEPENDENT',
+        category: 'OFFENSE',
+        importance: 'medium',
+        teamName,
+        benchPct: benchPct.toFixed(0),
+        icon: '⚠️',
+        text: this.formatTemplate(template, {
+          teamName: teamName,
+          benchPct: benchPct.toFixed(0)
+        }),
+        textShort: `ספסל חלש (${benchPct.toFixed(0)}%)`
+      };
+    }
+    
+    return null;
+  }
+
+  /**
+   * זיהוי שחקן מחליף עם impact גבוה (Super Sub)
+   * מבוסס על status: "sub" שכבר מגיע מה-API
+   * סף: 12+ נק' בממוצע כמחליף
+   */
+  detectSuperSub(teamName, teamGames) {
+    const MIN_GAMES = 3;
+    
+    if (!teamGames || teamGames.length < MIN_GAMES) {
+      return null;
+    }
+    
+    // סכום נקודות לכל שחקן מחליף
+    const subs = {};
+    
+    teamGames.forEach(game => {
+      if (!game.players) return;
+      
+      game.players
+        .filter(p => p.teamName === teamName && p.status === 'sub')
+        .forEach(p => {
+          if (!subs[p.playerId]) {
+            subs[p.playerId] = {
+              points: 0,
+              games: 0,
+              jersey: p.jersey,
+              name: p.playerName || `#${p.jersey}`
+            };
+          }
+          subs[p.playerId].points += p.stats.points || 0;
+          subs[p.playerId].games++;
+        });
+    });
+    
+    // מצא את המחליף עם הממוצע הגבוה ביותר (12+ נק')
+    const topSub = Object.values(subs)
+      .map(s => ({ ...s, ppg: s.points / s.games }))
+      .filter(s => s.ppg >= 12 && s.games >= MIN_GAMES)
+      .sort((a, b) => b.ppg - a.ppg)[0];
+    
+    if (topSub) {
+      const template = window.IBBAInsightTemplates?.team?.SUPER_SUB || [
+        '{player} עולה מהספסל של {teamName} ומוסיף {ppg} נק\' בממוצע'
+      ];
+      
+      return {
+        type: 'SUPER_SUB',
+        category: 'PLAYERS',
+        importance: 'high',
+        teamName,
+        player: topSub.name,
+        ppg: topSub.ppg.toFixed(1),
+        icon: '⭐',
+        text: this.formatTemplate(template, {
+          teamName: teamName,
+          player: topSub.name,
+          ppg: topSub.ppg.toFixed(1)
+        }),
+        textShort: `${topSub.name}: ${topSub.ppg.toFixed(1)} נק\' (מחליף)`
+      };
+    }
+    
+    return null;
+  }
+
   // ========== CATEGORY 4: DEFENSE ==========
 
   /**
@@ -3038,6 +3183,25 @@ class IBBAInsightsV2 {
     
     const secondChanceB = this.detectSecondChanceMasters(teamB, teamBData.stats, allTeams);
     if (secondChanceB) insights.OFFENSE.push(secondChanceB);
+    
+    // Bench & Lineup Analysis (New v2.2.7)
+    const strongBenchA = this.detectStrongBench(teamA, teamAData.stats, allTeams);
+    if (strongBenchA) insights.OFFENSE.push(strongBenchA);
+    
+    const strongBenchB = this.detectStrongBench(teamB, teamBData.stats, allTeams);
+    if (strongBenchB) insights.OFFENSE.push(strongBenchB);
+    
+    const lineupDepA = this.detectLineupDependent(teamA, teamAData.stats, allTeams);
+    if (lineupDepA) insights.OFFENSE.push(lineupDepA);
+    
+    const lineupDepB = this.detectLineupDependent(teamB, teamBData.stats, allTeams);
+    if (lineupDepB) insights.OFFENSE.push(lineupDepB);
+    
+    const superSubA = this.detectSuperSub(teamA, teamAData.recentGames);
+    if (superSubA) insights.PLAYERS.push(superSubA);
+    
+    const superSubB = this.detectSuperSub(teamB, teamBData.recentGames);
+    if (superSubB) insights.PLAYERS.push(superSubB);
 
     // DEFENSE
     const defWallA = this.detectDefensiveWall(teamA, teamAData.stats, leagueAvgOppPpg, allTeams);

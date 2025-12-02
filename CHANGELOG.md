@@ -1,5 +1,69 @@
 # Basketball Stats Manager - Changelog
 
+## [v2.2.7] - 2025-12-02 🪑
+
+### 🎯 New Features: Bench & Lineup Insights
+
+#### **Strong Bench Detection**
+- **Detection Logic**: Identifies teams with powerful bench players contributing 35%+ of total points
+- **Threshold**: 25+ points per game from bench AND 35%+ of team scoring
+- **Data Source**: Uses `pbc` (Bench Points) from IBBA API's `sp_teams` - pre-calculated by the client
+- **Insight Example**: "מכבי תל אביב נהנית מספסל חזק: 32.5 נק' למשחק (38% מהייצור)"
+- **Category**: OFFENSE
+
+#### **Lineup Dependent Detection**
+- **Detection Logic**: Identifies teams heavily reliant on starting lineup (weak bench)
+- **Threshold**: Less than 20% of points from bench players
+- **Data Source**: Uses `pbc` (Bench Points) from IBBA API's `sp_teams`
+- **Insight Example**: "הפועל ירושלים תלויה בחמישייה הפותחת - רק 18% מהנקודות מהספסל"
+- **Category**: OFFENSE
+
+#### **Super Sub Detection**
+- **Detection Logic**: Identifies individual bench players with high impact (12+ ppg)
+- **Threshold**: 12+ points per game as a substitute, minimum 3 games
+- **Data Source**: Uses `status: "lineup"` or `status: "sub"` from IBBA API's player performance data
+- **Insight Example**: "#23 עולה מהספסל של מכבי חיפה ומוסיף 14.2 נק' בממוצע"
+- **Category**: PLAYERS
+
+### 📊 Technical Implementation
+
+#### **Pure API Approach**
+- **No New Calculations**: All insights use pre-calculated data from IBBA API
+- **Always Up-to-Date**: Since data is fetched live, any corrections by IBBA are immediately reflected
+- **Performance**: Minimal overhead - only analysis logic, no computation
+
+#### **Data Sources**
+```javascript
+// From sp_teams (already in use):
+pbc: Bench Points (used for Strong Bench & Lineup Dependent)
+
+// From performance[playerId] (already in use):
+status: "lineup" or "sub" (used for Super Sub)
+```
+
+#### **New Functions Added**
+- `detectStrongBench(teamName, teamData, allTeams)` - in `ibba_insights_v2.js` line 1765
+- `detectLineupDependent(teamName, teamData, allTeams)` - in `ibba_insights_v2.js` line 1809
+- `detectSuperSub(teamName, teamGames)` - in `ibba_insights_v2.js` line 1849
+
+#### **Template Variations**
+- Added 8 Hebrew variations for each new insight type in `ibba_insights_templates.js`:
+  - `STRONG_BENCH` (8 variations)
+  - `LINEUP_DEPENDENT` (8 variations)
+  - `SUPER_SUB` (8 variations)
+
+### 🎨 Integration
+- Insights automatically appear in Game Preparation dashboard
+- Fully integrated with existing insight system
+- No changes to data adapter or analytics engine required
+
+### 📝 Notes
+- **No Database Changes**: Works entirely with Pure API mode
+- **Future Enhancement**: Supabase schema can be updated later to store `status` field
+- **Broadcaster-Friendly**: All text variations designed for natural Hebrew broadcasting
+
+---
+
 ## [v1.3.0] - 2025-10-26
 
 ### 🎯 Major Features Added
