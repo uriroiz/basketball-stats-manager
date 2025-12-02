@@ -1773,9 +1773,11 @@ class IBBAInsightsV2 {
       return null;
     }
     
-    const benchPpg = teamData.totalPointsBench / teamData.gamesPlayed;
-    const totalPpg = teamData.totalPoints / teamData.gamesPlayed;
-    const benchPct = (teamData.totalPointsBench / teamData.totalPoints) * 100;
+    // Use _totalPointsBench (with underscore) as returned by getTeamAverages()
+    const totalBenchPoints = teamData._totalPointsBench || 0;
+    const totalPoints = teamData._totalPoints || 0;
+    const benchPpg = totalBenchPoints / teamData.gamesPlayed;
+    const benchPct = totalPoints > 0 ? (totalBenchPoints / totalPoints) * 100 : 0;
     
     // סף: 30%+ מהנקודות מהספסל OR 22+ נק' למשחק (יותר ריאליסטי)
     if (benchPct >= 30 || benchPpg >= 22) {
@@ -1815,7 +1817,10 @@ class IBBAInsightsV2 {
       return null;
     }
     
-    const benchPct = (teamData.totalPointsBench / teamData.totalPoints) * 100;
+    // Use _totalPointsBench (with underscore) as returned by getTeamAverages()
+    const totalBenchPoints = teamData._totalPointsBench || 0;
+    const totalPoints = teamData._totalPoints || 0;
+    const benchPct = totalPoints > 0 ? (totalBenchPoints / totalPoints) * 100 : 0;
     
     // סף: פחות מ-25% מהספסל = תלות גבוהה בחמישייה (עודכן להיות יותר ריאליסטי)
     if (benchPct <= 25) {
