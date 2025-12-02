@@ -251,3 +251,7 @@ const dayName = date.toLocaleDateString('he-IL', { weekday: 'long' });
 
 **גרסה זו מבוססת על פידבק מפורט של המשתמש על בעיות RTL ושגיאות לשוניות.**
 
+
+
+
+

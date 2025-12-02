@@ -304,3 +304,7 @@ balanceTeamInsights(insights, teamA, teamB, teamAData, teamBData, allTeams) {
 
 **גרסה זו מבוססת על פידבק של המשתמש על חוסר איזון בשידור וחשיבות חמישייה vs ספסל.**
 
+
+
+
+

@@ -213,49 +213,54 @@ class IBBAPlayerNames {
    */
   async loadPlayerStatsFromHTML() {
     try {
-      console.log('🔄 Loading player Plus/Minus stats from league HTML...');
+      console.log('🔄 Loading player Plus/Minus stats from league HTML via CORS proxy...');
       
       const leaguePageUrl = 'https://ibasketball.co.il/league/2025-2/';
       let html = null;
       
-      // Try direct fetch first
-      try {
-        const response = await fetch(leaguePageUrl);
-        if (response.ok) {
-          html = await response.text();
-          console.log('✅ Direct fetch of league HTML succeeded');
-        }
-      } catch (error) {
-        console.log('⚠️ Direct fetch failed, trying CORS proxy...');
-      }
-      
-      // Fallback to CORS proxy if direct fetch failed
-      if (!html) {
-        const proxies = [
-          'https://corsproxy.io/?',
-          'https://api.allorigins.win/get?url='
-        ];
-        
-        for (let i = 0; i < proxies.length; i++) {
-          try {
-            const proxyUrl = proxies[i] + encodeURIComponent(leaguePageUrl);
-            console.log(`🔄 Trying proxy ${i + 1}/${proxies.length}...`);
-            
-            const response = await fetch(proxyUrl);
-            if (!response.ok) {
-              throw new Error(`HTTP ${response.status}`);
-            }
-            
+      // Use CORS proxies (direct fetch will fail due to CORS policy)
+      const proxies = [
+        { 
+          url: 'https://api.allorigins.win/raw?url=',
+          parseResponse: (response) => response.text()
+        },
+        { 
+          url: 'https://api.allorigins.win/get?url=',
+          parseResponse: async (response) => {
             const data = await response.json();
-            html = data.contents || data;
+            return data.contents;
+          }
+        },
+        { 
+          url: 'https://corsproxy.io/?',
+          parseResponse: (response) => response.text()
+        }
+      ];
+      
+      for (let i = 0; i < proxies.length; i++) {
+        try {
+          const proxy = proxies[i];
+          const proxyUrl = proxy.url + encodeURIComponent(leaguePageUrl);
+          console.log(`🔄 Trying proxy ${i + 1}/${proxies.length}...`);
+          
+          const response = await fetch(proxyUrl);
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          
+          html = await proxy.parseResponse(response);
+          
+          if (html && html.length > 1000) {
             console.log(`✅ Proxy ${i + 1} succeeded for league HTML`);
             break;
-            
-          } catch (error) {
-            console.warn(`⚠️ Proxy ${i + 1} failed:`, error.message);
-            if (i === proxies.length - 1) {
-              throw new Error('All proxies failed for league HTML');
-            }
+          } else {
+            throw new Error('Response too short');
+          }
+          
+        } catch (error) {
+          console.warn(`⚠️ Proxy ${i + 1} failed:`, error.message);
+          if (i === proxies.length - 1) {
+            throw new Error('All proxies failed for league HTML');
           }
         }
       }

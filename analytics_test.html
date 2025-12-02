@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📊 Analytics Test - IBBA Pure API</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1400px;
+      margin: 20px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .header h1 {
+      margin: 0 0 10px 0;
+      font-size: 32px;
+    }
+    .header p {
+      margin: 5px 0;
+      opacity: 0.9;
+    }
+    .controls {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    button:hover { 
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    button:disabled { 
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+    .metric-card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .metric-value {
+      font-size: 36px;
+      font-weight: bold;
+      color: #667eea;
+      margin: 10px 0;
+    }
+    .metric-label {
+      color: #666;
+      font-size: 14px;
+    }
+    .section {
+      background: white;
+      padding: 25px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .section h2 {
+      margin: 0 0 20px 0;
+      color: #333;
+      font-size: 24px;
+      border-bottom: 3px solid #667eea;
+      padding-bottom: 10px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th {
+      background: #f8f9fa;
+      padding: 12px 8px;
+      text-align: right;
+      font-weight: 600;
+      color: #333;
+      border-bottom: 2px solid #dee2e6;
+      position: sticky;
+      top: 0;
+      font-size: 13px;
+    }
+    td {
+      padding: 10px 8px;
+      border-bottom: 1px solid #e9ecef;
+      font-size: 13px;
+    }
+    tr:hover {
+      background: #f8f9fa;
+    }
+    .rank {
+      font-weight: bold;
+      color: #667eea;
+      width: 40px;
+    }
+    .team-name {
+      font-weight: 600;
+      color: #333;
+    }
+    .stat-value {
+      text-align: center;
+      font-family: 'Courier New', monospace;
+    }
+    .hidden {
+      display: none;
+    }
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+      font-size: 18px;
+    }
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #667eea;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .success { color: #28a745; }
+    .error { color: #dc3545; }
+    .table-scroll {
+      max-height: 500px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📊 Step 1: Basic Analytics Test</h1>
+    <p>בדיקת מנוע אנליטיקה עם 50 משחקים</p>
+    <p style="font-size: 14px;">מטרה: לוודא שחישובי סטטיסטיקות עובדים נכון ומהר</p>
+  </div>
+
+  <div class="controls">
+    <button id="runTest" onclick="runAnalyticsTest()">🚀 הרץ בדיקה (50 משחקים)</button>
+    <span id="status" style="margin-right: 20px; font-size: 14px; color: #666;"></span>
+  </div>
+
+  <div id="results" class="hidden">
+    <!-- Overall Metrics -->
+    <div class="metrics" id="metricsContainer"></div>
+
+    <!-- All Teams by PPG -->
+    <div class="section">
+      <h2>🏆 טבלת ליגה מלאה - מיון לפי PPG</h2>
+      <div class="table-scroll">
+        <table id="topTeamsTable">
+          <thead>
+            <tr>
+              <th class="rank">#</th>
+              <th>קבוצה</th>
+              <th class="stat-value">משחקים</th>
+              <th class="stat-value">נצחונות</th>
+              <th class="stat-value">הפסדים</th>
+              <th class="stat-value">% נצחונות</th>
+              <th class="stat-value">PPG</th>
+              <th class="stat-value">RPG</th>
+              <th class="stat-value">APG</th>
+              <th class="stat-value">FG%</th>
+              <th class="stat-value">3P%</th>
+              <th class="stat-value">FT%</th>
+            </tr>
+          </thead>
+          <tbody id="topTeamsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Top 10 Players by PPG -->
+    <div class="section">
+      <h2>⭐ Top 10 שחקנים - נקודות למשחק (PPG)</h2>
+      <div class="table-scroll">
+        <table id="topPlayersTable">
+          <thead>
+            <tr>
+              <th class="rank">#</th>
+              <th>שחקן</th>
+              <th>קבוצה</th>
+              <th class="stat-value">משחקים</th>
+              <th class="stat-value">PPG</th>
+              <th class="stat-value">RPG</th>
+              <th class="stat-value">APG</th>
+              <th class="stat-value">FG%</th>
+              <th class="stat-value">3P%</th>
+              <th class="stat-value">FT%</th>
+              <th class="stat-value">יעילות</th>
+            </tr>
+          </thead>
+          <tbody id="topPlayersBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Performance Summary -->
+    <div class="section">
+      <h2>⚡ סיכום ביצועים</h2>
+      <div id="performanceSummary" style="font-family: monospace; line-height: 1.8;"></div>
+    </div>
+  </div>
+
+  <!-- Loading indicator -->
+  <div id="loading" class="hidden">
+    <div class="section">
+      <div class="loading">
+        <div class="spinner"></div>
+        <p id="loadingText">טוען משחקים מה-API...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/ibba/ibba_adapter.js"></script>
+  <script src="js/ibba/ibba_analytics.js"></script>
+  
+  <script>
+    async function runAnalyticsTest() {
+      const button = document.getElementById('runTest');
+      const status = document.getElementById('status');
+      const results = document.getElementById('results');
+      const loading = document.getElementById('loading');
+      const loadingText = document.getElementById('loadingText');
+      
+      // Reset UI
+      button.disabled = true;
+      results.classList.add('hidden');
+      loading.classList.remove('hidden');
+      
+      try {
+        console.log('📊 Starting Analytics Test...');
+        console.log('='.repeat(60));
+        console.time('⏱️ Total Test Time');
+        
+        // Step 1: Initialize
+        const adapter = new window.IBBAAdapter();
+        const analytics = new window.IBBAAnalytics();
+        console.log('✅ Initialized adapter and analytics');
+        
+        // Step 2: Fetch 50 games
+        console.time('⏱️ Fetch Games');
+        loadingText.textContent = 'טוען 50 משחקים מה-API...';
+        
+        const now = new Date().toISOString();
+        const rawGames = await adapter.fetchGames(100, now, null); // לוקחים 100 כדי לקבל 50 עם נתונים
+        
+        // Convert and filter
+        const allGames = rawGames.map(g => adapter.convertToInternalFormat(g));
+        const games = allGames.filter(g => g.players && g.players.length > 0).slice(0, 50);
+        
+        console.timeEnd('⏱️ Fetch Games');
+        console.log(`✅ Fetched ${games.length} games with player data (from ${allGames.length} total)`);
+        
+        // Step 3: Set games in analytics
+        loadingText.textContent = 'מעבד נתונים...';
+        analytics.setGames(games);
+        
+        // Step 4: Compute analytics
+        console.time('⏱️ All Calculations');
+        loadingText.textContent = 'מחשב סטטיסטיקות...';
+        
+        const overall = analytics.getOverallStats();
+        const topTeams = analytics.getTopTeams('ppg', 50); // כל הקבוצות (עד 50)
+        const topPlayers = analytics.getTopPlayers('ppg', 10);
+        
+        console.timeEnd('⏱️ All Calculations');
+        console.timeEnd('⏱️ Total Test Time');
+        
+        // Step 5: Display results
+        displayResults(overall, topTeams, topPlayers);
+        
+        // Show results
+        loading.classList.add('hidden');
+        results.classList.remove('hidden');
+        
+        console.log('='.repeat(60));
+        console.log('✅ Analytics Test PASSED!');
+        
+        status.innerHTML = '<span class="success">✅ הבדיקה הושלמה בהצלחה!</span>';
+        
+      } catch (error) {
+        console.error('❌ Analytics Test FAILED:', error);
+        
+        loading.classList.add('hidden');
+        status.innerHTML = `<span class="error">❌ שגיאה: ${error.message}</span>`;
+        
+      } finally {
+        button.disabled = false;
+        button.textContent = '🔄 הרץ שוב';
+      }
+    }
+
+    function displayResults(overall, topTeams, topPlayers) {
+      // Display overall metrics
+      const metricsContainer = document.getElementById('metricsContainer');
+      metricsContainer.innerHTML = `
+        <div class="metric-card">
+          <div class="metric-label">משחקים</div>
+          <div class="metric-value">${overall.totalGames}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">קבוצות</div>
+          <div class="metric-value">${overall.totalTeams}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">שחקנים</div>
+          <div class="metric-value">${overall.totalPlayers}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">שחקנים/משחק</div>
+          <div class="metric-value">${overall.avgPlayersPerGame}</div>
+        </div>
+      `;
+
+      // Display all teams
+      const topTeamsBody = document.getElementById('topTeamsBody');
+      topTeamsBody.innerHTML = topTeams.map((team, index) => `
+        <tr>
+          <td class="rank">${index + 1}</td>
+          <td class="team-name">${team.teamName}</td>
+          <td class="stat-value">${team.gamesPlayed}</td>
+          <td class="stat-value">${team.wins}</td>
+          <td class="stat-value">${team.losses}</td>
+          <td class="stat-value">${team.winPct}%</td>
+          <td class="stat-value"><strong>${team.ppg}</strong></td>
+          <td class="stat-value">${team.rpg}</td>
+          <td class="stat-value">${team.apg}</td>
+          <td class="stat-value">${team.fgPct}%</td>
+          <td class="stat-value">${team.threePtPct}%</td>
+          <td class="stat-value">${team.ftPct}%</td>
+        </tr>
+      `).join('');
+
+      // Display top players
+      const topPlayersBody = document.getElementById('topPlayersBody');
+      topPlayersBody.innerHTML = topPlayers.map((player, index) => `
+        <tr>
+          <td class="rank">${index + 1}</td>
+          <td class="team-name">${player.name}</td>
+          <td>${player.teamName}</td>
+          <td class="stat-value">${player.gamesPlayed}</td>
+          <td class="stat-value"><strong>${player.ppg}</strong></td>
+          <td class="stat-value">${player.rpg}</td>
+          <td class="stat-value">${player.apg}</td>
+          <td class="stat-value">${player.fgPct}%</td>
+          <td class="stat-value">${player.threePtPct}%</td>
+          <td class="stat-value">${player.ftPct}%</td>
+          <td class="stat-value">${player.efficiencyAvg}</td>
+        </tr>
+      `).join('');
+
+      // Display performance summary
+      const performanceSummary = document.getElementById('performanceSummary');
+      performanceSummary.innerHTML = `
+        <p><strong>📊 סיכום:</strong></p>
+        <p>✅ ${overall.totalGames} משחקים נטענו בהצלחה</p>
+        <p>✅ ${overall.totalTeams} קבוצות ייחודיות זוהו</p>
+        <p>✅ ${overall.totalPlayers} שחקנים ייחודיים זוהו</p>
+        <p>✅ כל החישובים הושלמו בהצלחה</p>
+        <p style="margin-top: 20px;"><strong>⚡ בדוק את הקונסול לזמני ביצוע מדויקים</strong></p>
+      `;
+    }
+
+    console.log('📊 Analytics Test page loaded');
+    console.log('📍 Ready - click "הרץ בדיקה" button');
+  </script>
+</body>
+</html>
+

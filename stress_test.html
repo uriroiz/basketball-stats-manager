@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>💪 Stress Test - 400 משחקים</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .header {
+      background: white;
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 42px;
+      color: #333;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      color: #666;
+      font-size: 18px;
+      line-height: 1.6;
+    }
+
+    .warning {
+      background: #fff3cd;
+      border: 2px solid #ffc107;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+      color: #856404;
+    }
+
+    .warning strong {
+      display: block;
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    .test-box {
+      background: white;
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+      text-align: center;
+    }
+
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 20px 50px;
+      font-size: 22px;
+      font-weight: 600;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+    }
+
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    #progress {
+      display: none;
+      background: white;
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+    }
+
+    #progress.show {
+      display: block;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 40px;
+      background: #e9ecef;
+      border-radius: 20px;
+      overflow: hidden;
+      margin: 20px 0;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      width: 0%;
+      transition: width 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+      font-size: 16px;
+    }
+
+    .status-text {
+      font-size: 18px;
+      color: #667eea;
+      margin: 10px 0;
+      font-weight: 600;
+    }
+
+    #results {
+      display: none;
+    }
+
+    #results.show {
+      display: block;
+    }
+
+    .section {
+      background: white;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+    }
+
+    .section h2 {
+      color: #333;
+      font-size: 28px;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 3px solid #667eea;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .metric-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 25px;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .metric-label {
+      font-size: 14px;
+      opacity: 0.9;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .metric-value {
+      font-size: 36px;
+      font-weight: bold;
+      line-height: 1.2;
+    }
+
+    .metric-unit {
+      font-size: 16px;
+      opacity: 0.8;
+      margin-top: 5px;
+    }
+
+    .timing-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    .timing-table th {
+      background: #f8f9fa;
+      padding: 15px;
+      text-align: right;
+      font-weight: 600;
+      border-bottom: 2px solid #dee2e6;
+    }
+
+    .timing-table td {
+      padding: 15px;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .timing-table tr:hover {
+      background: #f8f9fa;
+    }
+
+    .verdict {
+      background: #d4edda;
+      border: 2px solid #28a745;
+      color: #155724;
+      padding: 30px;
+      border-radius: 12px;
+      margin-top: 30px;
+      font-size: 18px;
+      line-height: 1.8;
+    }
+
+    .verdict.warning {
+      background: #fff3cd;
+      border-color: #ffc107;
+      color: #856404;
+    }
+
+    .verdict.error {
+      background: #f8d7da;
+      border-color: #dc3545;
+      color: #721c24;
+    }
+
+    .verdict strong {
+      font-size: 22px;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    .console-log {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 20px;
+      border-radius: 8px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      max-height: 400px;
+      overflow-y: auto;
+      margin-top: 20px;
+    }
+
+    .log-entry {
+      margin: 5px 0;
+    }
+
+    .log-success { color: #4ec9b0; }
+    .log-warning { color: #dcdcaa; }
+    .log-error { color: #f48771; }
+    .log-info { color: #9cdcfe; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>💪 Stress Test - 400 משחקים</h1>
+      <p>בדיקת ביצועים מקיפה של מערכת Pure API</p>
+      <p style="font-size: 14px; color: #999; margin-top: 10px;">בודק את יכולת המערכת להתמודד עם עונה מלאה בזמן אמת</p>
+    </div>
+
+    <div class="warning">
+      <strong>⚠️ שים לב:</strong>
+      בדיקה זו תיקח בין 30 שניות ל-2 דקות, תלוי במהירות החיבור לאינטרנט.
+      המערכת תשלוף ~400 משחקים מה-API ותבצע חישובים מלאים עליהם.
+    </div>
+
+    <div class="test-box">
+      <button id="startBtn" onclick="runStressTest()">
+        🚀 התחל בדיקת עומס
+      </button>
+    </div>
+
+    <div id="progress">
+      <h2 style="text-align: center; color: #667eea; margin-bottom: 20px;">מבצע בדיקה...</h2>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill">0%</div>
+      </div>
+      <div class="status-text" id="statusText">מאתחל...</div>
+      <div class="console-log" id="consoleLog"></div>
+    </div>
+
+    <div id="results">
+      <!-- Summary Metrics -->
+      <div class="section">
+        <h2>📊 סיכום הבדיקה</h2>
+        <div class="metrics-grid" id="summaryMetrics"></div>
+      </div>
+
+      <!-- Timing Breakdown -->
+      <div class="section">
+        <h2>⏱️ פירוט זמני ביצוע</h2>
+        <table class="timing-table" id="timingTable">
+          <thead>
+            <tr>
+              <th>שלב</th>
+              <th style="text-align: center;">זמן (ms)</th>
+              <th style="text-align: center;">זמן (שניות)</th>
+              <th style="text-align: center;">% מהסך</th>
+            </tr>
+          </thead>
+          <tbody id="timingBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Performance Analysis -->
+      <div class="section">
+        <h2>📈 ניתוח ביצועים</h2>
+        <div id="performanceAnalysis"></div>
+      </div>
+
+      <!-- Verdict -->
+      <div id="verdict"></div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/ibba/ibba_adapter.js"></script>
+  <script src="js/ibba/ibba_analytics.js"></script>
+  <script src="js/ibba/ibba_advanced.js"></script>
+
+  <script>
+    const logs = [];
+    
+    function log(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString('he-IL');
+      logs.push({ timestamp, message, type });
+      
+      const logDiv = document.getElementById('consoleLog');
+      const entry = document.createElement('div');
+      entry.className = `log-entry log-${type}`;
+      entry.textContent = `[${timestamp}] ${message}`;
+      logDiv.appendChild(entry);
+      logDiv.scrollTop = logDiv.scrollHeight;
+      
+      console.log(`[${type.toUpperCase()}] ${message}`);
+    }
+
+    function updateProgress(percent, status) {
+      document.getElementById('progressFill').style.width = `${percent}%`;
+      document.getElementById('progressFill').textContent = `${percent}%`;
+      document.getElementById('statusText').textContent = status;
+    }
+
+    async function runStressTest() {
+      const startBtn = document.getElementById('startBtn');
+      startBtn.disabled = true;
+      startBtn.textContent = '⏳ מריץ בדיקה...';
+      
+      document.getElementById('progress').classList.add('show');
+      document.getElementById('results').classList.remove('show');
+      
+      const timings = {};
+      const stats = {};
+      
+      try {
+        log('🚀 Starting Stress Test - 400 Games', 'success');
+        console.time('⏱️ Total Stress Test');
+        
+        const testStartTime = performance.now();
+        
+        // Step 1: Initialize
+        updateProgress(5, 'מאתחל מודולים...');
+        log('📦 Initializing modules...', 'info');
+        console.time('⏱️ Initialization');
+        
+        const initStart = performance.now();
+        const adapter = new window.IBBAAdapter();
+        const analytics = new window.IBBAAnalytics();
+        const initEnd = performance.now();
+        
+        console.timeEnd('⏱️ Initialization');
+        timings.initialization = initEnd - initStart;
+        log('✅ Modules initialized', 'success');
+        
+        // Step 2: Fetch Games
+        updateProgress(10, 'משיכת משחקים מה-API...');
+        log('📡 Fetching games from API (target: 400+ games)...', 'info');
+        console.time('⏱️ API Fetch');
+        
+        const fetchStart = performance.now();
+        const now = new Date().toISOString();
+        
+        // נשלוף כמה שיותר משחקים
+        const rawGames = await adapter.fetchGames(500, now, null);
+        
+        const fetchEnd = performance.now();
+        timings.fetch = fetchEnd - fetchStart;
+        
+        console.timeEnd('⏱️ API Fetch');
+        log(`✅ Fetched ${rawGames.length} raw games`, 'success');
+        
+        updateProgress(30, 'מעבד ומנרמל נתונים...');
+        
+        // Step 3: Convert & Filter
+        log('🔄 Converting and filtering games...', 'info');
+        console.time('⏱️ Data Processing');
+        
+        const convertStart = performance.now();
+        const allGames = rawGames
+          .map(g => adapter.convertToInternalFormat(g))
+          .filter(g => g.players && g.players.length > 0);
+        
+        const convertEnd = performance.now();
+        timings.conversion = convertEnd - convertStart;
+        
+        console.timeEnd('⏱️ Data Processing');
+        log(`✅ Processed ${allGames.length} games with player data`, 'success');
+        
+        stats.totalGames = allGames.length;
+        stats.totalPlayers = allGames.reduce((sum, g) => sum + g.players.length, 0);
+        stats.avgPlayersPerGame = (stats.totalPlayers / stats.totalGames).toFixed(1);
+        
+        updateProgress(50, 'מחשב סטטיסטיקות בסיסיות...');
+        
+        // Step 4: Basic Analytics
+        log('📊 Computing basic analytics...', 'info');
+        console.time('⏱️ Basic Analytics');
+        
+        analytics.setGames(allGames);
+        
+        const basicStart = performance.now();
+        const teamStats = analytics.getTeamStats();
+        const teamAverages = analytics.getTeamAverages();
+        const playerStats = analytics.getPlayerStats();
+        const playerAverages = analytics.getPlayerAverages();
+        const basicEnd = performance.now();
+        
+        timings.basicAnalytics = basicEnd - basicStart;
+        
+        console.timeEnd('⏱️ Basic Analytics');
+        log(`✅ Computed stats for ${Object.keys(teamStats).length} teams and ${Object.keys(playerStats).length} players`, 'success');
+        
+        stats.totalTeams = Object.keys(teamStats).length;
+        stats.totalUniquePlayers = Object.keys(playerStats).length;
+        
+        updateProgress(70, 'מחשב מטריקות מתקדמות...');
+        
+        // Step 5: Advanced Analytics
+        log('🔥 Computing advanced metrics...', 'info');
+        console.time('⏱️ Advanced Analytics');
+        
+        const advanced = new window.IBBAAdvanced(analytics);
+        
+        const advStart = performance.now();
+        const advancedMetrics = advanced.getAdvancedTeamMetrics();
+        const trends = advanced.getTeamTrends(5);
+        const advEnd = performance.now();
+        
+        timings.advancedAnalytics = advEnd - advStart;
+        
+        console.timeEnd('⏱️ Advanced Analytics');
+        log('✅ Advanced metrics computed', 'success');
+        
+        updateProgress(85, 'מבצע ניתוח H2H לדוגמה...');
+        
+        // Step 6: Sample H2H Analysis
+        log('🔄 Computing sample H2H analysis...', 'info');
+        console.time('⏱️ H2H Analysis');
+        
+        const h2hStart = performance.now();
+        
+        // בחר 2 קבוצות עם הכי הרבה משחקים
+        const topTeams = teamAverages.slice(0, 2).map(t => t.teamName);
+        let h2hResult = null;
+        
+        if (topTeams.length >= 2) {
+          h2hResult = advanced.getH2HHistory(topTeams[0], topTeams[1]);
+          const matchupReport = await advanced.buildMatchupReport(topTeams[0], topTeams[1]);
+        }
+        
+        const h2hEnd = performance.now();
+        timings.h2h = h2hEnd - h2hStart;
+        
+        console.timeEnd('⏱️ H2H Analysis');
+        log('✅ H2H analysis completed', 'success');
+        
+        updateProgress(95, 'מסיים...');
+        
+        // Calculate totals
+        const testEndTime = performance.now();
+        timings.total = testEndTime - testStartTime;
+        
+        console.timeEnd('⏱️ Total Stress Test');
+        log('🎉 Stress Test COMPLETED!', 'success');
+        
+        // Step 7: Display Results
+        updateProgress(100, 'הושלם בהצלחה!');
+        
+        setTimeout(() => {
+          displayResults(stats, timings, allGames, teamAverages, h2hResult);
+          document.getElementById('progress').classList.remove('show');
+          document.getElementById('results').classList.add('show');
+          document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+        }, 500);
+        
+      } catch (error) {
+        log(`❌ Stress Test FAILED: ${error.message}`, 'error');
+        console.error('Stress test error:', error);
+        
+        updateProgress(0, 'הבדיקה נכשלה');
+        alert(`שגיאה בבדיקה: ${error.message}`);
+      } finally {
+        startBtn.disabled = false;
+        startBtn.textContent = '🔄 הרץ שוב';
+      }
+    }
+
+    function displayResults(stats, timings, games, teams, h2h) {
+      // Summary Metrics
+      const summaryDiv = document.getElementById('summaryMetrics');
+      summaryDiv.innerHTML = `
+        <div class="metric-card">
+          <div class="metric-label">סה"כ משחקים</div>
+          <div class="metric-value">${stats.totalGames}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">סה"כ קבוצות</div>
+          <div class="metric-value">${stats.totalTeams}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">סה"כ שחקנים</div>
+          <div class="metric-value">${stats.totalUniquePlayers}</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">זמן כולל</div>
+          <div class="metric-value">${(timings.total / 1000).toFixed(2)}</div>
+          <div class="metric-unit">שניות</div>
+        </div>
+      `;
+
+      // Timing Table
+      const timingBody = document.getElementById('timingBody');
+      const stages = [
+        { name: 'אתחול מודולים', time: timings.initialization, key: 'initialization' },
+        { name: 'משיכת נתונים (API)', time: timings.fetch, key: 'fetch' },
+        { name: 'המרה ונרמול', time: timings.conversion, key: 'conversion' },
+        { name: 'חישובים בסיסיים', time: timings.basicAnalytics, key: 'basicAnalytics' },
+        { name: 'מטריקות מתקדמות', time: timings.advancedAnalytics, key: 'advancedAnalytics' },
+        { name: 'ניתוח H2H', time: timings.h2h, key: 'h2h' }
+      ];
+
+      timingBody.innerHTML = stages.map(stage => {
+        const percent = (stage.time / timings.total * 100).toFixed(1);
+        return `
+          <tr>
+            <td><strong>${stage.name}</strong></td>
+            <td style="text-align: center;">${stage.time.toFixed(0)}</td>
+            <td style="text-align: center;">${(stage.time / 1000).toFixed(2)}</td>
+            <td style="text-align: center;">${percent}%</td>
+          </tr>
+        `;
+      }).join('');
+
+      // Performance Analysis
+      const analysisDiv = document.getElementById('performanceAnalysis');
+      const computeTime = timings.basicAnalytics + timings.advancedAnalytics + timings.h2h;
+      const computePercent = (computeTime / timings.total * 100).toFixed(1);
+      const networkPercent = (timings.fetch / timings.total * 100).toFixed(1);
+      
+      const gamesPerSecond = (stats.totalGames / (computeTime / 1000)).toFixed(0);
+      const playersPerSecond = (stats.totalPlayers / (computeTime / 1000)).toFixed(0);
+
+      analysisDiv.innerHTML = `
+        <div style="line-height: 2; font-size: 16px;">
+          <p><strong>📊 פילוח זמנים:</strong></p>
+          <p>• רשת (API Fetch): ${(timings.fetch / 1000).toFixed(2)} שניות (${networkPercent}%)</p>
+          <p>• חישובים כוללים: ${(computeTime / 1000).toFixed(2)} שניות (${computePercent}%)</p>
+          <p>• המרה ועיבוד: ${(timings.conversion / 1000).toFixed(2)} שניות</p>
+          
+          <p style="margin-top: 20px;"><strong>⚡ קצב עיבוד:</strong></p>
+          <p>• ${gamesPerSecond} משחקים/שנייה</p>
+          <p>• ${playersPerSecond} שחקנים/שנייה</p>
+          <p>• ${(stats.totalGames / (timings.basicAnalytics / 1000)).toFixed(0)} משחקים/שנייה (חישובים בסיסיים)</p>
+          
+          <p style="margin-top: 20px;"><strong>🎯 דוגמאות מהנתונים:</strong></p>
+          <p>• Top Team PPG: ${teams[0]?.teamName || 'N/A'} - ${teams[0]?.ppg || 'N/A'} נק' למשחק</p>
+          <p>• משחקים ממוצעים לקבוצה: ${(stats.totalGames / stats.totalTeams / 2).toFixed(1)}</p>
+          ${h2h ? `<p>• H2H לדוגמה: ${h2h.teamA} vs ${h2h.teamB} - ${h2h.totalGames} משחקים</p>` : ''}
+        </div>
+      `;
+
+      // Verdict
+      const verdictDiv = document.getElementById('verdict');
+      let verdictClass = 'verdict';
+      let verdictText = '';
+      
+      const totalSeconds = timings.total / 1000;
+      const computeSeconds = computeTime / 1000;
+
+      if (computeSeconds < 0.5) {
+        verdictClass += ' verdict';
+        verdictText = `
+          <strong>🔥 ביצועים מעולים!</strong>
+          <p>המערכת מעבדת ${stats.totalGames} משחקים ב-${computeSeconds.toFixed(2)} שניות בלבד!</p>
+          <p>זה **מיידי לחלוטין** מנקודת מבט של המשתמש.</p>
+          <p><strong>המלצה:</strong> אין צורך באופטימיזציות. המערכת מוכנה לייצור!</p>
+        `;
+      } else if (computeSeconds < 2) {
+        verdictClass += ' verdict';
+        verdictText = `
+          <strong>✅ ביצועים טובים מאוד!</strong>
+          <p>המערכת מעבדת ${stats.totalGames} משחקים ב-${computeSeconds.toFixed(2)} שניות.</p>
+          <p>זה זמן תגובה מצוין עבור ניתוח בזמן אמת.</p>
+          <p><strong>המלצה:</strong> ניתן להוסיף Progressive Loading לחווית משתמש טובה יותר, אך לא חיוני.</p>
+        `;
+      } else if (computeSeconds < 5) {
+        verdictClass += ' warning';
+        verdictText = `
+          <strong>⚠️ ביצועים סבירים</strong>
+          <p>המערכת מעבדת ${stats.totalGames} משחקים ב-${computeSeconds.toFixed(2)} שניות.</p>
+          <p>זה עדיין סביר, אך המשתמש עשוי להרגיש המתנה קלה.</p>
+          <p><strong>המלצה:</strong> כדאי להוסיף Progressive Loading + Caching.</p>
+        `;
+      } else {
+        verdictClass += ' error';
+        verdictText = `
+          <strong>❌ ביצועים איטיים</strong>
+          <p>המערכת מעבדת ${stats.totalGames} משחקים ב-${computeSeconds.toFixed(2)} שניות.</p>
+          <p>זה זמן ארוך מדי לניתוח בזמן אמת.</p>
+          <p><strong>המלצה:</strong> יש צורך באופטימיזציות: Web Workers, Progressive Loading, ו-Caching.</p>
+        `;
+      }
+
+      verdictDiv.className = verdictClass;
+      verdictDiv.innerHTML = verdictText;
+    }
+
+    console.log('💪 Stress Test page loaded');
+  </script>
+</body>
+</html>
+

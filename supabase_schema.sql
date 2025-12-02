@@ -255,6 +255,44 @@ CREATE TRIGGER update_player_mappings_updated_at BEFORE UPDATE ON public.player_
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ========================================
+-- TABLE: player_names (IBBA Integration)
+-- ========================================
+CREATE TABLE IF NOT EXISTS public.player_names (
+  player_id BIGINT PRIMARY KEY,
+  name TEXT NOT NULL,
+  jersey TEXT,
+  team_id BIGINT,
+  team_name TEXT,
+  source TEXT DEFAULT 'api' CHECK (source IN ('api', 'manual', 'corrected')),
+  notes TEXT,
+  "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes for faster queries
+CREATE INDEX IF NOT EXISTS idx_player_names_team_id ON public.player_names(team_id);
+CREATE INDEX IF NOT EXISTS idx_player_names_source ON public.player_names(source);
+CREATE INDEX IF NOT EXISTS idx_player_names_name ON public.player_names(name);
+
+-- Enable RLS
+ALTER TABLE public.player_names ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Anyone can read player names
+CREATE POLICY "Anyone can view player names" ON public.player_names
+    FOR SELECT USING (true);
+
+-- Policy: Only authenticated users can insert/update
+CREATE POLICY "Authenticated users can insert player names" ON public.player_names
+    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can update player names" ON public.player_names
+    FOR UPDATE USING (auth.role() = 'authenticated');
+
+-- Trigger for updated_at
+CREATE TRIGGER update_player_names_updated_at BEFORE UPDATE ON public.player_names
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ========================================
 -- COMPLETION MESSAGE
 -- ========================================
 DO $$

@@ -10,6 +10,10 @@
     supabaseUrl: window.SUPABASE_URL || 'https://ruzfbkxiqusfbiyxyegb.supabase.co',
     supabaseKey: window.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1emZia3hpcXVzZmJpeXh5ZWdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMxMTkyNDEsImV4cCI6MjA3ODY5NTI0MX0.UjzpGJ9Xx_T-74FBamNF9T7pQWyEFgcSYf_TkQs3E38',
     
+    // Service Role Key - ONLY for admin operations (keep secret!)
+    // Leave empty if you want to use the simple policy approach
+    supabaseServiceRoleKey: window.SUPABASE_SERVICE_ROLE_KEY || '',
+    
     // Admin configuration
     adminPassword: window.ADMIN_PASSWORD || 'UriPixellot1982!', // Default fallback
     
@@ -89,6 +93,7 @@
   window.CONFIG = {
     SUPABASE_URL: config.supabaseUrl,
     SUPABASE_ANON_KEY: config.supabaseKey,
+    SUPABASE_SERVICE_ROLE_KEY: config.supabaseServiceRoleKey,
     ADMIN_PASSWORD: config.adminPassword
   };
   

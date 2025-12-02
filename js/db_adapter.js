@@ -279,6 +279,43 @@
    */
   async function dbDeleteGame(gameSerial) {
     if (useSupabase && supabase) {
+      // Try Edge Function if admin password is available
+      const adminPassword = window.authModule?.getPassword?.();
+      
+      if (adminPassword) {
+        console.log('🗑️ Deleting game via Edge Function (authenticated)...');
+        try {
+          const supabaseUrl = window.SUPABASE_URL || window.CONFIG?.SUPABASE_URL;
+          const anonKey = window.SUPABASE_ANON_KEY || window.CONFIG?.SUPABASE_ANON_KEY;
+          
+          const response = await fetch(`${supabaseUrl}/functions/v1/delete-game`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-admin-password': adminPassword,
+              'Authorization': `Bearer ${anonKey}`,
+              'apikey': anonKey
+            },
+            body: JSON.stringify({ gameSerial })
+          });
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Edge Function error response:', errorText);
+            throw new Error(`Edge Function call failed: ${response.status} ${errorText}`);
+          }
+          
+          const result = await response.json();
+          console.log('✅ Game deleted via Edge Function:', result);
+          return true;
+        } catch (edgeFunctionError) {
+          console.error('❌ Edge Function error:', edgeFunctionError);
+          throw edgeFunctionError;
+        }
+      }
+      
+      // Fall back to direct Supabase API (will fail if RLS is enabled)
+      console.log('🗑️ Deleting via direct Supabase API (no admin password)...');
       const { error } = await supabase
         .from('games')
         .delete()

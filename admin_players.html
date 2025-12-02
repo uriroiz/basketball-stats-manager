@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ניהול שמות שחקנים - Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f5f5; }
+    .card { background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .btn { padding: 8px 16px; border-radius: 4px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+    .btn-primary { background: #2563eb; color: white; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-success { background: #16a34a; color: white; }
+    .btn-success:hover { background: #15803d; }
+    .btn-danger { background: #dc2626; color: white; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-secondary { background: #64748b; color: white; }
+    .btn-secondary:hover { background: #475569; }
+    .stat-card { padding: 20px; text-align: center; }
+    .stat-value { font-size: 32px; font-weight: bold; color: #2563eb; }
+    .stat-label { font-size: 14px; color: #64748b; margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #f1f5f9; padding: 12px; text-align: right; font-weight: 600; border-bottom: 2px solid #e2e8f0; }
+    td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
+    tr:hover { background: #f8fafc; }
+    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+    .status-ok { background: #dcfce7; color: #166534; }
+    .status-missing { background: #fee2e2; color: #991b1b; }
+    .status-manual { background: #dbeafe; color: #1e40af; }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+    .modal.show { display: flex; }
+    .modal-content { background: white; border-radius: 8px; padding: 24px; max-width: 500px; width: 90%; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; margin-bottom: 4px; font-weight: 600; }
+    .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; }
+    .progress-bar { height: 4px; background: #e2e8f0; border-radius: 2px; overflow: hidden; }
+    .progress-fill { height: 100%; background: #2563eb; transition: width 0.3s; }
+    .hidden { display: none !important; }
+    #loginScreen { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .login-card { max-width: 400px; width: 90%; padding: 32px; }
+  </style>
+</head>
+<body>
+
+  <!-- Login Screen -->
+  <div id="loginScreen">
+    <div class="card login-card">
+      <h1 class="text-2xl font-bold mb-6 text-center">🔐 כניסת מנהלים</h1>
+      <p class="text-gray-600 mb-4 text-center">ניהול שמות שחקנים - IBBA Dashboard</p>
+      
+      <div class="form-group">
+        <label>סיסמת מנהל:</label>
+        <input type="password" id="adminPasswordInput" placeholder="הזן סיסמה" onkeypress="if(event.key==='Enter') checkPassword()">
+      </div>
+      
+      <button class="btn btn-primary w-full" onclick="checkPassword()">כניסה</button>
+      
+      <div id="loginError" class="hidden mt-4 p-3 bg-red-100 text-red-700 rounded text-center"></div>
+    </div>
+  </div>
+
+  <!-- Main Admin Panel -->
+  <div id="adminPanel" class="hidden">
+    <div class="max-w-7xl mx-auto p-6">
+      
+      <!-- Header -->
+      <div class="card p-4 mb-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-2xl font-bold text-gray-900">ניהול שמות שחקנים 👥</h1>
+            <p class="text-gray-600 mt-1">סנכרון ועדכון שמות שחקנים מ-API וידנית</p>
+          </div>
+          <button class="btn btn-secondary" onclick="logout()">יציאה</button>
+        </div>
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="card stat-card">
+          <div class="stat-value" id="statTotal">-</div>
+          <div class="stat-label">סה"כ שחקנים</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-value text-green-600" id="statWithNames">-</div>
+          <div class="stat-label">עם שמות</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-value text-red-600" id="statWithoutNames">-</div>
+          <div class="stat-label">ללא שמות</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-value text-blue-600" id="statCoverage">-</div>
+          <div class="stat-label">כיסוי</div>
+        </div>
+      </div>
+
+      <!-- Actions Bar -->
+      <div class="card p-4 mb-6">
+        <div class="flex gap-3 flex-wrap">
+          <button class="btn btn-primary" onclick="syncFromAPI()">
+            🔄 סנכרון מ-API
+          </button>
+          <button class="btn btn-success" onclick="refreshData()">
+            ♻️ רענן נתונים
+          </button>
+          <button class="btn btn-secondary" onclick="exportData()">
+            📥 ייצוא נתונים
+          </button>
+          <div class="flex-1"></div>
+          <select id="filterStatus" class="px-3 py-2 border rounded" onchange="filterPlayers()">
+            <option value="all">הכל</option>
+            <option value="with-names">עם שמות</option>
+            <option value="without-names">ללא שמות</option>
+          </select>
+          <input type="text" id="searchInput" placeholder="חפש שחקן..." class="px-3 py-2 border rounded" oninput="filterPlayers()">
+        </div>
+        
+        <!-- Progress Bar -->
+        <div id="progressContainer" class="hidden mt-4">
+          <div class="mb-2 text-sm text-gray-600" id="progressMessage">טוען...</div>
+          <div class="progress-bar">
+            <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Players Table -->
+      <div class="card p-4">
+        <h2 class="text-lg font-bold mb-4">רשימת שחקנים (<span id="playersCount">0</span>)</h2>
+        
+        <div style="max-height: 600px; overflow-y: auto;">
+          <table id="playersTable">
+            <thead>
+              <tr>
+                <th style="width: 100px;">ID</th>
+                <th style="width: 80px;">מס'</th>
+                <th>שם</th>
+                <th>קבוצה</th>
+                <th style="width: 80px;">משחקים</th>
+                <th style="width: 120px;">סטטוס</th>
+                <th style="width: 100px;">פעולות</th>
+              </tr>
+            </thead>
+            <tbody id="playersTableBody">
+              <tr>
+                <td colspan="7" class="text-center py-8 text-gray-500">טוען נתונים...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div id="editModal" class="modal">
+    <div class="modal-content">
+      <h2 class="text-xl font-bold mb-4">✏️ עריכת/הוספת שם שחקן</h2>
+      
+      <div class="form-group">
+        <label>Player ID:</label>
+        <input type="text" id="editPlayerId" readonly style="background: #f1f5f9;">
+      </div>
+      
+      <div class="form-group">
+        <label>שם מלא: *</label>
+        <input type="text" id="editPlayerName" placeholder="שם פרטי ושם משפחה">
+      </div>
+      
+      <div class="form-group">
+        <label>מספר חולצה:</label>
+        <input type="text" id="editPlayerJersey" readonly style="background: #f1f5f9;">
+      </div>
+      
+      <div class="form-group">
+        <label>קבוצה:</label>
+        <input type="text" id="editPlayerTeam" readonly style="background: #f1f5f9;">
+      </div>
+      
+      <div class="form-group">
+        <label>הערות:</label>
+        <textarea id="editPlayerNotes" rows="2" placeholder="הערות אופציונליות"></textarea>
+      </div>
+      
+      <div class="flex gap-2 mt-6">
+        <button class="btn btn-success flex-1" onclick="savePlayer()">💾 שמור</button>
+        <button class="btn btn-secondary flex-1" onclick="closeEditModal()">ביטול</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/ibba/ibba_adapter.js?v=5"></script>
+  <script src="js/ibba/ibba_player_names.js?v=5"></script>
+  <script src="js/admin_player_names.js"></script>
+
+  <script>
+    // ========================================
+    // GLOBAL STATE
+    // ========================================
+    let supabase = null;
+    let adminManager = null;
+    let allGames = [];
+    let currentFilter = 'all';
+    let currentSearch = '';
+    let filteredPlayers = [];
+
+    // ========================================
+    // LOGIN
+    // ========================================
+    async function checkPassword() {
+      const input = document.getElementById('adminPasswordInput');
+      const password = input.value.trim();
+      const errorDiv = document.getElementById('loginError');
+
+      if (!password) {
+        errorDiv.textContent = 'נא להזין סיסמה';
+        errorDiv.classList.remove('hidden');
+        return;
+      }
+
+      // Get admin password from config
+      const adminPassword = window.appConfig?.adminPassword || 'admin123';
+
+      if (password === adminPassword) {
+        errorDiv.classList.add('hidden');
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('adminPanel').classList.remove('hidden');
+        
+        // Initialize
+        await initAdminPanel();
+      } else {
+        errorDiv.textContent = 'סיסמה שגויה';
+        errorDiv.classList.remove('hidden');
+        input.value = '';
+        input.focus();
+      }
+    }
+
+    function logout() {
+      document.getElementById('adminPanel').classList.add('hidden');
+      document.getElementById('loginScreen').classList.remove('hidden');
+      document.getElementById('adminPasswordInput').value = '';
+    }
+
+    // ========================================
+    // INITIALIZATION
+    // ========================================
+    async function initAdminPanel() {
+      console.log('🎯 Initializing Admin Panel...');
+
+      try {
+        // Initialize Supabase with service role for admin operations
+        const supabaseUrl = window.appConfig?.supabaseUrl || window.CONFIG?.SUPABASE_URL;
+        // Try service role first (for admin), fallback to anon key
+        const supabaseKey = window.CONFIG?.SUPABASE_SERVICE_ROLE_KEY || 
+                           window.appConfig?.supabaseKey || 
+                           window.CONFIG?.SUPABASE_ANON_KEY;
+
+        if (supabaseUrl && supabaseKey) {
+          supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+          console.log('✅ Supabase initialized (admin mode)');
+        } else {
+          console.warn('⚠️ Supabase not configured - will work in API-only mode');
+          console.log('Config:', { supabaseUrl, supabaseKey: supabaseKey ? 'exists' : 'missing' });
+        }
+
+        // Initialize IBBA Adapter
+        const adapter = new window.IBBAAdapter();
+        console.log('✅ IBBA Adapter initialized');
+
+        // Load games
+        showProgress('טוען משחקים...', 10);
+        const now = new Date().toISOString();
+        const rawGames = await adapter.fetchGames(500, now, null);
+        allGames = rawGames.map(game => adapter.convertToInternalFormat(game))
+                          .filter(game => game.players && game.players.length > 0);
+        console.log(`✅ Loaded ${allGames.length} games`);
+
+        // Initialize Admin Manager
+        adminManager = new window.AdminPlayerNamesManager();
+        
+        if (supabase) {
+          await adminManager.init(supabase, adapter);
+        }
+
+        // Extract players from games
+        showProgress('מזהה שחקנים...', 50);
+        adminManager.extractPlayersFromGames(allGames);
+
+        hideProgress();
+
+        // Render
+        updateStats();
+        renderPlayers();
+
+        console.log('✅ Admin Panel ready');
+
+      } catch (error) {
+        console.error('❌ Initialization failed:', error);
+        alert('שגיאה באתחול: ' + error.message);
+      }
+    }
+
+    // ========================================
+    // UI UPDATES
+    // ========================================
+    function updateStats() {
+      const stats = adminManager.getPlayerStats();
+      
+      document.getElementById('statTotal').textContent = stats.total;
+      document.getElementById('statWithNames').textContent = stats.withNames;
+      document.getElementById('statWithoutNames').textContent = stats.withoutNames;
+      document.getElementById('statCoverage').textContent = stats.coverage + '%';
+    }
+
+    function renderPlayers() {
+      const stats = adminManager.getPlayerStats();
+      let players = adminManager.allPlayers;
+
+      // Apply filters
+      if (currentFilter === 'with-names') {
+        players = stats.playersWithNames;
+      } else if (currentFilter === 'without-names') {
+        players = stats.playersWithoutNames;
+      }
+
+      // Apply search
+      if (currentSearch) {
+        const search = currentSearch.toLowerCase();
+        players = players.filter(p => {
+          const name = adminManager.namesInDb.get(p.player_id)?.name || '';
+          return p.player_id.includes(search) ||
+                 p.jersey.includes(search) ||
+                 p.team_name.toLowerCase().includes(search) ||
+                 name.toLowerCase().includes(search);
+        });
+      }
+
+      filteredPlayers = players;
+
+      // Sort: missing first, then by games played
+      filteredPlayers.sort((a, b) => {
+        const aHasName = adminManager.namesInDb.has(a.player_id);
+        const bHasName = adminManager.namesInDb.has(b.player_id);
+        
+        if (aHasName !== bHasName) {
+          return aHasName ? 1 : -1; // Missing first
+        }
+        
+        return b.games.length - a.games.length; // More games first
+      });
+
+      // Render table
+      const tbody = document.getElementById('playersTableBody');
+      const countSpan = document.getElementById('playersCount');
+      
+      countSpan.textContent = filteredPlayers.length;
+
+      if (filteredPlayers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500">לא נמצאו שחקנים</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filteredPlayers.map(player => {
+        const inDb = adminManager.namesInDb.get(player.player_id);
+        const hasName = !!inDb;
+        const name = inDb?.name || '-';
+        const source = inDb?.source || '';
+
+        let statusBadge = '';
+        if (hasName) {
+          if (source === 'manual' || source === 'corrected') {
+            statusBadge = `<span class="status-badge status-manual">ידני</span>`;
+          } else {
+            statusBadge = `<span class="status-badge status-ok">✓ OK</span>`;
+          }
+        } else {
+          statusBadge = `<span class="status-badge status-missing">חסר</span>`;
+        }
+
+        return `
+          <tr>
+            <td><code>${player.player_id}</code></td>
+            <td><strong>#${player.jersey}</strong></td>
+            <td><strong>${name}</strong></td>
+            <td>${player.team_name || '-'}</td>
+            <td class="text-center">${player.games.length}</td>
+            <td>${statusBadge}</td>
+            <td>
+              <button class="btn btn-primary" style="font-size: 12px; padding: 4px 8px;" onclick="editPlayer('${player.player_id}')">
+                ${hasName ? '✏️' : '➕'}
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // ========================================
+    // ACTIONS
+    // ========================================
+    async function refreshData() {
+      if (!adminManager) return;
+      
+      showProgress('מרענן...', 50);
+      
+      if (supabase) {
+        await adminManager.loadNamesFromSupabase();
+      }
+      
+      updateStats();
+      renderPlayers();
+      hideProgress();
+      
+      console.log('✅ Data refreshed');
+    }
+
+    async function syncFromAPI() {
+      if (!adminManager || !supabase) {
+        alert('Supabase לא מוגדר - לא ניתן לבצע סנכרון');
+        return;
+      }
+
+      if (!confirm('האם לסנכרן שחקנים חסרים מ-IBBA API?\nזה עלול לקחת מספר דקות.')) {
+        return;
+      }
+
+      try {
+        const result = await adminManager.syncFromAPI((progress) => {
+          if (progress.stage === 'fetching') {
+            showProgress(progress.message, progress.percent || 50);
+          } else if (progress.stage === 'saving') {
+            showProgress(progress.message, 80);
+          } else if (progress.stage === 'complete') {
+            showProgress('הושלם!', 100);
+          } else if (progress.stage === 'error') {
+            hideProgress();
+            alert('שגיאה בסנכרון: ' + progress.error);
+          }
+        });
+
+        hideProgress();
+        
+        // Show success message
+        showSuccessMessage(`✅ סנכרון הושלם! נוספו ${result.added} שחקנים<br><small>השינויים יופיעו בדשבורד הציבורי תוך 5 דקות</small>`, 6000);
+        
+        updateStats();
+        renderPlayers();
+
+      } catch (error) {
+        hideProgress();
+        console.error('❌ Sync error:', error);
+        alert('שגיאה בסנכרון: ' + error.message);
+      }
+    }
+
+    function filterPlayers() {
+      currentFilter = document.getElementById('filterStatus').value;
+      currentSearch = document.getElementById('searchInput').value.trim();
+      renderPlayers();
+    }
+
+    function exportData() {
+      const data = adminManager.exportData();
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `player_names_export_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // ========================================
+    // EDIT MODAL
+    // ========================================
+    function editPlayer(playerId) {
+      const player = adminManager.getPlayer(playerId);
+      
+      document.getElementById('editPlayerId').value = playerId;
+      document.getElementById('editPlayerJersey').value = player.inGames?.jersey || '';
+      document.getElementById('editPlayerTeam').value = player.inGames?.team_name || '';
+      document.getElementById('editPlayerName').value = player.inDb?.name || '';
+      document.getElementById('editPlayerNotes').value = player.inDb?.notes || '';
+      
+      document.getElementById('editModal').classList.add('show');
+      document.getElementById('editPlayerName').focus();
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').classList.remove('show');
+    }
+
+    async function savePlayer() {
+      const playerId = document.getElementById('editPlayerId').value;
+      const name = document.getElementById('editPlayerName').value.trim();
+      const notes = document.getElementById('editPlayerNotes').value.trim();
+
+      if (!name) {
+        alert('נא להזין שם שחקן');
+        return;
+      }
+
+      if (!supabase) {
+        alert('Supabase לא מוגדר - לא ניתן לשמור');
+        return;
+      }
+
+      try {
+        showProgress('שומר...', 50);
+        
+        const result = await adminManager.savePlayerName(playerId, name, 'manual', notes);
+        
+        hideProgress();
+        closeEditModal();
+        
+        updateStats();
+        renderPlayers();
+        
+        // Show success message with cache clear info
+        showSuccessMessage(`✅ שם השחקן נשמר בהצלחה: ${name}<br><small>השינויים יופיעו בדשבורד הציבורי תוך 5 דקות (או עם ניקוי cache ידני)</small>`);
+        
+        console.log(`✅ Saved player ${playerId}: ${name}`);
+
+      } catch (error) {
+        hideProgress();
+        console.error('❌ Save error:', error);
+        alert('שגיאה בשמירה: ' + error.message);
+      }
+    }
+
+    // ========================================
+    // PROGRESS BAR
+    // ========================================
+    function showProgress(message, percent) {
+      document.getElementById('progressContainer').classList.remove('hidden');
+      document.getElementById('progressMessage').textContent = message;
+      document.getElementById('progressFill').style.width = percent + '%';
+    }
+
+    function hideProgress() {
+      setTimeout(() => {
+        document.getElementById('progressContainer').classList.add('hidden');
+        document.getElementById('progressFill').style.width = '0%';
+      }, 500);
+    }
+
+    /**
+     * Show success message with auto-hide
+     */
+    function showSuccessMessage(message, duration = 5000) {
+      // Create toast if doesn't exist
+      let toast = document.getElementById('successToast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'successToast';
+        toast.style.cssText = `
+          position: fixed;
+          top: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          color: white;
+          padding: 16px 24px;
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          z-index: 10000;
+          font-size: 14px;
+          max-width: 500px;
+          text-align: center;
+          opacity: 0;
+          transition: opacity 0.3s ease;
+        `;
+        document.body.appendChild(toast);
+      }
+      
+      // Set message and show
+      toast.innerHTML = message;
+      toast.style.opacity = '1';
+      
+      // Auto-hide
+      setTimeout(() => {
+        toast.style.opacity = '0';
+      }, duration);
+    }
+
+    // ========================================
+    // INIT
+    // ========================================
+    console.log('🎯 Admin Players page loaded');
+  </script>
+</body>
+</html>
+

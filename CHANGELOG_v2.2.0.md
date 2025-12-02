@@ -196,3 +196,7 @@ const text = window.IBBAInsightTemplates?.getRandomText('category', 'NEW_INSIGHT
 
 **העדכון מבוסס על תוכנית מפורטת ב-`game-prep.plan.md`**
 
+
+
+
+

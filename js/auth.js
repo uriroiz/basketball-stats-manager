@@ -20,11 +20,12 @@
     const authData = localStorage.getItem(AUTH_STORAGE_KEY);
     if (!authData) {
       isAuthenticatedState = false;
+      currentPassword = null;
       return false;
     }
 
     try {
-      const { timestamp, authenticated } = JSON.parse(authData);
+      const { timestamp, authenticated, password } = JSON.parse(authData);
       const now = Date.now();
       const expiryMs = AUTH_EXPIRY_HOURS * 60 * 60 * 1000;
 
@@ -35,6 +36,12 @@
       }
 
       isAuthenticatedState = authenticated === true;
+      
+      // Restore password to memory if available
+      if (password && !currentPassword) {
+        currentPassword = password;
+      }
+      
       return isAuthenticatedState;
     } catch (e) {
       console.error('Error reading auth state:', e);
@@ -61,7 +68,8 @@
       if (password === correctPassword) {
         const authData = {
           authenticated: true,
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          password: password  // Store password for Edge Function calls
         };
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
         isAuthenticatedState = true;
@@ -350,7 +358,30 @@
    * @returns {string|null} - The password or null if not authenticated
    */
   function getPassword() {
-    return isAuthenticated() ? currentPassword : null;
+    if (!isAuthenticated()) {
+      return null;
+    }
+    
+    // If password is in memory, return it
+    if (currentPassword) {
+      return currentPassword;
+    }
+    
+    // Try to restore from localStorage
+    try {
+      const authData = localStorage.getItem(AUTH_STORAGE_KEY);
+      if (authData) {
+        const { password } = JSON.parse(authData);
+        if (password) {
+          currentPassword = password;  // Cache in memory
+          return password;
+        }
+      }
+    } catch (e) {
+      console.error('Error restoring password:', e);
+    }
+    
+    return null;
   }
 
   // Export functions to global scope

@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧪 IBBA API Test - מערכת בדיקות</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            direction: rtl;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .header h1 {
+            font-size: 32px;
+            color: #1e293b;
+            margin-bottom: 10px;
+        }
+
+        .header .subtitle {
+            color: #64748b;
+            font-size: 16px;
+        }
+
+        .beta-badge {
+            display: inline-block;
+            background: #f59e0b;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .notice {
+            background: #fef3c7;
+            border-right: 4px solid #f59e0b;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            color: #92400e;
+        }
+
+        .notice strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .controls {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .controls h2 {
+            font-size: 20px;
+            color: #1e293b;
+            margin-bottom: 16px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 14px 28px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            font-family: inherit;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+            color: white;
+        }
+
+        .results-container {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .results-container h2 {
+            font-size: 20px;
+            color: #1e293b;
+            margin-bottom: 16px;
+        }
+
+        #results {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            max-height: 600px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            direction: ltr;
+            text-align: left;
+        }
+
+        #output {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        /* Scrollbar styling */
+        #results::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        #results::-webkit-scrollbar-track {
+            background: #0f172a;
+            border-radius: 8px;
+        }
+
+        #results::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 8px;
+        }
+
+        #results::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+
+        .info-box {
+            background: #dbeafe;
+            border-right: 4px solid #3b82f6;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            color: #1e40af;
+        }
+
+        .info-box ul {
+            margin-right: 20px;
+            margin-top: 8px;
+        }
+
+        .info-box li {
+            margin-bottom: 4px;
+        }
+
+        @media (max-width: 768px) {
+            .button-group {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>
+                <span class="beta-badge">BETA</span>
+                🧪 IBBA API Test
+            </h1>
+            <p class="subtitle">מערכת בדיקות למודול IBBA - קריאת נתונים מ-ibasketball.co.il</p>
+        </div>
+
+        <!-- Notice -->
+        <div class="notice">
+            <strong>⚠️ שים לב:</strong>
+            זוהי מערכת בדיקות נפרדת לגמרי. המערכת הראשית ממשיכה לעבוד ללא שינוי.
+            <br>
+            בשלב זה אנחנו רק קוראים נתונים מה-API - אין שמירה למסד נתונים.
+        </div>
+
+        <!-- CORS Notice -->
+        <div style="background: #dbeafe; border-right: 4px solid #3b82f6; padding: 16px; border-radius: 8px; margin-bottom: 20px; color: #1e40af;">
+            <strong>💡 המלצה חשובה:</strong>
+            <br>
+            לתוצאות הטובות ביותר, הרץ את העמוד דרך שרת מקומי:
+            <br>
+            <code style="background: #1e293b; color: #e2e8f0; padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 8px;">python -m http.server 8000</code>
+            <br>
+            <small style="color: #1e40af; display: block; margin-top: 8px;">
+                (אם פתחת מה-filesystem ישירות, המערכת תשתמש אוטומטית ב-CORS proxy - עלול להיות יותר איטי)
+            </small>
+        </div>
+
+        <!-- Info Box -->
+        <div class="info-box">
+            <strong>📘 שלב 1 - קריאה מ-API:</strong>
+            <ul>
+                <li>✅ קריאת רשימת משחקים מ-API של ibasketball.co.il</li>
+                <li>✅ המרה לפורמט הפנימי של המערכת</li>
+                <li>✅ חילוץ נתוני שחקנים, קבוצות וסטטיסטיקות</li>
+                <li>✅ הצגת כל הנתונים ב-console וב-JSON</li>
+            </ul>
+            <strong style="margin-top: 12px; display: block;">🚀 שלב 2 - סנכרון ושמירה:</strong>
+            <ul>
+                <li>🔄 סנכרון שחקנים אוטומטי מדף הליגה</li>
+                <li>🎯 טעינה חכמה (רק משחקים חדשים)</li>
+                <li>💾 שמירה למסד נתונים</li>
+                <li>📊 סטטיסטיקות ודיווחים</li>
+            </ul>
+        </div>
+
+        <!-- Controls - Phase 1 -->
+        <div class="controls">
+            <h2>🎮 שלב 1: בדיקות בסיסיות</h2>
+            <div class="button-group">
+                <button onclick="testFetchGames()" class="btn-primary">
+                    📥 טען 10 משחקים אחרונים
+                </button>
+                <button onclick="testFetchSingleGame()" class="btn-success">
+                    🏀 טען משחק בודד (1200241)
+                </button>
+                <button onclick="testConnection()" class="btn-secondary">
+                    🔌 בדוק חיבור ל-API
+                </button>
+                <button onclick="clearResults()" class="btn-danger">
+                    🗑️ נקה תוצאות
+                </button>
+            </div>
+        </div>
+
+        <!-- Controls - Phase 2 -->
+        <div class="controls">
+            <h2>🚀 שלב 2: תכונות מתקדמות</h2>
+            <div class="button-group">
+                <button onclick="testPlayerSync()" class="btn-primary">
+                    🔄 סנכרון שחקנים מדף הליגה
+                </button>
+                <button onclick="testLoadNewGames()" class="btn-success">
+                    📥 טען משחקים חדשים (7 ימים)
+                </button>
+                <button onclick="testSaveGame()" class="btn-warning">
+                    💾 שמור משחק בודד למסד (1200241)
+                </button>
+                <button onclick="testLoadAndSaveGames()" class="btn-warning" style="background: #9333ea; color: white;">
+                    ⚡ טען ושמור אוטומטית (7 ימים)
+                </button>
+                <button onclick="testDbStats()" class="btn-secondary">
+                    📊 הצג סטטיסטיקות מסד נתונים
+                </button>
+            </div>
+            <div style="margin-top: 12px; padding: 12px; background: #fef3c7; border-radius: 6px; font-size: 14px; color: #92400e;">
+                ⚠️ <strong>שים לב:</strong> פונקציות שלב 2 דורשות שמסד הנתונים יהיה פעיל (Supabase או IndexedDB). 
+                הפונקציות ינסו אוטומטית להתחבר למסד.
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div class="results-container">
+            <h2>📊 תוצאות</h2>
+            <div id="results">
+                <div id="output" style="color: #9ca3af;">
+🎨 מערכת בדיקות IBBA מוכנה!
+ממתין לפעולה... לחץ על כפתור לבדיקה.
+
+💡 טיפ: פתח את ה-Console (F12) לראות לוגים מפורטים נוספים.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load Scripts -->
+    <!-- Phase 1: Basic functionality -->
+    <script src="js/ibba/ibba_adapter.js"></script>
+    
+    <!-- Phase 2: Advanced functionality -->
+    <script src="js/db_adapter.js"></script>
+    <script src="js/ibba/ibba_db_wrapper.js"></script>
+    <script src="js/ibba/ibba_player_sync.js"></script>
+    <script src="js/ibba/ibba_game_loader.js"></script>
+    
+    <!-- UI Controller (must be last) -->
+    <script src="js/ibba/ibba_test_ui.js"></script>
+</body>
+</html>
+

@@ -144,6 +144,9 @@ class IBBAAdapter {
       gameSerial: ibbaGame.id,
       gameId: ibbaGame.id,
       
+      // Permalink למשחק באתר IBBA (לשימוש עתידי - scraping, קישורים וכו')
+      permalink: ibbaGame.link || ibbaGame.guid?.rendered || null,
+      
       // תאריך ושעה
       date: ibbaGame.date,
       dateGMT: ibbaGame.date_gmt,
@@ -303,17 +306,23 @@ class IBBAAdapter {
    * חילוץ סטטיסטיקות קבוצתיות
    */
   extractTeamStats(ibbaGame, homeTeamId, awayTeamId) {
+    // סטטיסטיקות בסיסיות מ-performance
     const homeStats = ibbaGame.performance?.[homeTeamId]?.['0'] || {};
     const awayStats = ibbaGame.performance?.[awayTeamId]?.['0'] || {};
     
+    // סטטיסטיקות מתקדמות מ-sp_teams (Fast Break, Paint, Turnovers, etc.)
+    const homeAdvanced = ibbaGame.sp_teams?.[homeTeamId] || {};
+    const awayAdvanced = ibbaGame.sp_teams?.[awayTeamId] || {};
+    
     return {
-      home: this.normalizeTeamStats(homeStats),
-      away: this.normalizeTeamStats(awayStats)
+      home: this.normalizeTeamStats(homeStats, homeAdvanced),
+      away: this.normalizeTeamStats(awayStats, awayAdvanced)
     };
   }
 
-  normalizeTeamStats(stats) {
+  normalizeTeamStats(stats, advanced = {}) {
     return {
+      // סטטיסטיקות בסיסיות
       points: stats.pts || 0,
       fieldGoalsMade: stats.fgm || 0,
       fieldGoalsAttempted: stats.fga || 0,
@@ -331,7 +340,15 @@ class IBBAAdapter {
       personalFouls: stats.pf || 0,
       fgPercentage: this.calculatePercentage(stats.fgm, stats.fga),
       threePointPercentage: this.calculatePercentage(stats.threepm, stats.threepa),
-      ftPercentage: this.calculatePercentage(stats.ftm, stats.fta)
+      ftPercentage: this.calculatePercentage(stats.ftm, stats.fta),
+      
+      // סטטיסטיקות מתקדמות (מגיעות מ-sp_teams ב-API)
+      pointsFastBreak: advanced.pfb || 0,         // נק' מהתקפה מתפרצת
+      pointsFromTurnovers: advanced.pto || 0,     // נק' מאיבודים של היריבה
+      pointsInPaint: advanced.pipm || 0,          // נק' בצבע (made)
+      pointsInPaintAttempted: advanced.pipa || 0, // ניסיונות בצבע
+      pointsSecondChance: advanced.psc || 0,      // נק' מהזדמנות שנייה
+      pointsBench: advanced.pbc || 0              // נק' מהספסל
     };
   }
 

@@ -1,5 +1,17 @@
 # Basketball Stats Manager - Changelog
 
+## [v2.2.8] - 2025-12-02 🐛
+
+### 🐛 Critical Bug Fix
+
+#### **Bench Insights Not Displaying**
+- **Problem**: `detectStrongBench` and `detectLineupDependent` were not triggering because they were looking for `teamData.totalPointsBench`, but `getTeamAverages()` returns `teamData._totalPointsBench` (with underscore)
+- **Solution**: Updated both functions to use the correct property names (`_totalPointsBench`, `_totalPoints`)
+- **Impact**: Bench and Lineup insights now display correctly in all environments
+- **Files Changed**: `js/ibba/ibba_insights_v2.js`
+
+---
+
 ## [v2.2.7] - 2025-12-02 🪑
 
 ### 🎯 New Features: Bench & Lineup Insights

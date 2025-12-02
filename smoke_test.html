@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🔥 Smoke Test - IBBA Pure API</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .test-box {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 18px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover { background: #45a049; }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+    .results { font-family: monospace; }
+    .success { color: #4CAF50; }
+    .error { color: #f44336; }
+    .metric { 
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .metric:last-child {
+      border-bottom: none;
+    }
+    h1 { color: #333; }
+    h2 { color: #555; }
+    h3 { color: #4CAF50; margin-top: 0; }
+    .note {
+      margin-top: 20px;
+      padding: 10px;
+      background: #f0f0f0;
+      border-left: 4px solid #4CAF50;
+      color: #666;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="test-box">
+    <h1>🔥 Smoke Test - Pure API POC</h1>
+    <p>בדיקה מהירה של המערכת - משיכת 5 משחקים מ-API</p>
+    <p style="font-size: 14px; color: #666;">
+      הבדיקה תמשוך 5 משחקים מ-IBBA API, תעבד את הנתונים ותציג סטטיסטיקות בסיסיות.
+    </p>
+    <button id="runTest" onclick="runSmokeTest()">הרץ בדיקה</button>
+  </div>
+
+  <div id="results" class="test-box" style="display:none;">
+    <h2>📊 תוצאות</h2>
+    <div id="resultsContent"></div>
+  </div>
+
+  <!-- Load IBBA Adapter -->
+  <script src="js/ibba/ibba_adapter.js"></script>
+  
+  <!-- Smoke Test Logic -->
+  <script>
+    async function runSmokeTest() {
+      const resultsDiv = document.getElementById('results');
+      const resultsContent = document.getElementById('resultsContent');
+      const button = document.getElementById('runTest');
+      
+      // Disable button
+      button.disabled = true;
+      button.textContent = '⏳ טוען...';
+      
+      // Show results box
+      resultsDiv.style.display = 'block';
+      resultsContent.innerHTML = '<p>מתחיל בדיקה...</p>';
+      
+      try {
+        console.log('🔥 Starting Smoke Test...');
+        console.log('='.repeat(50));
+        
+        // STEP 1: Initialize adapter
+        console.time('⏱️ Total Test Time');
+        const adapter = new window.IBBAAdapter();
+        console.log('✅ Adapter initialized');
+        
+        // STEP 2: Fetch 5 games that already happened
+        console.time('⏱️ Fetch 5 Games');
+        const now = new Date().toISOString();
+        
+        // Fetch more games than we need (some might be future games)
+        const rawGames = await adapter.fetchGames(20, now, null);
+        
+        // Convert to internal format
+        const allGames = rawGames.map(game => adapter.convertToInternalFormat(game));
+        
+        // Filter only games with player data (past games)
+        const games = allGames.filter(game => 
+          game.players && game.players.length > 0
+        ).slice(0, 5); // Take first 5
+        
+        console.timeEnd('⏱️ Fetch 5 Games');
+        console.log(`✅ Fetched ${games.length} games with player data (from ${allGames.length} total)`);
+        
+        // Log first game sample
+        if (games.length > 0) {
+          console.log('📝 First game sample:', {
+            gameId: games[0].gameId,
+            date: games[0].date,
+            matchup: `${games[0].homeTeam} vs ${games[0].awayTeam}`,
+            score: `${games[0].homeScore}-${games[0].awayScore}`,
+            playersCount: games[0].players.length
+          });
+        }
+        
+        // STEP 3: Analyze data
+        console.time('⏱️ Data Analysis');
+        
+        const stats = {
+          gamesCount: games.length,
+          totalPlayers: 0,
+          totalPoints: 0,
+          totalRebounds: 0,
+          totalAssists: 0,
+          totalSteals: 0,
+          totalBlocks: 0,
+          teams: new Set()
+        };
+        
+        games.forEach(game => {
+          // Count players
+          stats.totalPlayers += game.players.length;
+          
+          // Sum scores
+          stats.totalPoints += game.homeScore + game.awayScore;
+          
+          // Track teams
+          stats.teams.add(game.homeTeam);
+          stats.teams.add(game.awayTeam);
+          
+          // Sum player stats
+          game.players.forEach(player => {
+            stats.totalRebounds += player.stats.totalRebounds || 0;
+            stats.totalAssists += player.stats.assists || 0;
+            stats.totalSteals += player.stats.steals || 0;
+            stats.totalBlocks += player.stats.blocks || 0;
+          });
+        });
+        
+        console.timeEnd('⏱️ Data Analysis');
+        console.timeEnd('⏱️ Total Test Time');
+        
+        // Log detailed stats
+        console.log('📊 Stats Summary:', stats);
+        
+        // STEP 4: Display results
+        displayResults(stats, resultsContent);
+        
+        console.log('='.repeat(50));
+        console.log('✅ Smoke Test PASSED!');
+        
+      } catch (error) {
+        console.error('❌ Smoke Test FAILED:', error);
+        console.error('Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
+        
+        resultsContent.innerHTML = `
+          <div class="error">
+            <h3>❌ הבדיקה נכשלה!</h3>
+            <p><strong>שגיאה:</strong> ${error.message}</p>
+            <p style="font-size: 14px; margin-top: 10px;">
+              בדוק את הקונסול לפרטים נוספים.
+            </p>
+          </div>
+        `;
+      } finally {
+        button.disabled = false;
+        button.textContent = 'הרץ שוב';
+      }
+    }
+
+    function displayResults(stats, container) {
+      const html = `
+        <div class="results success">
+          <h3>✅ הבדיקה הצליחה!</h3>
+          
+          <div class="metric">
+            <span>משחקים שנמשכו:</span>
+            <strong>${stats.gamesCount}</strong>
+          </div>
+          
+          <div class="metric">
+            <span>סה״כ שחקנים:</span>
+            <strong>${stats.totalPlayers}</strong>
+          </div>
+          
+          <div class="metric">
+            <span>ממוצע שחקנים למשחק:</span>
+            <strong>${(stats.totalPlayers / stats.gamesCount).toFixed(1)}</strong>
+          </div>
+          
+          <div class="metric">
+            <span>סה״כ נקודות:</span>
+            <strong>${stats.totalPoints}</strong>
+          </div>
+          
+          <div class="metric">
+            <span>ממוצע נקודות למשחק:</span>
+            <strong>${(stats.totalPoints / stats.gamesCount).toFixed(1)}</strong>
+          </div>
+          
+          <div class="metric">
+            <span>סה״כ ריבאונדים:</span>
+            <strong>${stats.totalRebounds}</strong>
+          </div>
+          
+          <div class="metric">
+            <span>סה״כ אסיסטים:</span>
+            <strong>${stats.totalAssists}</strong>
+          </div>
+          
+          <div class="metric">
+            <span>סה״כ חטיפות:</span>
+            <strong>${stats.totalSteals}</strong>
+          </div>
+          
+          <div class="metric">
+            <span>סה״כ חסימות:</span>
+            <strong>${stats.totalBlocks}</strong>
+          </div>
+          
+          <div class="metric">
+            <span>קבוצות ייחודיות:</span>
+            <strong>${stats.teams.size}</strong>
+          </div>
+          
+          <div class="note">
+            📝 בדוק את הקונסול לפרטים נוספים, מדדי זמן ודוגמת משחק
+          </div>
+        </div>
+      `;
+      
+      container.innerHTML = html;
+    }
+
+    // Auto-log on page load
+    console.log('🔥 Smoke Test page loaded');
+    console.log('📍 Ready to test - click "הרץ בדיקה" button');
+  </script>
+</body>
+</html>
+
