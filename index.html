@@ -3494,10 +3494,10 @@
 
       // Generate filename with team names and date
       // Get team names from selectors
-      const homeSelect = document.getElementById('teamASelect');
-      const awaySelect = document.getElementById('teamBSelect');
-      const homeTeam = homeSelect?.selectedOptions[0]?.text || 'קבוצת-בית';
-      const awayTeam = awaySelect?.selectedOptions[0]?.text || 'קבוצת-חוץ';
+      const homeSelect = document.getElementById('homeTeamSelect');
+      const awaySelect = document.getElementById('awayTeamSelect');
+      const homeTeam = homeSelect?.selectedOptions?.[0]?.text || 'קבוצת-בית';
+      const awayTeam = awaySelect?.selectedOptions?.[0]?.text || 'קבוצת-חוץ';
       
       // Format date as DDMMYYYY
       const now = new Date();

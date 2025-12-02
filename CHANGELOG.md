@@ -1,5 +1,24 @@
 # Basketball Stats Manager - Changelog
 
+## [v2.4.3] - 2025-12-02 🐛
+
+### 🐛 Bug Fix: Excel Export Filename
+
+#### **Issue**
+The export function was using incorrect element IDs (`teamASelect`, `teamBSelect`) instead of the actual IDs (`homeTeamSelect`, `awayTeamSelect`), causing all exported files to have generic names with fallback values instead of the selected team names.
+
+#### **Fix**
+- Changed `getElementById('teamASelect')` to `getElementById('homeTeamSelect')`
+- Changed `getElementById('teamBSelect')` to `getElementById('awayTeamSelect')`
+- Added optional chaining for safer access: `selectedOptions?.[0]`
+
+#### **Result**
+Excel files now correctly named with actual selected team names:
+- Before: `הכנה למשחק_02122025_קבוצת-בית_נגד_קבוצת-חוץ.xlsx` (always)
+- After: `הכנה למשחק_02122025_מכבי-תל-אביב_נגד_הפועל-ירושלים.xlsx` (actual teams)
+
+---
+
 ## [v2.4.2] - 2025-12-02 📊
 
 ### ✨ New Feature: Excel Export for Insights
