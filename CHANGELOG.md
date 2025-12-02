@@ -1,5 +1,33 @@
 # Basketball Stats Manager - Changelog
 
+## [v2.4.2] - 2025-12-02 📊
+
+### ✨ New Feature: Excel Export for Insights
+
+#### **Export Button**
+- Added green Excel export button next to "New Variations" button
+- Located in the insights section of the game preparation tab
+- Excel-themed styling with 📊 icon
+
+#### **Export Functionality**
+- Exports all insights to Excel (.xlsx format)
+- Organized by category (Streaks, Players, Offense, Defense, etc.)
+- Includes columns: Category, Importance, Team, Insight Text
+- Hebrew-formatted with proper RTL support
+- Auto-sized columns for optimal readability
+
+#### **File Naming**
+- Automatic filename: `insights_{HomeTeam}_vs_{AwayTeam}_{Date}.xlsx`
+- Example: `insights_מכבי-תל-אביב_vs_הפועל-ירושלים_2025-12-02.xlsx`
+
+#### **Technical Details**
+- Uses SheetJS library (xlsx v0.20.1)
+- No server-side processing required
+- Works entirely in the browser
+- Validates data before export
+
+---
+
 ## [v2.4.1] - 2025-12-02 🔧
 
 ### 🐛 Bug Fix: Home/Away PPG Metrics Mismatch

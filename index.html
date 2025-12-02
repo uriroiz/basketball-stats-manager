@@ -736,9 +736,14 @@
               <h3 class="text-lg font-bold text-amber-900 flex items-center gap-2">
                 💡 תובנות מרכזיות למשחק
               </h3>
-              <button onclick="regenerateInsights()" class="text-xs bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-md transition-colors">
-                🎲 וריאציות חדשות
-              </button>
+              <div class="flex gap-2">
+                <button onclick="exportInsightsToExcel()" class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-md transition-colors flex items-center gap-1">
+                  📊 ייצוא לאקסל
+                </button>
+                <button onclick="regenerateInsights()" class="text-xs bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-md transition-colors">
+                  🎲 וריאציות חדשות
+                </button>
+              </div>
             </div>
 
             <!-- Insights Categories Tabs -->
@@ -798,6 +803,7 @@
   
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <script src="js/config.js"></script>
   <script src="js/ibba/ibba_adapter.js?v=6"></script>
   <script src="js/ibba/ibba_analytics.js?v=7"></script>
@@ -3405,6 +3411,93 @@
       
       // Just re-display the insights (templates are randomly selected each time)
       displayInsightsV2(currentAdvancedReport.insightsV2);
+    }
+    
+    /**
+     * Export insights to Excel
+     */
+    function exportInsightsToExcel() {
+      if (!currentAdvancedReport || !currentAdvancedReport.insightsV2) {
+        alert('אין תובנות לייצוא. אנא בחר משחק ובצע ניתוח תחילה.');
+        return;
+      }
+
+      const insightsV2 = currentAdvancedReport.insightsV2;
+
+      // Prepare data for Excel
+      const excelData = [];
+      
+      // Add header row
+      excelData.push(['קטגוריה', 'חשיבות', 'קבוצה', 'תובנה']);
+      
+      // Category names in Hebrew
+      const categoryNames = {
+        'STREAKS': 'רצפים',
+        'PLAYERS': 'שחקנים',
+        'OFFENSE': 'התקפה',
+        'DEFENSE': 'הגנה',
+        'MOMENTUM': 'מומנטום',
+        'H2H': 'מפגשים ישירים',
+        'QUARTERS': 'רבעים',
+        'LEAGUE': 'ליגה',
+        'VENUE': 'בית/חוץ'
+      };
+      
+      const importanceNames = {
+        'high': 'גבוהה',
+        'medium': 'בינונית',
+        'low': 'נמוכה'
+      };
+
+      // Category order for organized export
+      const categoryOrder = ['STREAKS', 'PLAYERS', 'OFFENSE', 'DEFENSE', 'MOMENTUM', 'H2H', 'QUARTERS', 'LEAGUE', 'VENUE'];
+
+      // Iterate through categories in order
+      categoryOrder.forEach(category => {
+        const insights = insightsV2[category];
+        if (insights && insights.length > 0) {
+          insights.forEach(insight => {
+            excelData.push([
+              categoryNames[category] || category,
+              importanceNames[insight.importance] || insight.importance,
+              insight.teamName || '',
+              insight.text || ''
+            ]);
+          });
+        }
+      });
+
+      // Check if there's any data to export
+      if (excelData.length === 1) {
+        alert('אין תובנות לייצוא.');
+        return;
+      }
+
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(excelData);
+      
+      // Set column widths
+      ws['!cols'] = [
+        { wch: 15 },  // Category
+        { wch: 10 },  // Importance
+        { wch: 25 },  // Team
+        { wch: 80 }   // Insight text
+      ];
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, 'תובנות');
+
+      // Generate filename with team names and date
+      const homeTeam = currentAdvancedReport.homeTeam || 'קבוצה-בית';
+      const awayTeam = currentAdvancedReport.awayTeam || 'קבוצה-חוץ';
+      const date = new Date().toISOString().split('T')[0];
+      const filename = `insights_${homeTeam}_vs_${awayTeam}_${date}.xlsx`;
+
+      // Save file
+      XLSX.writeFile(wb, filename);
+      
+      console.log(`✅ Exported ${excelData.length - 1} insights to Excel`);
     }
     
     /**
