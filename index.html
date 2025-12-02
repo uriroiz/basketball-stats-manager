@@ -28,6 +28,12 @@
     th[onclick]:hover {
       background-color: rgba(59, 130, 246, 0.1);
     }
+    /* Disabled tabs during loading */
+    .tab:disabled, .tab.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body class="bg-slate-100 text-gray-900">
@@ -846,6 +852,22 @@
     // TAB SWITCHING
     // ========================================
     
+    function disableTabs() {
+      document.querySelectorAll('#tabs .tab').forEach(tab => {
+        tab.disabled = true;
+        tab.classList.add('disabled');
+      });
+      console.log('🔒 Tabs disabled during loading');
+    }
+    
+    function enableTabs() {
+      document.querySelectorAll('#tabs .tab').forEach(tab => {
+        tab.disabled = false;
+        tab.classList.remove('disabled');
+      });
+      console.log('🔓 Tabs enabled - data loaded');
+    }
+    
     function switchTab(tabName) {
       console.log(`🔄 Switching to tab: ${tabName}`);
       
@@ -1457,6 +1479,7 @@
     
     async function init() {
       try {
+        disableTabs(); // Disable tabs until data is loaded
         updateProgress(0, 'מאתחל מודולים...', 'יוצר חיבור ל-API...');
         
         // Create adapter
@@ -1591,6 +1614,7 @@
         // Hide loading, show games tab (default)
         document.getElementById('loadingProgress').classList.add('hidden');
         document.getElementById('view-games').classList.remove('hidden');
+        enableTabs(); // Enable tabs now that data is loaded
         
         console.log('✅ Dashboard initialized successfully');
         
