@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="he" dir="rtl">
 <head>
   <meta charset="utf-8">
@@ -738,7 +738,7 @@
               </h3>
               <div class="flex gap-2">
                 <button onclick="handleExcelExport()" class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-md transition-colors flex items-center gap-1">
-                  📊 ייצוא לאקסל
+                  📊 ייצוא הכל ל-Excel
                 </button>
                 <button onclick="regenerateInsights()" class="text-xs bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-md transition-colors">
                   🎲 וריאציות חדשות
@@ -852,7 +852,14 @@
       selectedPlayer2: null,
       upcomingGames: [],
       rounds: [],
-      initialized: false
+      initialized: false,
+      // Data for Excel export
+      teamAveragesData: null,
+      lastFiveGamesData: {
+        homeTeam: [],
+        awayTeam: []
+      },
+      headToHeadData: []
     };
     
     // ========================================
@@ -2574,6 +2581,12 @@
         isHome: false
       };
       
+      // Save data for Excel export
+      gamePrepState.teamAveragesData = {
+        homeStats,
+        awayStats
+      };
+      
       renderTeamAverages(homeStats, awayStats);
     }
     
@@ -2685,6 +2698,12 @@
         .sort((a, b) => new Date(b.date) - new Date(a.date))
         .slice(0, 5);
       
+      // Save data for Excel export
+      gamePrepState.lastFiveGamesData = {
+        homeTeam: homeGames,
+        awayTeam: awayGames
+      };
+      
       renderLastFiveGames(homeTeamName, homeGames, awayTeamName, awayGames);
     }
     
@@ -2750,6 +2769,9 @@
         (game.homeTeam === homeTeamName && game.awayTeam === awayTeamName) ||
         (game.homeTeam === awayTeamName && game.awayTeam === homeTeamName)
       ).sort((a, b) => new Date(b.date) - new Date(a.date));
+      
+      // Save data for Excel export
+      gamePrepState.headToHeadData = h2hGames;
       
       renderHeadToHeadHistory(homeTeamName, awayTeamName, h2hGames);
     }
@@ -3459,12 +3481,143 @@
         return;
       }
 
-      const insightsV2 = currentAdvancedReport.insightsV2;
-
-      // Prepare data for Excel
+      // Prepare data for Excel (array of arrays)
       const excelData = [];
       
-      // Add header row
+      // Get team names
+      const homeTeamName = gamePrepState.homeTeamName || 'קבוצת בית';
+      const awayTeamName = gamePrepState.awayTeamName || 'קבוצת חוץ';
+      
+      // ========================================
+      // SECTION 1: TEAM AVERAGES AND RANKINGS
+      // ========================================
+      if (gamePrepState.teamAveragesData) {
+        const { homeStats, awayStats } = gamePrepState.teamAveragesData;
+        
+        excelData.push(['']); // Empty row
+        excelData.push(['=== ממוצעים ודירוגים ===']);
+        excelData.push(['']); // Empty row
+        excelData.push(['סטטיסטיקה', `${homeTeamName} (בית)`, `${awayTeamName} (חוץ)`]);
+        
+        excelData.push(['נקודות למשחק', `${homeStats.ppg.toFixed(1)} (דירוג: ${homeStats.rankPpg})`, `${awayStats.ppg.toFixed(1)} (דירוג: ${awayStats.rankPpg})`]);
+        excelData.push(['ריבאונדים למשחק', `${homeStats.rpg.toFixed(1)} (דירוג: ${homeStats.rankRpg})`, `${awayStats.rpg.toFixed(1)} (דירוג: ${awayStats.rankRpg})`]);
+        excelData.push(['אסיסטים למשחק', `${homeStats.apg.toFixed(1)} (דירוג: ${homeStats.rankApg})`, `${awayStats.apg.toFixed(1)} (דירוג: ${awayStats.rankApg})`]);
+        excelData.push(['חטיפות למשחק', `${homeStats.spg.toFixed(1)} (דירוג: ${homeStats.rankSpg})`, `${awayStats.spg.toFixed(1)} (דירוג: ${awayStats.rankSpg})`]);
+        excelData.push(['חסימות למשחק', `${homeStats.bpg.toFixed(1)} (דירוג: ${homeStats.rankBpg})`, `${awayStats.bpg.toFixed(1)} (דירוג: ${awayStats.rankBpg})`]);
+        excelData.push(['יעילות למשחק', `${homeStats.efficiency.toFixed(1)} (דירוג: ${homeStats.rankEfficiency})`, `${awayStats.efficiency.toFixed(1)} (דירוג: ${awayStats.rankEfficiency})`]);
+        excelData.push(['מאזן (בית/חוץ)', homeStats.record, awayStats.record]);
+        excelData.push(['הפרש ממוצע בניצחונות', homeStats.avgWinsMargin.toFixed(1), awayStats.avgWinsMargin.toFixed(1)]);
+        excelData.push(['הפרש ממוצע בהפסדים', homeStats.avgLossesMargin.toFixed(1), awayStats.avgLossesMargin.toFixed(1)]);
+      }
+      
+      // ========================================
+      // SECTION 2: LAST 5 GAMES
+      // ========================================
+      if (gamePrepState.lastFiveGamesData) {
+        const { homeTeam: homeGames, awayTeam: awayGames } = gamePrepState.lastFiveGamesData;
+        
+        // Home team last 5 games
+        excelData.push(['']); // Empty row
+        excelData.push(['']); // Empty row
+        excelData.push([`=== 5 משחקים אחרונים - ${homeTeamName} ===`]);
+        excelData.push(['']); // Empty row
+        
+        if (homeGames && homeGames.length > 0) {
+          excelData.push(['תאריך', 'יריבה', 'תוצאה', 'ניקוד', 'מיקום']);
+          homeGames.forEach(game => {
+            const isHome = game.homeTeam === homeTeamName;
+            const teamScore = isHome ? game.homeScore : game.awayScore;
+            const oppScore = isHome ? game.awayScore : game.homeScore;
+            const opponent = isHome ? game.awayTeam : game.homeTeam;
+            const result = teamScore > oppScore ? 'ניצחון' : 'הפסד';
+            const location = isHome ? 'בית' : 'חוץ';
+            const date = new Date(game.date).toLocaleDateString('he-IL');
+            
+            excelData.push([date, opponent, result, `${teamScore}-${oppScore}`, location]);
+          });
+        } else {
+          excelData.push(['אין משחקים']);
+        }
+        
+        // Away team last 5 games
+        excelData.push(['']); // Empty row
+        excelData.push([`=== 5 משחקים אחרונים - ${awayTeamName} ===`]);
+        excelData.push(['']); // Empty row
+        
+        if (awayGames && awayGames.length > 0) {
+          excelData.push(['תאריך', 'יריבה', 'תוצאה', 'ניקוד', 'מיקום']);
+          awayGames.forEach(game => {
+            const isHome = game.homeTeam === awayTeamName;
+            const teamScore = isHome ? game.homeScore : game.awayScore;
+            const oppScore = isHome ? game.awayScore : game.homeScore;
+            const opponent = isHome ? game.awayTeam : game.homeTeam;
+            const result = teamScore > oppScore ? 'ניצחון' : 'הפסד';
+            const location = isHome ? 'בית' : 'חוץ';
+            const date = new Date(game.date).toLocaleDateString('he-IL');
+            
+            excelData.push([date, opponent, result, `${teamScore}-${oppScore}`, location]);
+          });
+        } else {
+          excelData.push(['אין משחקים']);
+        }
+      }
+      
+      // ========================================
+      // SECTION 3: HEAD-TO-HEAD
+      // ========================================
+      excelData.push(['']); // Empty row
+      excelData.push(['']); // Empty row
+      excelData.push(['=== מפגשים ישירים בעונה ===']);
+      excelData.push(['']); // Empty row
+      
+      if (gamePrepState.headToHeadData && gamePrepState.headToHeadData.length > 0) {
+        const h2hGames = gamePrepState.headToHeadData;
+        
+        // Calculate records
+        let homeWins = 0, awayWins = 0;
+        h2hGames.forEach(game => {
+          const homeScore = game.homeTeam === homeTeamName ? game.homeScore : game.awayScore;
+          const awayScore = game.homeTeam === homeTeamName ? game.awayScore : game.homeScore;
+          if (homeScore > awayScore) homeWins++;
+          else if (awayScore > homeScore) awayWins++;
+        });
+        
+        excelData.push([`מאזן ניצחונות: ${homeTeamName} ${homeWins}-${awayWins} ${awayTeamName}`]);
+        excelData.push(['']); // Empty row
+        
+        excelData.push(['תאריך', 'קבוצת בית', 'ניקוד', 'קבוצת חוץ', 'ניקוד', 'מנצחת']);
+        h2hGames.forEach(game => {
+          const date = new Date(game.date).toLocaleDateString('he-IL');
+          const winner = game.homeScore > game.awayScore ? game.homeTeam : game.awayTeam;
+          excelData.push([date, game.homeTeam, game.homeScore, game.awayTeam, game.awayScore, winner]);
+        });
+      } else {
+        excelData.push(['אין מפגשים ישירים בעונה זו']);
+      }
+      
+      // ========================================
+      // SECTION 4: QUICK SUMMARY (TL;DR)
+      // ========================================
+      if (currentAdvancedReport.narrative && currentAdvancedReport.narrative.tldr) {
+        excelData.push(['']); // Empty row
+        excelData.push(['']); // Empty row
+        excelData.push(['=== סיכום מהיר לשדרן ===']);
+        excelData.push(['']); // Empty row
+        
+        currentAdvancedReport.narrative.tldr.forEach(item => {
+          excelData.push([`• ${item}`]);
+        });
+      }
+      
+      // ========================================
+      // SECTION 5: KEY INSIGHTS
+      // ========================================
+      const insightsV2 = currentAdvancedReport.insightsV2;
+      
+      excelData.push(['']); // Empty row
+      excelData.push(['']); // Empty row
+      excelData.push(['=== תובנות מרכזיות למשחק ===']);
+      excelData.push(['']); // Empty row
       excelData.push(['קטגוריה', 'חשיבות', 'קבוצה', 'תובנה']);
       
       // Category names in Hebrew
@@ -3505,8 +3658,8 @@
       });
 
       // Check if there's any data to export
-      if (excelData.length === 1) {
-        alert('אין תובנות לייצוא.');
+      if (excelData.length === 0) {
+        alert('אין נתונים לייצוא.');
         return;
       }
 
@@ -3516,13 +3669,13 @@
       
       // Set column widths
       ws['!cols'] = [
-        { wch: 15 },  // Category
-        { wch: 10 },  // Importance
-        { wch: 25 },  // Team
-        { wch: 80 }   // Insight text
+        { wch: 20 },  // Column 1
+        { wch: 30 },  // Column 2
+        { wch: 30 },  // Column 3
+        { wch: 80 }   // Column 4 (for long text)
       ];
 
-      const sheetName = 'תובנות';
+      const sheetName = 'הכנה למשחק';
       XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
       // Write to ArrayBuffer
@@ -3542,7 +3695,7 @@
           // Inject rightToLeft="1" into sheetView
           if (xml.includes('<sheetViews')) {
             xml = xml.replace(
-              /<sheetView\\b([^>]*)>/,
+              /<sheetView\b([^>]*)>/,
               (m, attrs) =>
                 attrs.includes('rightToLeft=')
                   ? m.replace(/rightToLeft="[^"]*"/, 'rightToLeft="1"')
@@ -3550,7 +3703,7 @@
             );
           } else {
             xml = xml.replace(
-              /<worksheet\\b([^>]*)>/,
+              /<worksheet\b([^>]*)>/,
               `<worksheet$1><sheetViews><sheetView rightToLeft="1" workbookViewId="0"/></sheetViews>`
             );
           }
@@ -3591,12 +3744,14 @@
         link.click();
         URL.revokeObjectURL(link.href);
 
-        console.log(`✅ Exported ${excelData.length - 1} insights to Excel with RTL`);
+        console.log(`✅ Exported complete game preparation data to Excel with RTL`);
       } catch (error) {
         console.error('❌ Error processing Excel file:', error);
         alert('שגיאה ביצירת קובץ Excel. אנא נסה שוב.');
       }
     }
+
+
     
     /**
      * Display H2H advanced data
