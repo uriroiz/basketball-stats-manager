@@ -1,6 +1,6 @@
 /**
  * IBBA Insights V2 - מערכת Insights מתקדמת לשדרני כדורסל
- * Version: 2.4.0 - Home/Away Venue Insights
+ * Version: 2.2.6 - Advanced Team Balance
  * 
  * קטגוריות:
  * 1. STREAKS - רצפים ופטרנים
@@ -984,6 +984,12 @@ class IBBAInsightsV2 {
     
     if (mostConsistent) {
       const playerName = this.getPlayerDisplayName(mostConsistent.playerId, mostConsistent.jersey, teamName);
+      
+      // חישוב טווח הנקודות (high/low)
+      const mean = mostConsistent.mean.toFixed(1);
+      const high = Math.round(mostConsistent.mean + mostConsistent.stdDev);
+      const low = Math.max(0, Math.round(mostConsistent.mean - mostConsistent.stdDev));
+      
       return {
         type: 'MR_CONSISTENT',
         category: 'PLAYERS',
@@ -991,7 +997,7 @@ class IBBAInsightsV2 {
         teamName,
         playerName,
         icon: '📊',
-        text: `${playerName} = עקביות מוחלטת! ${mostConsistent.mean.toFixed(1)} נק' בממוצע עם סטיית תקן ${mostConsistent.stdDev.toFixed(1)} בלבד`,
+        text: `${playerName} (${teamName}) זה עקביות כמו שעון שוויצרי! כמעט תמיד הוא מספק את הסחורה בטווח הצר של ${low} עד ${high} נקודות.`,
         textShort: `${playerName}: עקביות גבוהה`
       };
     }
@@ -1041,6 +1047,12 @@ class IBBAInsightsV2 {
     
     if (mostVolatile) {
       const playerName = this.getPlayerDisplayName(mostVolatile.playerId, mostVolatile.jersey, teamName);
+      
+      // חישוב טווח הנקודות (high/low)
+      const mean = mostVolatile.mean.toFixed(1);
+      const high = Math.round(mostVolatile.mean + mostVolatile.stdDev);
+      const low = Math.max(0, Math.round(mostVolatile.mean - mostVolatile.stdDev));
+      
       return {
         type: 'BOOM_OR_BUST',
         category: 'PLAYERS',
@@ -1048,7 +1060,7 @@ class IBBAInsightsV2 {
         teamName,
         playerName,
         icon: '🎢',
-        text: `${playerName} = לא צפוי! ${mostVolatile.mean.toFixed(1)} נק' בממוצע אבל סטיית תקן ${mostVolatile.stdDev.toFixed(1)} - גבוה או נמוך`,
+        text: `תנודתיות קיצונית! ${playerName} (${teamName}) מחבר ${mean} נק' בממוצע, אבל יש לו הבדלים גדולים בין משחק למשחק: מ- ${low} נק' עד ערב שיא של ${high}+.`,
         textShort: `${playerName}: לא עקבי`
       };
     }
@@ -1475,7 +1487,53 @@ class IBBAInsightsV2 {
     return null;
   }
 
-  // detectBenchPower removed - replaced by detectStrongBench (v2.2.7+)
+  /**
+   * זיהוי Bench Power - ספסל חזק
+   */
+  detectBenchPower(teamName, teamData, allTeams) {
+    const THRESHOLD = 30; // 30 נק' למשחק
+    const MAX_RANK = 6; // רק חצי עליון
+    
+    if (!teamData || !teamData.benchPpg) return null;
+    
+    const benchPpg = parseFloat(teamData.benchPpg);
+    const benchPct = teamData._totalPointsBench && teamData._totalPoints 
+      ? (teamData._totalPointsBench / teamData._totalPoints * 100).toFixed(0)
+      : 0;
+    
+    if (benchPpg >= THRESHOLD) {
+      // חשב דירוג בליגה בנקודות מהספסל
+      const rank = this.getTeamRankInCategory(teamName, 'benchPpg', allTeams, false);
+      
+      // רק קבוצות בחצי העליון מקבלות Insight
+      if (!rank || rank > MAX_RANK) return null;
+      
+      const rankText = rank ? ` (מקום ${rank} בליגה בתרומת ספסל)` : '';
+      
+      // ניסוח דינמי לפי דירוג
+      let actionText;
+      if (rank === 1) {
+        actionText = 'הספסל הטוב ביותר בליגה';
+      } else if (rank === 2) {
+        actionText = 'ספסל מצוין';
+      } else {
+        actionText = 'ספסל חזק';
+      }
+      
+      return {
+        type: 'BENCH_POWER',
+        category: 'OFFENSE',
+        importance: rank === 1 ? 'high' : 'medium',
+        teamName,
+        value: benchPpg.toFixed(1),
+        rank,
+        icon: '🪑',
+        text: `${teamName}${rankText} - ${actionText}! ${benchPpg} נק' למשחק מהספסל (${benchPct}% מהנקודות)`,
+        textShort: `${benchPpg} נק' מהספסל`
+      };
+    }
+    return null;
+  }
 
   /**
    * זיהוי Worst Category - הקטגוריה החלשה ביותר (אתגר עיקרי)
@@ -1710,384 +1768,6 @@ class IBBAInsightsV2 {
         icon: '🔄',
         text: `${teamName}${rankText} - ${actionText}! ${secondChancePpg} נק' למשחק מהזדמנות שנייה`,
         textShort: `${secondChancePpg} נק' הזדמנות 2`
-      };
-    }
-    return null;
-  }
-
-  /**
-   * זיהוי קבוצה עם ספסל חזק
-   * מבוסס על pbc (pointsBench) שכבר מחושב ב-API
-   * סף: 30%+ מהנקודות מהספסל OR 22+ נק' למשחק
-   */
-  detectStrongBench(teamName, teamData, allTeams) {
-    const MIN_GAMES = 3;
-    
-    if (!teamData || !teamData.gamesPlayed || teamData.gamesPlayed < MIN_GAMES) {
-      return null;
-    }
-    
-    // Use _totalPointsBench (with underscore) as returned by getTeamAverages()
-    const totalBenchPoints = teamData._totalPointsBench || 0;
-    const totalPoints = teamData._totalPoints || 0;
-    const benchPpg = totalBenchPoints / teamData.gamesPlayed;
-    const benchPct = totalPoints > 0 ? (totalBenchPoints / totalPoints) * 100 : 0;
-    
-    // סף: 30%+ מהנקודות מהספסל OR 22+ נק' למשחק (יותר ריאליסטי)
-    if (benchPct >= 30 || benchPpg >= 22) {
-      const text = window.IBBAInsightTemplates?.getRandomText('team', 'STRONG_BENCH', {
-        teamName: teamName,
-        benchPpg: benchPpg.toFixed(1),
-        benchPct: benchPct.toFixed(0)
-      }) || `${teamName} נהנית מספסל חזק: ${benchPpg.toFixed(1)} נק' למשחק (${benchPct.toFixed(0)}% מהייצור)`;
-      
-      return {
-        type: 'STRONG_BENCH',
-        category: 'OFFENSE',
-        importance: 'high',
-        teamName,
-        benchPpg: benchPpg.toFixed(1),
-        benchPct: benchPct.toFixed(0),
-        icon: '🪑',
-        text,
-        textShort: `ספסל ${benchPpg.toFixed(1)} נק\'`
-      };
-    }
-    
-    return null;
-  }
-
-  /**
-   * זיהוי קבוצה תלויה בחמישייה הפותחת (ספסל חלש)
-   * מבוסס על pbc (pointsBench) שכבר מחושב ב-API
-   * סף: פחות מ-25% מהנקודות מהספסל
-   */
-  detectLineupDependent(teamName, teamData, allTeams) {
-    const MIN_GAMES = 3;
-    
-    if (!teamData || !teamData.gamesPlayed || teamData.gamesPlayed < MIN_GAMES) {
-      return null;
-    }
-    
-    // Use _totalPointsBench (with underscore) as returned by getTeamAverages()
-    const totalBenchPoints = teamData._totalPointsBench || 0;
-    const totalPoints = teamData._totalPoints || 0;
-    const benchPct = totalPoints > 0 ? (totalBenchPoints / totalPoints) * 100 : 0;
-    
-    // סף: פחות מ-25% מהספסל = תלות גבוהה בחמישייה (עודכן להיות יותר ריאליסטי)
-    if (benchPct <= 25) {
-      const text = window.IBBAInsightTemplates?.getRandomText('team', 'LINEUP_DEPENDENT', {
-        teamName: teamName,
-        benchPct: benchPct.toFixed(0)
-      }) || `${teamName} תלויה בחמישייה הפותחת - רק ${benchPct.toFixed(0)}% מהנקודות מהספסל`;
-      
-      return {
-        type: 'LINEUP_DEPENDENT',
-        category: 'OFFENSE',
-        importance: 'medium',
-        teamName,
-        benchPct: benchPct.toFixed(0),
-        icon: '⚠️',
-        text,
-        textShort: `ספסל חלש (${benchPct.toFixed(0)}%)`
-      };
-    }
-    
-    return null;
-  }
-
-  /**
-   * זיהוי שחקן מחליף עם impact גבוה (Super Sub)
-   * מבוסס על status: "sub" שכבר מגיע מה-API
-   * סף: 10+ נק' בממוצע כמחליף
-   */
-  detectSuperSub(teamName, teamGames) {
-    const MIN_GAMES = 3;
-    
-    if (!teamGames || teamGames.length < MIN_GAMES) {
-      return null;
-    }
-    
-    // סכום נקודות לכל שחקן מחליף
-    const subs = {};
-    
-    teamGames.forEach(game => {
-      if (!game.players) return;
-      
-      game.players
-        .filter(p => p.teamName === teamName && p.status === 'sub')
-        .forEach(p => {
-          if (!subs[p.playerId]) {
-            subs[p.playerId] = {
-              points: 0,
-              games: 0,
-              jersey: p.jersey,
-              name: p.playerName || `#${p.jersey}`
-            };
-          }
-          subs[p.playerId].points += p.stats.points || 0;
-          subs[p.playerId].games++;
-        });
-    });
-    
-    // מצא את המחליף עם הממוצע הגבוה ביותר (10+ נק' - עודכן להיות יותר ריאליסטי)
-    const topSub = Object.values(subs)
-      .map(s => ({ ...s, ppg: s.points / s.games }))
-      .filter(s => s.ppg >= 10 && s.games >= MIN_GAMES)
-      .sort((a, b) => b.ppg - a.ppg)[0];
-    
-    if (topSub) {
-      const text = window.IBBAInsightTemplates?.getRandomText('player', 'SUPER_SUB', {
-        teamName: teamName,
-        playerName: topSub.name,
-        ppg: topSub.ppg.toFixed(1)
-      }) || `${topSub.name} עולה מהספסל של ${teamName} ומוסיף ${topSub.ppg.toFixed(1)} נק' בממוצע`;
-      
-      return {
-        type: 'SUPER_SUB',
-        category: 'PLAYERS',
-        importance: 'high',
-        teamName,
-        player: topSub.name,
-        ppg: topSub.ppg.toFixed(1),
-        icon: '⭐',
-        text,
-        textShort: `${topSub.name}: ${topSub.ppg.toFixed(1)} נק\' (מחליף)`
-      };
-    }
-    
-    return null;
-  }
-
-  // ========== CATEGORY: VENUE (Home/Away) ==========
-
-  /**
-   * זיהוי מבצר בבית (Home Fortress)
-   * סף: 80%+ נצחונות בבית, מינימום 5 משחקים
-   */
-  detectHomeFortress(teamName, homeAwayRecords, leagueStats) {
-    const MIN_GAMES = 5;
-    const WIN_PCT_THRESHOLD = 80;
-    
-    const record = homeAwayRecords[teamName];
-    if (!record || !record.home || record.home.games < MIN_GAMES) return null;
-    
-    const homePct = parseFloat(record.home.winPct);
-    if (homePct >= WIN_PCT_THRESHOLD) {
-      const text = window.IBBAInsightTemplates?.getRandomText('team', 'HOME_FORTRESS', {
-        teamName,
-        wins: record.home.wins,
-        losses: record.home.losses,
-        pct: homePct.toFixed(0),
-        leagueAvg: leagueStats?.homeWinPct || '0'
-      }) || `${teamName} מבצר בבית - ${record.home.wins}-${record.home.losses} השנה (${homePct.toFixed(0)}%)`;
-      
-      return {
-        type: 'HOME_FORTRESS',
-        category: 'VENUE',
-        importance: 'high',
-        teamName,
-        wins: record.home.wins,
-        losses: record.home.losses,
-        pct: homePct,
-        icon: '🏠',
-        text,
-        textShort: `${record.home.wins}-${record.home.losses} בבית (${homePct.toFixed(0)}%)`
-      };
-    }
-    return null;
-  }
-
-  /**
-   * זיהוי קבוצה שמתקשה בחוץ (Away Struggle)
-   * סף: פחות מ-25% נצחונות בחוץ, מינימום 4 משחקים
-   */
-  detectAwayStruggle(teamName, homeAwayRecords, leagueStats) {
-    const MIN_GAMES = 4;
-    const WIN_PCT_THRESHOLD = 25;
-    
-    const record = homeAwayRecords[teamName];
-    if (!record || !record.away || record.away.games < MIN_GAMES) return null;
-    
-    const awayPct = parseFloat(record.away.winPct);
-    if (awayPct <= WIN_PCT_THRESHOLD) {
-      const text = window.IBBAInsightTemplates?.getRandomText('team', 'AWAY_STRUGGLE', {
-        teamName,
-        wins: record.away.wins,
-        losses: record.away.losses,
-        games: record.away.games,
-        pct: awayPct.toFixed(0)
-      }) || `${teamName} מתקשים בחוץ - ${record.away.wins} נצחונות מ-${record.away.games} משחקים (${awayPct.toFixed(0)}%)`;
-      
-      return {
-        type: 'AWAY_STRUGGLE',
-        category: 'VENUE',
-        importance: 'high',
-        teamName,
-        wins: record.away.wins,
-        losses: record.away.losses,
-        pct: awayPct,
-        icon: '✈️',
-        text,
-        textShort: `${record.away.wins}-${record.away.losses} בחוץ (${awayPct.toFixed(0)}%)`
-      };
-    }
-    return null;
-  }
-
-  /**
-   * זיהוי לוחמי חוץ (Road Warrior)
-   * סף: 65%+ נצחונות בחוץ, מינימום 5 משחקים (נדיר!)
-   */
-  detectRoadWarrior(teamName, homeAwayRecords, leagueStats) {
-    const MIN_GAMES = 5;
-    const WIN_PCT_THRESHOLD = 65;
-    
-    const record = homeAwayRecords[teamName];
-    if (!record || !record.away || record.away.games < MIN_GAMES) return null;
-    
-    const awayPct = parseFloat(record.away.winPct);
-    if (awayPct >= WIN_PCT_THRESHOLD) {
-      const text = window.IBBAInsightTemplates?.getRandomText('team', 'ROAD_WARRIOR', {
-        teamName,
-        wins: record.away.wins,
-        losses: record.away.losses,
-        pct: awayPct.toFixed(0)
-      }) || `${teamName} לוחמי חוץ - ${record.away.wins}-${record.away.losses} הרחק מהבית (${awayPct.toFixed(0)}%)`;
-      
-      return {
-        type: 'ROAD_WARRIOR',
-        category: 'VENUE',
-        importance: 'high',
-        teamName,
-        wins: record.away.wins,
-        losses: record.away.losses,
-        pct: awayPct,
-        icon: '🛣️',
-        text,
-        textShort: `${record.away.wins}-${record.away.losses} בחוץ (${awayPct.toFixed(0)}%)`
-      };
-    }
-    return null;
-  }
-
-  /**
-   * זיהוי פער דרמטי בית/חוץ (Venue Split)
-   * סף: 40%+ הפרש בין אחוזי הנצחונות
-   */
-  detectVenueSplit(teamName, homeAwayRecords) {
-    const MIN_GAMES_EACH = 4;
-    const GAP_THRESHOLD = 40;
-    
-    const record = homeAwayRecords[teamName];
-    if (!record || !record.home || !record.away) return null;
-    if (record.home.games < MIN_GAMES_EACH || record.away.games < MIN_GAMES_EACH) return null;
-    
-    const homePct = parseFloat(record.home.winPct);
-    const awayPct = parseFloat(record.away.winPct);
-    const gap = Math.abs(homePct - awayPct);
-    
-    if (gap >= GAP_THRESHOLD) {
-      const text = window.IBBAInsightTemplates?.getRandomText('team', 'VENUE_SPLIT', {
-        teamName,
-        homeWins: record.home.wins,
-        homeLosses: record.home.losses,
-        homePct: homePct.toFixed(0),
-        awayWins: record.away.wins,
-        awayLosses: record.away.losses,
-        awayPct: awayPct.toFixed(0),
-        gap: gap.toFixed(0)
-      }) || `פער דרמטי: ${teamName} ${record.home.wins}-${record.home.losses} בבית (${homePct.toFixed(0)}%) אבל ${record.away.wins}-${record.away.losses} בחוץ (${awayPct.toFixed(0)}%)`;
-      
-      return {
-        type: 'VENUE_SPLIT',
-        category: 'VENUE',
-        importance: 'high',
-        teamName,
-        homePct,
-        awayPct,
-        gap,
-        icon: '📊',
-        text,
-        textShort: `בית ${homePct.toFixed(0)}% / חוץ ${awayPct.toFixed(0)}%`
-      };
-    }
-    return null;
-  }
-
-  /**
-   * זיהוי ניצחונות בבית מעל ממוצע הליגה
-   * סף: +8 נקודות מעל ממוצע הליגה לניצחון בבית
-   */
-  detectHomeWinAboveAvg(teamName, homeAwayRecords, leagueStats) {
-    const MIN_WINS = 3;
-    const DIFF_THRESHOLD = 8;
-    
-    const record = homeAwayRecords[teamName];
-    if (!record || !record.home || record.home.wins < MIN_WINS) return null;
-    
-    const teamHomePpg = parseFloat(record.home.winPpg || record.home.ppg);
-    const leagueAvg = parseFloat(leagueStats?.homeWinAvgPpg || 0);
-    const diff = teamHomePpg - leagueAvg;
-    
-    if (diff >= DIFF_THRESHOLD) {
-      const text = window.IBBAInsightTemplates?.getRandomText('team', 'HOME_WIN_ABOVE_AVG', {
-        teamName,
-        ppg: teamHomePpg.toFixed(1),
-        diff: diff.toFixed(0),
-        leagueAvg: leagueAvg.toFixed(0)
-      }) || `${teamName} מנצחים בבית עם ${teamHomePpg.toFixed(1)} נק' - ${diff.toFixed(0)} מעל ממוצע הליגה (${leagueAvg.toFixed(0)})`;
-      
-      return {
-        type: 'HOME_WIN_ABOVE_AVG',
-        category: 'VENUE',
-        importance: 'medium',
-        teamName,
-        ppg: teamHomePpg,
-        diff,
-        leagueAvg,
-        icon: '📈',
-        text,
-        textShort: `${teamHomePpg.toFixed(0)} נק' בבית (+${diff.toFixed(0)})`
-      };
-    }
-    return null;
-  }
-
-  /**
-   * זיהוי ניצחונות בחוץ עם פחות נקודות מהממוצע (מנצחים צמוד)
-   * סף: -5 נקודות מתחת לממוצע הליגה לניצחון בחוץ
-   */
-  detectAwayWinEfficient(teamName, homeAwayRecords, leagueStats) {
-    const MIN_WINS = 3;
-    const DIFF_THRESHOLD = -5;
-    
-    const record = homeAwayRecords[teamName];
-    if (!record || !record.away || record.away.wins < MIN_WINS) return null;
-    
-    const teamAwayPpg = parseFloat(record.away.winPpg || record.away.ppg);
-    const leagueAvg = parseFloat(leagueStats?.awayWinAvgPpg || 0);
-    const diff = teamAwayPpg - leagueAvg;
-    
-    if (diff <= DIFF_THRESHOLD) {
-      const text = window.IBBAInsightTemplates?.getRandomText('team', 'AWAY_WIN_EFFICIENT', {
-        teamName,
-        ppg: teamAwayPpg.toFixed(1),
-        diff: Math.abs(diff).toFixed(0),
-        leagueAvg: leagueAvg.toFixed(0)
-      }) || `${teamName} יודעים לנצח בחוץ גם עם מעט נקודות - ${teamAwayPpg.toFixed(1)} נק' (ממוצע ליגה: ${leagueAvg.toFixed(0)})`;
-      
-      return {
-        type: 'AWAY_WIN_EFFICIENT',
-        category: 'VENUE',
-        importance: 'medium',
-        teamName,
-        ppg: teamAwayPpg,
-        diff,
-        leagueAvg,
-        icon: '🎯',
-        text,
-        textShort: `${teamAwayPpg.toFixed(0)} נק' בחוץ (יעיל)`
       };
     }
     return null;
@@ -2391,7 +2071,7 @@ class IBBAInsightsV2 {
         change: change.toFixed(1),
         improving,
         icon: improving ? '📈' : '📉',
-        text: `${teamName} ${improving ? 'במגמת עלייה' : 'במגמת ירידה'} - הפרש נקודות של ${recentAvgDiff > 0 ? '+' : ''}${recentAvgDiff.toFixed(1)} ב-5 אחרונים (לעומת ${seasonAvgDiff > 0 ? '+' : ''}${seasonAvgDiff.toFixed(1)} עונתי)`,
+        text: `${teamName} ${improving ? 'במגמת עלייה' : 'במגמת ירידה'} - הפרש נקודות של \u200E${recentAvgDiff > 0 ? '+' : ''}${recentAvgDiff.toFixed(1)}\u200E ב-5 אחרונים (לעומת \u200E${seasonAvgDiff > 0 ? '+' : ''}${seasonAvgDiff.toFixed(1)}\u200E עונתי)`,
         textShort: `${improving ? 'עלייה' : 'ירידה'} בהפרש נקודות`
       };
     }
@@ -3215,8 +2895,7 @@ class IBBAInsightsV2 {
       MOMENTUM: [],
       H2H: [],
       QUARTERS: [],
-      LEAGUE: [],
-      VENUE: []  // Home/Away insights (v2.4.0)
+      LEAGUE: []
     };
 
     const { games, teamAData, teamBData, h2h, standings } = reportData;
@@ -3229,10 +2908,6 @@ class IBBAInsightsV2 {
     // חישוב ממוצעי ליגה
     const leagueAvgOppPpg = this.getLeagueAverage('oppPpg', allTeams);
     const leagueAvgSpg = this.getLeagueAverage('spg', allTeams);
-    
-    // Home/Away stats
-    const homeAwayRecords = this.analytics.getTeamHomeAwayRecords();
-    const leagueHomeAwayStats = this.analytics.getLeagueHomeAwayStats();
 
     // STREAKS - מגוון רחב יותר (עם דירוג)
     const winStreakA = this.detectWinningStreak(teamA, games, rankA);
@@ -3357,6 +3032,12 @@ class IBBAInsightsV2 {
     const paintDomB = this.detectPaintDominance(teamB, teamBData.stats, allTeams);
     if (paintDomB) insights.OFFENSE.push(paintDomB);
     
+    const benchA = this.detectBenchPower(teamA, teamAData.stats, allTeams);
+    if (benchA) insights.OFFENSE.push(benchA);
+    
+    const benchB = this.detectBenchPower(teamB, teamBData.stats, allTeams);
+    if (benchB) insights.OFFENSE.push(benchB);
+    
     // חמישייה מול ספסל - תמיד מעניין לשידור
     const startingVsBenchA = this.detectStartingVsBench(teamA, teamAData.stats, allTeams);
     if (startingVsBenchA) insights.OFFENSE.push(startingVsBenchA);
@@ -3369,25 +3050,6 @@ class IBBAInsightsV2 {
     
     const secondChanceB = this.detectSecondChanceMasters(teamB, teamBData.stats, allTeams);
     if (secondChanceB) insights.OFFENSE.push(secondChanceB);
-    
-    // Bench & Lineup Analysis (New v2.2.7)
-    const strongBenchA = this.detectStrongBench(teamA, teamAData.stats, allTeams);
-    if (strongBenchA) insights.OFFENSE.push(strongBenchA);
-    
-    const strongBenchB = this.detectStrongBench(teamB, teamBData.stats, allTeams);
-    if (strongBenchB) insights.OFFENSE.push(strongBenchB);
-    
-    const lineupDepA = this.detectLineupDependent(teamA, teamAData.stats, allTeams);
-    if (lineupDepA) insights.OFFENSE.push(lineupDepA);
-    
-    const lineupDepB = this.detectLineupDependent(teamB, teamBData.stats, allTeams);
-    if (lineupDepB) insights.OFFENSE.push(lineupDepB);
-    
-    const superSubA = this.detectSuperSub(teamA, teamAData.recentGames);
-    if (superSubA) insights.PLAYERS.push(superSubA);
-    
-    const superSubB = this.detectSuperSub(teamB, teamBData.recentGames);
-    if (superSubB) insights.PLAYERS.push(superSubB);
 
     // DEFENSE
     const defWallA = this.detectDefensiveWall(teamA, teamAData.stats, leagueAvgOppPpg, allTeams);
@@ -3513,45 +3175,6 @@ class IBBAInsightsV2 {
       const aboveAvgB = this.detectAboveBelowAverage(teamB, teamBData.stats, allTeams);
       if (aboveAvgB) insights.LEAGUE.push(aboveAvgB);
     }
-
-    // VENUE - Home/Away insights (v2.4.0)
-    // Team A - בדיקות לקבוצת הבית (או שתיהן אם לא ידוע)
-    const homeFortressA = this.detectHomeFortress(teamA, homeAwayRecords, leagueHomeAwayStats);
-    if (homeFortressA) insights.VENUE.push(homeFortressA);
-    
-    const awayStruggleA = this.detectAwayStruggle(teamA, homeAwayRecords, leagueHomeAwayStats);
-    if (awayStruggleA) insights.VENUE.push(awayStruggleA);
-    
-    const roadWarriorA = this.detectRoadWarrior(teamA, homeAwayRecords, leagueHomeAwayStats);
-    if (roadWarriorA) insights.VENUE.push(roadWarriorA);
-    
-    const venueSplitA = this.detectVenueSplit(teamA, homeAwayRecords);
-    if (venueSplitA) insights.VENUE.push(venueSplitA);
-    
-    const homeWinAboveA = this.detectHomeWinAboveAvg(teamA, homeAwayRecords, leagueHomeAwayStats);
-    if (homeWinAboveA) insights.VENUE.push(homeWinAboveA);
-    
-    const awayWinEffA = this.detectAwayWinEfficient(teamA, homeAwayRecords, leagueHomeAwayStats);
-    if (awayWinEffA) insights.VENUE.push(awayWinEffA);
-    
-    // Team B - אותן בדיקות
-    const homeFortressB = this.detectHomeFortress(teamB, homeAwayRecords, leagueHomeAwayStats);
-    if (homeFortressB) insights.VENUE.push(homeFortressB);
-    
-    const awayStruggleB = this.detectAwayStruggle(teamB, homeAwayRecords, leagueHomeAwayStats);
-    if (awayStruggleB) insights.VENUE.push(awayStruggleB);
-    
-    const roadWarriorB = this.detectRoadWarrior(teamB, homeAwayRecords, leagueHomeAwayStats);
-    if (roadWarriorB) insights.VENUE.push(roadWarriorB);
-    
-    const venueSplitB = this.detectVenueSplit(teamB, homeAwayRecords);
-    if (venueSplitB) insights.VENUE.push(venueSplitB);
-    
-    const homeWinAboveB = this.detectHomeWinAboveAvg(teamB, homeAwayRecords, leagueHomeAwayStats);
-    if (homeWinAboveB) insights.VENUE.push(homeWinAboveB);
-    
-    const awayWinEffB = this.detectAwayWinEfficient(teamB, homeAwayRecords, leagueHomeAwayStats);
-    if (awayWinEffB) insights.VENUE.push(awayWinEffB);
 
     // איזון בין קבוצות - וודא שכל קבוצה מקבלת לפחות כמה insights
     this.balanceTeamInsights(insights, teamA, teamB, teamAData, teamBData, allTeams);
