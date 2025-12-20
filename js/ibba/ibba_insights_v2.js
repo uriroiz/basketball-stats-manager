@@ -2158,8 +2158,11 @@ class IBBAInsightsV2 {
     if (teamGames.length < MIN_GAMES_HALF * 2) return null;
     
     const mid = Math.floor(teamGames.length / 2);
-    const firstHalf = teamGames.slice(teamGames.length - mid - mid, teamGames.length - mid); // חציון ישן
-    const secondHalf = teamGames.slice(teamGames.length - mid); // חציון חדש
+    // הערה: teamGames ממוין מחדש לישן, לכן:
+    // - אינדקסים 0 עד mid-1 = משחקים חדשים (מחצית שנייה של העונה)
+    // - אינדקסים mid עד סוף = משחקים ישנים (מחצית ראשונה של העונה)
+    const firstHalf = teamGames.slice(mid);      // משחקים ישנים (מחצית ראשונה)
+    const secondHalf = teamGames.slice(0, mid);  // משחקים חדשים (מחצית שנייה)
     
     const firstWins = firstHalf.filter(g => {
       const teamData = this.getTeamFromGame(g, teamName);
