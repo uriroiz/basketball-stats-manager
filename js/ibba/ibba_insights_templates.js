@@ -32,10 +32,10 @@ const IBBAInsightTemplates = {
     
     DEFENSIVE_WALL: [
       "${teamName}${rankText} מגיעה עם הגנה מצוינת – היריבות שלה על ${oppPpg} נק' למשחק, ${diff} פחות מהממוצע",
-      "חומת הגנה של ${teamName}${rankText}: מגבילה יריבות ל-${oppPpg} נק' בלבד (${diff} מתחת לממוצע)",
+      "תצוגה הגנתית של ${teamName}${rankText}: מגבילה את היריבות ל-${oppPpg} נק' בממוצע",
       "${teamName}${rankText} עם אחת ההגנות הטובות בליגה – ${oppPpg} נק' ליריבות, ${diff} מתחת לממוצע",
       "הגנה איכותית במיוחד ל-${teamName}${rankText}: ${oppPpg} נק' ליריבות (${diff} פחות מהממוצע)",
-      "${teamName}${rankText} יודעת לסגור משחקים – רק ${oppPpg} נק' ליריבות, ${diff} מתחת לממוצע",
+      "${teamName}${rankText} נועלת את הסל: רק ${oppPpg} נק' ליריבות בממוצע",
       "על הנייר, ${teamName}${rankText} עם הגנה דומיננטית: ${oppPpg} נק' ליריבות (${diff} פחות מהממוצע)",
       "${teamName}${rankText} מביאה הגנה קשוחה – מגבילה ל-${oppPpg} נק' למשחק (${diff} מתחת לממוצע)",
       "יכולת הגנתית גבוהה ל-${teamName}${rankText} – רק ${oppPpg} נק' ליריבות, ${diff} פחות מהממוצע"
@@ -108,11 +108,11 @@ const IBBAInsightTemplates = {
     ],
     
     FOURTH_QUARTER_COLLAPSE: [
-      "${teamName} מגיעה עם סימן שאלה ברבע הסיום – הפסידה ${q4Losses} מתוך ${gamesWithQ4Data} רבעים רביעיים בעונה",
+      "${teamName} מאבדת גובה ברבע המכריע: הפסידה ${q4Losses} מתוך ${gamesWithQ4Data} רבעים רביעיים העונה",
       "בעיה ברבעים רביעיים: ${teamName} הפסידה ${q4Losses}/${gamesWithQ4Data} רבעים אחרונים",
       "${teamName} נופלת ברבעים רביעיים – ${q4Losses} מתוך ${gamesWithQ4Data} בעונה",
       "על הנייר, ${teamName} עם נקודת תורפה ברבע 4: ${q4Losses}/${gamesWithQ4Data} הפסדים",
-      "${teamName} מתקשה ברבעים רביעיים – הפסידה ${q4Losses} מתוך ${gamesWithQ4Data}",
+      "${teamName} מתקשה במאני-טיים: הפסידה את הרבע הרביעי ב-${q4Losses} משחקים העונה",
       "רבע 4 זה האתגר של ${teamName}: ${q4Losses}/${gamesWithQ4Data} הפסדים",
       "${teamName} לא חזקה בפיניש – ${q4Losses} מתוך ${gamesWithQ4Data} רבעים רביעיים הפסידה",
       "סימן שאלה ברבע האחרון: ${teamName} עם ${q4Losses}/${gamesWithQ4Data} הפסדים"
@@ -121,12 +121,12 @@ const IBBAInsightTemplates = {
     COMEBACK_KINGS: [
       "${teamName} מגיעה עם יכולת קאמבק חריגה – ${comebacks} ניצחונות אחרי פיגור של ${deficitThreshold}+ נקודות",
       "מלכת הקאמבקים: ${teamName} עם ${comebacks} ניצחונות אחרי פיגור גדול",
-      "${teamName} לא מוותרת – ${comebacks} הפיכות אחרי פיגור של ${deficitThreshold}+ נקודות",
+      "${teamName} לא נשברת: ${comebacks} מהפכים אחרי פיגור של ${deficitThreshold}+ נק'",
       "על הנייר, ${teamName} יודעת לחזור: ${comebacks} ניצחונות מפיגור של ${deficitThreshold}+ נק'",
       "${teamName} עם מנטליות של לוחמת – ${comebacks} קאמבקים מפיגור גדול",
       "יכולת קאמבק מרשימה: ${teamName} זכתה ${comebacks} פעמים אחרי פיגור של ${deficitThreshold}+ נק'",
       "${teamName} מתמחה בהפיכות – ${comebacks} ניצחונות מפיגור של ${deficitThreshold}+ נקודות",
-      "לא נגמר עד שנגמר: ${teamName} עם ${comebacks} קאמבקים מפיגור משמעותי"
+      "זה לא נגמר עד שזה נגמר: ${teamName} עם ${comebacks} קאמבקים מפיגור דו-ספרתי"
     ]
   },
   
@@ -139,17 +139,17 @@ const IBBAInsightTemplates = {
       "העוגן בצבע: ${playerName} עם ${rpg} כדורים חוזרים למשחק",
       "${playerName} עם ממוצע גבוה של ${rpg} כדורים חוזרים לערב",
       "${playerName} דומיננטי בצבע ורושם ${rpg} ריבאונדים בממוצע",
-      "${playerName} חוטף הכל: ${rpg} כדורים חוזרים למשחק בממוצע"
+      "${playerName} שולט בריבאונד: קוטף ${rpg} כדורים חוזרים למשחק"
     ],
     
     ASSIST_MACHINE: [
-      "${playerName} מוביל באסיסטים: ${apg} מסירות מדויקות למשחק",
+      "${playerName} מנהל את המשחק: ${apg} אסיסטים בממוצע למשחק",
       "${playerName} מחלק כדורים: ${apg} אסיסטים בממוצע לערב",
       "מנהל המשחק הבולט: ${playerName} עם ${apg} אסיסטים",
       "הפליימייקר ${playerName} רושם ${apg} אסיסטים למשחק בממוצע",
       "${playerName} מפעיל את כולם: עם ממוצע ${apg} אסיסטים לערב",
       "${playerName} עם ממוצע מרשים של ${apg} אסיסטים למשחק",
-      "המוח מאחורי ההתקפה: ${playerName} עם ${apg} מסירות מפתח בממוצע",
+      "המוח מאחורי ההתקפה: ${playerName} עם ${apg} אסיסטים למשחק",
       "${playerName} מעורב בכל סל: ${apg} אסיסטים למשחק בממוצע"
     ],
     
@@ -166,22 +166,22 @@ const IBBAInsightTemplates = {
     
     DOUBLE_DOUBLE_MACHINE: [
       "${playerName} עקבי מאוד: ${doubleDoubles} דאבל-דאבלים ב-${games} משחקים",
-      "מכונת דאבל-דאבל: ${playerName} עם ${doubleDoubles}/${games} דאבל-דאבל",
+      "מכונת דאבל-דאבל: ${playerName} עם ${doubleDoubles} כאלו ב-${games} משחקים",
       "${playerName} ממלא סטטים - ${doubleDoubles} דאבל-דאבלים ב-${games} משחקים",
       "${playerName} מצטיין בעקביות: ${doubleDoubles}/${games} דאבל-דאבל",
       "${playerName} תורם בכל דרך - ${doubleDoubles} דאבל-דאבלים בעונה",
       "עקביות מרשימה: ${playerName} עם ${doubleDoubles} דאבל-דאבלים ב-${games} משחקים",
       "${playerName} שחקן השלם - ${doubleDoubles}/${games} דאבל-דאבל",
-      "כוח עבודה: ${playerName} עם ${doubleDoubles} דאבל-דאבלים ב-${games} משחקים"
+      "בא לעבודה: ${playerName} עם ${doubleDoubles} דאבל-דאבלים ב-${games} הופעות"
     ],
     
     SUPER_SUB: [
       "${playerName} עולה מהספסל של ${teamName} ומוסיף ${ppg} נק' בממוצע",
-      "מחליף זהב: ${playerName} (${teamName}) עם ${ppg} נק' למשחק",
+      "האקס-פקטור מהספסל: ${playerName} (${teamName}) עם ${ppg} נק' למשחק",
       "${teamName} נהנית מ-${playerName} שמייצר ${ppg} נק' כמחליף",
       "${playerName} - מחליף מפתיע של ${teamName} עם ${ppg} נקודות בממוצע",
       "שחקן השישי של ${teamName}: ${playerName} מוסיף ${ppg} נק'",
-      "${teamName}: ${playerName} עולה מהספסל ומתפוצץ עם ${ppg} נק'",
+      "${teamName}: ${playerName} עולה מהספסל ומנפק ${ppg} נק' למשחק",
       "מחליף איכותי ב-${teamName} - ${playerName} (${ppg} נק' למשחק)",
       "${playerName} של ${teamName}: ${ppg} נקודות כשחקן ספסל"
     ]
@@ -260,45 +260,45 @@ const IBBAInsightTemplates = {
     
     HOME_FORTRESS: [
       "${teamName} מבצר בבית - ${wins}-${losses} השנה (${pct}%)",
-      "קשה לנצח את ${teamName} אצלם: ${pct}% נצחונות בבית",
+      "קשה לנצח את ${teamName} בביתה: ${pct}% ניצחונות למארחת",
       "${teamName} כמעט בלתי מנוצחים בבית (${wins}-${losses})",
       "היתרון הביתי של ${teamName} אמיתי: ${wins}-${losses} בבית",
-      "${teamName} שולטים בפרקט הביתי - ${pct}% נצחונות",
-      "הביתיות של ${teamName} מרשימה: ${wins} נצחונות מ-${wins}+${losses} משחקים",
+      "${teamName} שולטים בפרקט הביתי - ${pct}% ניצחונות",
+      "הביתיות של ${teamName} מרשימה: ${wins} ניצחונות מ-${wins}+${losses} משחקים",
       "לא מפתיע לראות את ${teamName} מנצחים בבית (${wins}-${losses})",
-      "הביתיות משחקת ל-${teamName}: ${wins} נצחונות ורק ${losses} הפסדים"
+      "הביתיות משחקת לטובת ${teamName}: ${wins} ניצחונות מול ${losses} הפסדים בלבד"
     ],
     
     AWAY_STRUGGLE: [
-      "${teamName} מתקשים בחוץ - ${wins} נצחונות מ-${games} משחקים (${pct}%)",
+      "${teamName} מתקשה בחוץ: רק ${wins} ניצחונות מ-${games} משחקים (${pct}%)",
       "בעיית החוץ של ${teamName}: רק ${wins}-${losses} הרחק מהבית",
-      "${teamName} לא מוצאים את עצמם בחוץ - ${pct}% נצחונות",
+      "${teamName} לא מוצאת את עצמה בחוץ: ${pct}% ניצחונות בלבד",
       "קשה ל-${teamName} לנצח בחוץ: ${wins}-${losses} השנה",
-      "${teamName} עם מאזן חוץ חלש: ${wins} נצחונות מ-${games}",
-      "ההרחקה מהבית לא עושה טוב ל-${teamName}: ${pct}% נצחונות",
+      "${teamName} עם מאזן חוץ חלש: ${wins} ניצחונות מ-${games}",
+      "ההרחקה מהבית לא עושה טוב ל-${teamName}: ${pct}% ניצחונות",
       "${teamName} צריכים לשפר בחוץ - רק ${wins}-${losses}",
       "מאזן חוץ בעייתי ל-${teamName}: ${wins}-${losses} (${pct}%)"
     ],
     
     ROAD_WARRIOR: [
       "${teamName} לוחמי חוץ - ${wins}-${losses} הרחק מהבית (${pct}%)",
-      "מפתיע: ${teamName} עם ${pct}% נצחונות בחוץ!",
+      "מפתיע: ${teamName} עם ${pct}% ניצחונות בחוץ!",
       "${teamName} מצטיינים דווקא בחוץ: ${wins}-${losses}",
-      "קבוצת חוץ: ${teamName} עם ${wins} נצחונות מ-${wins}+${losses} משחקים",
-      "${teamName} לא מפחדים לשחק בחוץ - ${pct}% נצחונות",
+      "קבוצת חוץ: ${teamName} עם ${wins} ניצחונות מ-${wins}+${losses} משחקים",
+      "${teamName} לא מפחדים לשחק בחוץ - ${pct}% ניצחונות",
       "הדרך לא מפריעה ל-${teamName}: ${wins}-${losses} בחוץ",
-      "${teamName} עם מאזן חוץ מרשים - ${pct}% נצחונות",
+      "${teamName} עם מאזן חוץ מרשים - ${pct}% ניצחונות",
       "לוחמי כביש: ${teamName} ${wins}-${losses} הרחק מהבית"
     ],
     
     VENUE_SPLIT: [
-      "פער דרמטי: ${teamName} ${homeWins}-${homeLosses} בבית (${homePct}%) אבל ${awayWins}-${awayLosses} בחוץ (${awayPct}%)",
+      "פער דרמטי בביצועים: ${teamName} עם ${homePct}% בבית לעומת ${awayPct}% בלבד בחוץ",
       "שתי קבוצות שונות: ${teamName} בבית (${homePct}%) לעומת חוץ (${awayPct}%)",
       "${teamName} עם פער של ${gap}% בין בית לחוץ",
       "הבדל משמעותי: ${teamName} ${homeWins}-${homeLosses} בבית, ${awayWins}-${awayLosses} בחוץ",
       "${teamName}: ${homePct}% בבית לעומת ${awayPct}% בחוץ - פער של ${gap}%",
       "הביתיות קריטית ל-${teamName}: ${homePct}% בבית מול ${awayPct}% בחוץ",
-      "פערי מגרש: ${teamName} הרבה יותר טובים בבית (${homePct}%) מאשר בחוץ (${awayPct}%)",
+      "פערי מגרש: ${teamName} איכותית בהרבה בבית (${homePct}%) מאשר בחוץ (${awayPct}%)",
       "${teamName} קבוצה אחרת לגמרי בחוץ: ${awayPct}% לעומת ${homePct}% בבית"
     ],
     

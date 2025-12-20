@@ -377,7 +377,7 @@ class IBBAInsightsV2 {
         teamName,
         value: closeLosses,
         icon: '😤',
-        text: `${teamName} עם ${closeLosses} הפסדים צמודים בעונה - קרובה לפריצה! רק צריכה מזל קטן`,
+        text: `${teamName} עם ${closeLosses} הפסדים על חודו של סכין העונה: חסר לה הגרוש ללירה כדי לנצח`,
         textShort: `${closeLosses} הפסדים צמודים בעונה`
       };
     }
@@ -642,7 +642,7 @@ class IBBAInsightsV2 {
           h2hGames: h2hData.games,
           percentAbove,
           icon: '🎯',
-          text: `${playerName} = הרוצח של ${opponentName}! ממוצע של ${h2hAvg.toFixed(1)} נק' במפגשים (לעומת ${seasonAvg.toFixed(1)} עונתי) - +${percentAbove}%`,
+          text: `${playerName} הוא אימת ההגנה של ${opponentName}: קולע מולה ${h2hAvg.toFixed(1)} נק' בממוצע (${percentAbove}% מעל הממוצע העונתי)`,
           textShort: `${playerName} רוצח של ${opponentName}`
         };
       }
@@ -997,7 +997,7 @@ class IBBAInsightsV2 {
         teamName,
         playerName,
         icon: '📊',
-        text: `${playerName} (${teamName}) זה עקביות כמו שעון שוויצרי! כמעט תמיד הוא מספק את הסחורה בטווח הצר של ${low} עד ${high} נקודות.`,
+        text: `יציב כמו סלע: ${playerName} (${teamName}) מספק כמעט בכל ערב בין ${low} ל-${high} נק'`,
         textShort: `${playerName}: עקביות גבוהה`
       };
     }
@@ -1060,7 +1060,7 @@ class IBBAInsightsV2 {
         teamName,
         playerName,
         icon: '🎢',
-        text: `תנודתיות קיצונית! ${playerName} (${teamName}) מחבר ${mean} נק' בממוצע, אבל יש לו הבדלים גדולים בין משחק למשחק: מ- ${low} נק' עד ערב שיא של ${high}+.`,
+        text: `חוסר יציבות: ${playerName} (${teamName}) קולע ${mean} נק' בממוצע, אך נע בין ערבי שפל של ${low} לשיאים של ${high} נק'`,
         textShort: `${playerName}: לא עקבי`
       };
     }
@@ -2071,7 +2071,7 @@ class IBBAInsightsV2 {
         change: change.toFixed(1),
         improving,
         icon: improving ? '📈' : '📉',
-        text: `${teamName} ${improving ? 'במגמת עלייה' : 'במגמת ירידה'} - הפרש נקודות של \u200E${recentAvgDiff > 0 ? '+' : ''}${recentAvgDiff.toFixed(1)}\u200E ב-5 אחרונים (לעומת \u200E${seasonAvgDiff > 0 ? '+' : ''}${seasonAvgDiff.toFixed(1)}\u200E עונתי)`,
+        text: `${teamName} ${improving ? 'במגמת שיפור' : 'במגמת נסיגה'}: הפרש נקודות של ${recentAvgDiff.toFixed(1)} בחמשת המשחקים האחרונים`,
         textShort: `${improving ? 'עלייה' : 'ירידה'} בהפרש נקודות`
       };
     }
