@@ -1,0 +1,23 @@
+name: supabase-keepalive
+
+on:
+  schedule:
+    - cron: "13 3 * * *" # daily, UTC
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call PostgREST keepalive
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          KEEPALIVE_TABLE: ${{ secrets.KEEPALIVE_TABLE }}
+        run: |
+          set -e
+          curl -sS -o /dev/null \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+            "${SUPABASE_URL}/rest/v1/${KEEPALIVE_TABLE}?select=*&limit=1"
+
