@@ -2136,9 +2136,11 @@ class IBBAInsightsV2 {
         bottomPct: bottomPct.toFixed(0),
         icon: '📊',
         text: better === 'top' ? 
-          `${teamName} מוכיחה את עצמה מול הגדולים! ${vsTopWins} ניצחונות מתוך ${vsTopTotal} משחקים נגד חצי עליון (${topPct.toFixed(0)}%), לעומת ${vsBottomWins} מתוך ${vsBottomTotal} נגד חצי תחתון (${bottomPct.toFixed(0)}%)` :
-          `${teamName} מנצחת חלשים אבל נכשלת מול חזקים - ${vsBottomWins} ניצחונות מתוך ${vsBottomTotal} משחקים נגד חצי תחתון (${bottomPct.toFixed(0)}%), אבל רק ${vsTopWins} מתוך ${vsTopTotal} נגד חצי עליון (${topPct.toFixed(0)}%)`,
-        textShort: `vs חצי עליון: ${vsTopWins}-${vsTopTotal - vsTopWins} (${topPct.toFixed(0)}%), vs תחתון: ${vsBottomWins}-${vsBottomTotal - vsBottomWins} (${bottomPct.toFixed(0)}%)`
+          `${teamName} מוכיחה את עצמה מול הצמרת: ${vsTopWins} ניצחונות מתוך ${vsTopTotal} משחקים מול החצי העליון (${topPct.toFixed(0)}%), לעומת ${vsBottomWins} מתוך ${vsBottomTotal} מול החצי התחתון (${bottomPct.toFixed(0)}%)` :
+          `${teamName} דומיננטית מול קבוצות התחתית אך מתקשה מול הצמרת: ${vsBottomWins} ניצחונות מתוך ${vsBottomTotal} משחקים מול החצי התחתון (${bottomPct.toFixed(0)}%), לעומת ${vsTopWins} מתוך ${vsTopTotal} בלבד מול החצי העליון (${topPct.toFixed(0)}%)`,
+        textShort: better === 'top' ?
+          `מוכיחה מול הצמרת: ${topPct.toFixed(0)}%` :
+          `דומיננטית מול התחתית, מתקשה מול הצמרת`
       };
     }
     return null;
