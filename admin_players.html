@@ -202,7 +202,11 @@
     // ========================================
     // GLOBAL STATE
     // ========================================
-    let supabase = null;
+    // IMPORTANT:
+    // Avoid using the global identifier name `supabase` here.
+    // Other scripts (and/or the Supabase SDK / config bootstrap) may already define it,
+    // which would cause a hard SyntaxError and prevent this entire script from loading.
+    let supabaseClient = null;
     let adminManager = null;
     let allGames = [];
     let currentFilter = 'all';
@@ -254,19 +258,29 @@
       console.log('🎯 Initializing Admin Panel...');
 
       try {
-        // Initialize Supabase with service role for admin operations
+        // Initialize Supabase with service role for admin operations (if available)
         const supabaseUrl = window.appConfig?.supabaseUrl || window.CONFIG?.SUPABASE_URL;
-        // Try service role first (for admin), fallback to anon key
-        const supabaseKey = window.CONFIG?.SUPABASE_SERVICE_ROLE_KEY || 
-                           window.appConfig?.supabaseKey || 
-                           window.CONFIG?.SUPABASE_ANON_KEY;
+        const serviceRoleKey = window.CONFIG?.SUPABASE_SERVICE_ROLE_KEY || '';
+        const anonKey = window.appConfig?.supabaseKey || window.CONFIG?.SUPABASE_ANON_KEY || '';
 
-        if (supabaseUrl && supabaseKey) {
-          supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-          console.log('✅ Supabase initialized (admin mode)');
+        // Prefer an already-initialized client from config.js when service role isn't provided
+        // (config.js sets window.supabaseClient).
+        if (!serviceRoleKey && window.supabaseClient) {
+          supabaseClient = window.supabaseClient;
+          console.log('✅ Using existing Supabase client (from config.js)');
+        } else if (supabaseUrl && (serviceRoleKey || anonKey) && window.supabase?.createClient) {
+          const keyToUse = serviceRoleKey || anonKey;
+          supabaseClient = window.supabase.createClient(supabaseUrl, keyToUse);
+          window.supabaseClient = supabaseClient; // keep consistent across pages
+          console.log(serviceRoleKey ? '✅ Supabase initialized (service-role admin mode)' : '✅ Supabase initialized (anon mode)');
         } else {
           console.warn('⚠️ Supabase not configured - will work in API-only mode');
-          console.log('Config:', { supabaseUrl, supabaseKey: supabaseKey ? 'exists' : 'missing' });
+          console.log('Config:', {
+            supabaseUrl,
+            hasServiceRoleKey: !!serviceRoleKey,
+            hasAnonKey: !!anonKey,
+            hasSdk: !!window.supabase?.createClient
+          });
         }
 
         // Initialize IBBA Adapter
@@ -284,8 +298,8 @@
         // Initialize Admin Manager
         adminManager = new window.AdminPlayerNamesManager();
         
-        if (supabase) {
-          await adminManager.init(supabase, adapter);
+        if (supabaseClient) {
+          await adminManager.init(supabaseClient, adapter);
         }
 
         // Extract players from games
@@ -409,7 +423,7 @@
       
       showProgress('מרענן...', 50);
       
-      if (supabase) {
+      if (supabaseClient) {
         await adminManager.loadNamesFromSupabase();
       }
       
@@ -421,7 +435,7 @@
     }
 
     async function syncFromAPI() {
-      if (!adminManager || !supabase) {
+      if (!adminManager || !supabaseClient) {
         alert('Supabase לא מוגדר - לא ניתן לבצע סנכרון');
         return;
       }
@@ -507,7 +521,7 @@
         return;
       }
 
-      if (!supabase) {
+      if (!supabaseClient) {
         alert('Supabase לא מוגדר - לא ניתן לשמור');
         return;
       }

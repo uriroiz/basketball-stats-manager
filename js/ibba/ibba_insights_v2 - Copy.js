@@ -192,8 +192,7 @@ class IBBAInsightsV2 {
         value: clutchWins,
         icon: '💪',
         text,
-        textShort: `${clutchWins} ניצחונות צמודים ברצף`,
-        broadcastShort: `💪 ${teamName}: ${clutchWins} קלאץ' ברצף`
+        textShort: `${clutchWins} ניצחונות צמודים ברצף`
       };
     }
     return null;
@@ -236,8 +235,7 @@ class IBBAInsightsV2 {
         value: wins,
         icon: '🔥',
         text,
-        textShort: `${wins} ניצחונות ברצף`,
-        broadcastShort: `📈 ${teamName}: ${wins} ניצחונות ברצף`
+        textShort: `${wins} ניצחונות ברצף`
       };
     }
     return null;
@@ -280,8 +278,7 @@ class IBBAInsightsV2 {
         value: losses,
         icon: '📉',
         text,
-        textShort: `${losses} הפסדים ברצף`,
-        broadcastShort: `📉 ${teamName}: ${losses} הפסדים ברצף`
+        textShort: `${losses} הפסדים ברצף`
       };
     }
     return null;
@@ -326,8 +323,7 @@ class IBBAInsightsV2 {
         value: blowouts,
         icon: '💥',
         text,
-        textShort: `${blowouts} ניצחונות גדולים ב-5 אחרונים`,
-        broadcastShort: `🔥 ${teamName}: ${blowouts} ניצחונות ב-15+`
+        textShort: `${blowouts} ניצחונות גדולים ב-5 אחרונים`
       };
     }
     return null;
@@ -381,7 +377,7 @@ class IBBAInsightsV2 {
         teamName,
         value: closeLosses,
         icon: '😤',
-        text: `${teamName} עם ${closeLosses} הפסדים על חודו של סכין העונה: חסר לה הגרוש ללירה כדי לנצח`,
+        text: `${teamName} עם ${closeLosses} הפסדים צמודים בעונה - קרובה לפריצה! רק צריכה מזל קטן`,
         textShort: `${closeLosses} הפסדים צמודים בעונה`
       };
     }
@@ -478,9 +474,8 @@ class IBBAInsightsV2 {
           seasonMinutesAvg: seasonMinutesAvg.toFixed(1),
           recentMinutesAvg: recentMinutesAvg.toFixed(1),
           icon: '🔥',
-          text: `${playerName} נמצא בתקופה מצוינת: קולע ${recentAvg.toFixed(1)} נק' ב-3 המשחקים האחרונים – שיפור של ${percentAbove}% לעומת הממוצע העונתי (${seasonAvg.toFixed(1)} נק')${minutesNote}`,
-          textShort: `${playerName} בפורמה: ${recentAvg.toFixed(1)} נק' (+${percentAbove}%)`,
-          broadcastShort: `⚡ ${playerName}: לוהט (+${percentAbove}%)`
+          text: `${playerName} בוער! ${recentAvg.toFixed(1)} נק' ב-3 משחקים אחרונים (לעומת ${seasonAvg.toFixed(1)} עונתי) - +${percentAbove}%${minutesNote}`,
+          textShort: `${playerName} בוער (${recentAvg.toFixed(1)} vs ${seasonAvg.toFixed(1)})`
         };
       }
     }
@@ -572,8 +567,8 @@ class IBBAInsightsV2 {
           seasonMinutesAvg: seasonMinutesAvg.toFixed(1),
           recentMinutesAvg: recentMinutesAvg.toFixed(1),
           icon: '❄️',
-          text: `${playerName} נמצא בתקופה פחות טובה: קולע ${recentAvg.toFixed(1)} נק' ב-3 המשחקים האחרונים (ירידה של ${percentBelow}% לעומת הממוצע העונתי)${minutesNote}`,
-          textShort: `${playerName} בירידה: ${recentAvg.toFixed(1)} נק' (-${percentBelow}%)`
+          text: `${playerName} במשבר - רק ${recentAvg.toFixed(1)} נק' ב-3 משחקים אחרונים (לעומת ${seasonAvg.toFixed(1)} עונתי) - ירידה של ${percentBelow}%${minutesNote}`,
+          textShort: `${playerName} במשבר (${recentAvg.toFixed(1)} vs ${seasonAvg.toFixed(1)})`
         };
       }
     }
@@ -647,7 +642,7 @@ class IBBAInsightsV2 {
           h2hGames: h2hData.games,
           percentAbove,
           icon: '🎯',
-          text: `${playerName} הוא אימת ההגנה של ${opponentName}: קולע מולה ${h2hAvg.toFixed(1)} נק' בממוצע (${percentAbove}% מעל הממוצע העונתי)`,
+          text: `${playerName} = הרוצח של ${opponentName}! ממוצע של ${h2hAvg.toFixed(1)} נק' במפגשים (לעומת ${seasonAvg.toFixed(1)} עונתי) - +${percentAbove}%`,
           textShort: `${playerName} רוצח של ${opponentName}`
         };
       }
@@ -861,8 +856,7 @@ class IBBAInsightsV2 {
         games: leader.games,
         icon: '👑',
         text,
-        textShort: `${playerName}: מוביל עם ${maxPpg.toFixed(1)} נק'`,
-        broadcastShort: `👤 ${playerName} (${maxPpg.toFixed(1)} נק')`
+        textShort: `${playerName}: מוביל עם ${maxPpg.toFixed(1)} נק'`
       };
     }
     
@@ -1003,7 +997,7 @@ class IBBAInsightsV2 {
         teamName,
         playerName,
         icon: '📊',
-        text: `יציב כמו סלע: ${playerName} (${teamName}) מספק כמעט בכל ערב בין ${low} ל-${high} נק'`,
+        text: `${playerName} (${teamName}) זה עקביות כמו שעון שוויצרי! כמעט תמיד הוא מספק את הסחורה בטווח הצר של ${low} עד ${high} נקודות.`,
         textShort: `${playerName}: עקביות גבוהה`
       };
     }
@@ -1066,7 +1060,7 @@ class IBBAInsightsV2 {
         teamName,
         playerName,
         icon: '🎢',
-        text: `חוסר יציבות: ${playerName} (${teamName}) קולע ${mean} נק' בממוצע, אך נע בין ערבי שפל של ${low} לשיאים של ${high} נק'`,
+        text: `תנודתיות קיצונית! ${playerName} (${teamName}) מחבר ${mean} נק' בממוצע, אבל יש לו הבדלים גדולים בין משחק למשחק: מ- ${low} נק' עד ערב שיא של ${high}+.`,
         textShort: `${playerName}: לא עקבי`
       };
     }
@@ -1398,12 +1392,10 @@ class IBBAInsightsV2 {
         category: 'OFFENSE',
         importance: 'medium',
         teamName,
-        rank,
         value: ppg.toFixed(1),
         icon: '🚀',
         text,
-        textShort: `${ppg.toFixed(1)} נק' למשחק`,
-        broadcastShort: `🚀 ${teamName}: התקפה מקום ${rank}`
+        textShort: `${ppg.toFixed(1)} נק' למשחק`
       };
     }
     return null;
@@ -1815,12 +1807,10 @@ class IBBAInsightsV2 {
         importance: 'high',
         teamName,
         value: oppPpg,
-        rank,
         leagueAvg: leagueAvgOppPpg.toFixed(1),
         icon: '🧱',
         text,
-        textShort: `הגנה: ${oppPpg.toFixed(1)} נק' ליריבות`,
-        broadcastShort: `🛡️ ${teamName}: הגנה מקום ${rank}`
+        textShort: `הגנה: ${oppPpg.toFixed(1)} נק' ליריבות`
       };
     }
     return null;
@@ -2081,7 +2071,7 @@ class IBBAInsightsV2 {
         change: change.toFixed(1),
         improving,
         icon: improving ? '📈' : '📉',
-        text: `${teamName} ${improving ? 'במגמת שיפור' : 'במגמת נסיגה'}: הפרש נקודות של ${recentAvgDiff.toFixed(1)} בחמשת המשחקים האחרונים`,
+        text: `${teamName} ${improving ? 'במגמת עלייה' : 'במגמת ירידה'} - הפרש נקודות של ${recentAvgDiff > 0 ? '+' : ''}${recentAvgDiff.toFixed(1)} ב-5 אחרונים (לעומת ${seasonAvgDiff > 0 ? '+' : ''}${seasonAvgDiff.toFixed(1)} עונתי)`,
         textShort: `${improving ? 'עלייה' : 'ירידה'} בהפרש נקודות`
       };
     }
@@ -2140,21 +2130,15 @@ class IBBAInsightsV2 {
         category: 'MOMENTUM',
         importance: 'high',
         teamName,
-        better,
         vsTopRecord: `${vsTopWins}-${vsTopTotal - vsTopWins}`,
         vsBottomRecord: `${vsBottomWins}-${vsBottomTotal - vsBottomWins}`,
         topPct: topPct.toFixed(0),
         bottomPct: bottomPct.toFixed(0),
         icon: '📊',
         text: better === 'top' ? 
-          `${teamName} מוכיחה את עצמה מול הצמרת: ${vsTopWins} ניצחונות מתוך ${vsTopTotal} משחקים מול החצי העליון (${topPct.toFixed(0)}%), לעומת ${vsBottomWins} מתוך ${vsBottomTotal} מול החצי התחתון (${bottomPct.toFixed(0)}%)` :
-          `${teamName} דומיננטית מול קבוצות התחתית אך מתקשה מול הצמרת: ${vsBottomWins} ניצחונות מתוך ${vsBottomTotal} משחקים מול החצי התחתון (${bottomPct.toFixed(0)}%), לעומת ${vsTopWins} מתוך ${vsTopTotal} בלבד מול החצי העליון (${topPct.toFixed(0)}%)`,
-        textShort: better === 'top' ?
-          `מוכיחה מול הצמרת: ${topPct.toFixed(0)}%` :
-          `דומיננטית מול התחתית, מתקשה מול הצמרת`,
-        broadcastShort: better === 'top' ?
-          `⭐ ${teamName}: מנצחת צמרת (${topPct.toFixed(0)}%)` :
-          `⚠️ ${teamName}: מתקשה מול צמרת`
+          `${teamName} מוכיחה את עצמה מול הגדולים! ${vsTopWins} ניצחונות מתוך ${vsTopTotal} משחקים נגד חצי עליון (${topPct.toFixed(0)}%), לעומת ${vsBottomWins} מתוך ${vsBottomTotal} נגד חצי תחתון (${bottomPct.toFixed(0)}%)` :
+          `${teamName} מנצחת חלשים אבל נכשלת מול חזקים - ${vsBottomWins} ניצחונות מתוך ${vsBottomTotal} משחקים נגד חצי תחתון (${bottomPct.toFixed(0)}%), אבל רק ${vsTopWins} מתוך ${vsTopTotal} נגד חצי עליון (${topPct.toFixed(0)}%)`,
+        textShort: `vs חצי עליון: ${vsTopWins}-${vsTopTotal - vsTopWins} (${topPct.toFixed(0)}%), vs תחתון: ${vsBottomWins}-${vsBottomTotal - vsBottomWins} (${bottomPct.toFixed(0)}%)`
       };
     }
     return null;
@@ -2172,11 +2156,8 @@ class IBBAInsightsV2 {
     if (teamGames.length < MIN_GAMES_HALF * 2) return null;
     
     const mid = Math.floor(teamGames.length / 2);
-    // הערה: teamGames ממוין מחדש לישן, לכן:
-    // - אינדקסים 0 עד mid-1 = משחקים חדשים (מחצית שנייה של העונה)
-    // - אינדקסים mid עד סוף = משחקים ישנים (מחצית ראשונה של העונה)
-    const firstHalf = teamGames.slice(mid);      // משחקים ישנים (מחצית ראשונה)
-    const secondHalf = teamGames.slice(0, mid);  // משחקים חדשים (מחצית שנייה)
+    const firstHalf = teamGames.slice(teamGames.length - mid - mid, teamGames.length - mid); // חציון ישן
+    const secondHalf = teamGames.slice(teamGames.length - mid); // חציון חדש
     
     const firstWins = firstHalf.filter(g => {
       const teamData = this.getTeamFromGame(g, teamName);
@@ -2202,12 +2183,9 @@ class IBBAInsightsV2 {
         category: 'MOMENTUM',
         importance: 'medium',
         teamName,
-        trend,
-        change: change.toFixed(0),
         icon,
-        text: `מגמת ${trend} בין חצאי העונה: ${teamName} עברה מ-${firstWinPct.toFixed(0)}% (${firstWins}/${firstHalf.length} משחקים) בחצי הראשון ל-${secondWinPct.toFixed(0)}% (${secondWins}/${secondHalf.length}) בחצי השני`,
-        textShort: `מגמה עונתית: ${trend} (${change > 0 ? '+' : ''}${change.toFixed(0)}%)`,
-        broadcastShort: change > 0 ? `📈 ${teamName}: ${trend} בעונה` : `📉 ${teamName}: ${trend} בעונה`
+        text: `${teamName} ${trend} במהלך העונה! מחצית ראשונה: ${firstWinPct.toFixed(0)}% (${firstWins}/${firstHalf.length}) → מחצית שנייה: ${secondWinPct.toFixed(0)}% (${secondWins}/${secondHalf.length})`,
+        textShort: `${trend}: ${change > 0 ? '+' : ''}${change.toFixed(0)}%`
       };
     }
     return null;
@@ -2594,8 +2572,7 @@ class IBBAInsightsV2 {
         comebacks: bigComebacks,
         icon: '👑',
         text,
-        textShort: `${bigComebacks} קאמבקים מפיגור גדול`,
-        broadcastShort: `👑 ${teamName}: ${bigComebacks} קאמבקים`
+        textShort: `${bigComebacks} קאמבקים מפיגור גדול`
       };
     }
     return null;
@@ -2716,12 +2693,10 @@ class IBBAInsightsV2 {
         category: 'QUARTERS',
         importance: 'low',
         teamName,
-        quarterNum: qNum,
         value: bestAvgDiff.toFixed(1),
         icon: '⏱️',
         text,
-        textShort: `רבע ${qNum}: +${bestAvgDiff.toFixed(1)} נק'`,
-        broadcastShort: `📊 ${teamName}: שליטה ברבע ${qNum}`
+        textShort: `רבע ${qNum}: +${bestAvgDiff.toFixed(1)} נק'`
       };
     }
     return null;

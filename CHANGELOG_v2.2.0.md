@@ -200,3 +200,8 @@ const text = window.IBBAInsightTemplates?.getRandomText('category', 'NEW_INSIGHT
 
 
 
+
+
+
+
+

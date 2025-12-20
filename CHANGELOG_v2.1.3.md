@@ -190,3 +190,8 @@ spg: { label: 'בחטיפות', icon: '🏃', ascending: false },
 
 
 
+
+
+
+
+

@@ -1,94 +1,162 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="he" dir="rtl">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>IBBA Dashboard - All Games</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Basketball Stats Manager — IBBA Parser + DB</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="css/styles.css">
-  <style>
-    .sortable {
-      cursor: pointer;
-      user-select: none;
-      transition: background-color 0.2s;
-    }
-    .sortable:hover {
-      background-color: #f3f4f6;
-    }
-    .sort-indicator {
-      font-size: 0.75em;
-      margin-left: 4px;
-      color: #3b82f6;
-      font-weight: bold;
-    }
-    th[onclick] {
-      cursor: pointer;
-      user-select: none;
-    }
-    th[onclick]:hover {
-      background-color: rgba(59, 130, 246, 0.1);
-    }
-    /* Disabled tabs during loading */
-    .tab:disabled, .tab.disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      pointer-events: none;
-    }
-  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+  
+  <!-- Supabase Client Library -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <link rel="stylesheet" href="css/styles.css?v=21">
+    
+    <!-- Environment Configuration -->
+    <script src="env.js"></script>
 </head>
 <body class="bg-slate-100 text-gray-900">
-  
   <div class="max-w-none mx-auto px-2 md:px-4 py-4">
-    <!-- Header -->
     <div class="header-gradient rounded-lg p-3 mb-3 shadow-md">
-      <h1 class="text-2xl font-bold mb-1 text-center">IBBA Dashboard - Pure API</h1>
-      <p class="text-sm text-center text-blue-100">כל המשחקים • ללא מסד נתונים • נתונים בזמן אמת מ-ibasketball.co.il</p>
-      <div class="text-xs text-center text-blue-200 mt-2">
-        <span class="bg-blue-800/30 px-2 py-1 rounded-full">v1.1 - Phase 2</span>
+      <h1 class="text-2xl font-bold mb-1 text-center">Basketball Stats Manager</h1>
+      <p class="text-sm text-center text-blue-100">Parser IBBA • ניהול קבוצות • שמירה למסד • טאב משחקים/קבוצות/שחקנים</p>
+      <div class="text-xs text-center text-blue-200 mt-2 flex items-center justify-center gap-3">
+        <span class="version-display bg-blue-800/30 px-2 py-1 rounded-full">v2.0.0+EdgeFunctions</span>
+        <button id="loginBtn" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-full text-xs font-medium transition-colors">
+          🔐 כניסת מנהל
+        </button>
+        <button id="logoutBtn" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-full text-xs font-medium transition-colors" style="display: none;">
+          🚪 יציאה
+        </button>
+        <span id="authIndicator" class="bg-green-500/20 text-green-200 px-2 py-1 rounded-full text-xs" style="display: none;">
+          👤 מנהל מחובר
+        </span>
       </div>
     </div>
-    
-    <!-- Tabs Navigation -->
+
+    <!-- Tabs -->
     <nav id="tabs" class="flex flex-wrap items-center gap-2 justify-center mb-4">
-      <button id="tab-games" class="tab bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors" onclick="switchTab('games')">
-        כל המשחקים
-      </button>
-      <button id="tab-teams" class="tab bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors" onclick="switchTab('teams')">
-        סטטיסטיקות קבוצתיות
-      </button>
-      <button id="tab-players" class="tab bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors" onclick="switchTab('players')">
-        סטטיסטיקות שחקנים
-      </button>
-      <button id="tab-leaders" class="tab bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors" onclick="switchTab('leaders')">
-        מובילי הליגה
-      </button>
-      <button id="tab-gamePrep" class="tab bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors" onclick="switchTab('gamePrep')">
-        הכנה למשחק
-      </button>
+      <button class="tab" data-tab="ingest" style="display: none;">ייבוא וניתוח</button>
+      <button class="tab active" data-tab="games">כל המשחקים</button>
+      <button class="tab" data-tab="teams">סטטיסטיקות קבוצתיות</button>
+      <button class="tab" data-tab="players">סטטיסטיקות שחקנים</button>
+      <button class="tab" data-tab="leagueLeaders">מובילי הליגה</button>
+      <button class="tab" data-tab="manageTeams">ניהול קבוצות</button>
+      <button class="tab" data-tab="managePlayers">ניהול שחקנים</button>
+      <button class="tab" data-tab="transfers">ניהול העברות</button>
+      <button class="tab" data-tab="gamePrep">הכנה למשחק</button>
+      <button class="tab" data-tab="tools">כלים מתקדמים</button>
     </nav>
-    
-    <!-- Loading Progress -->
-    <div id="loadingProgress" class="card p-4 mb-4">
-      <div class="text-center">
-        <div class="text-lg font-semibold mb-2" id="loadingStatus">🔄 טוען נתונים...</div>
-        <div class="w-full bg-gray-200 rounded-full h-2.5">
-          <div id="loadingBar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+
+    <div id="alerts"></div>
+
+    <!-- ========== Ingest (view-ingest) ========== -->
+    <section id="view-ingest" class="hidden">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <!-- קלט JSON -->
+        <div class="md:col-span-3 card p-4">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <span class="text-sm font-medium">העלה קובץ JSON או הדבק כאן:</span>
+            <div class="flex gap-2">
+              <input id="file" type="file" accept=".json,application/json" class="hidden" />
+              <button id="chooseBtn" class="btn px-3 py-1.5 text-sm bg-blue-100 text-blue-800 rounded hover:bg-blue-200">בחר קובץ</button>
+              <button id="parseBtn" class="btn px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">פענח</button>
+            </div>
+          </div>
+          <div class="mb-3">
+            <div class="flex gap-2">
+              <input type="text" id="gameUrlInput" placeholder="הכנס קישור למשחק (למשל: https://fibalivestats.dcd.shared.geniussports.com/data/2733003/data.json)" class="flex-1 px-3 py-2 border border-gray-300 rounded text-sm">
+              <button id="loadFromUrlBtn" class="btn bg-purple-500 text-white text-sm rounded px-3 py-2 hover:bg-purple-600">
+                טען מהקישור
+              </button>
+              <button id="copyUrlBtn" class="btn bg-gray-500 text-white text-sm rounded px-3 py-2 hover:bg-gray-600 hidden">
+                העתק קישור לדוגמה
+              </button>
+              <button id="pasteDataBtn" class="btn bg-green-500 text-white text-sm rounded px-3 py-2 hover:bg-green-600">
+                הדבק נתונים
+              </button>
+              <button id="openUrlBtn" class="btn bg-orange-500 text-white text-sm rounded px-3 py-2 hover:bg-orange-600">
+                פתח קישור
+              </button>
+            </div>
+            <div class="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <div class="text-xs text-amber-800 mb-2">
+                <strong>💡 פתרון בעיות CORS:</strong>
+              </div>
+              <div class="text-xs text-amber-700 space-y-1">
+                <div>• אם הטעינה נכשלת, נסה את הפתרונות הבאים:</div>
+                <div>• <strong>פתח קישור:</strong> לחץ על "פתח קישור" והעתק את הנתונים ידנית</div>
+                <div>• <strong>הרחבה:</strong> התקן "CORS Unblock" או "CORS Everywhere"</div>
+                <div>• <strong>דפדפן:</strong> פתח עם <code>--disable-web-security</code></div>
+                <div>• <strong>פרוקסי:</strong> האתר מנסה מספר שרתי פרוקסי אוטומטית</div>
+              </div>
+            </div>
+          </div>
+          <div class="h-56 bg-white border border-blue-200 rounded-lg p-2 text-xs shadow-sm">
+            <textarea id="jsonTa" class="w-full h-full outline-none resize-none" placeholder="IBBA JSON (tm לקבוצות, pl לשחקנים)"></textarea>
+          </div>
         </div>
-        <div class="text-sm text-gray-600 mt-2" id="loadingDetails">מאתחל...</div>
+
+        <!-- אפשרויות -->
+        <div class="card p-4 space-y-4">
+          <h2 class="text-lg font-semibold mb-1 text-blue-900">הגדרות</h2>
+          <!-- Hidden field to track update mode -->
+          <input type="hidden" id="updateModeGameId" value="">
+          <div>
+            <label class="block text-xs mb-1 text-gray-600">מזהה משחק (סידורי)</label>
+            <input id="gameId" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mono" readonly placeholder="1" />
+          </div>
+          <div>
+            <label class="block text-xs mb-1 text-gray-600">תאריך</label>
+            <input id="gameDate" type="date" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs mb-1 text-gray-600">מחזור</label>
+            <input id="gameCycle" type="number" min="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="הזן מספר מחזור" />
+          </div>
+          <div class="flex items-center justify-between border border-gray-200 rounded-lg p-3">
+            <label class="flex items-center gap-2 text-xs cursor-pointer">
+              <input id="toggleNonPlaying" type="checkbox" class="w-4 h-4">
+              <span>הצג שחקנים שלא שיחקו (0:00)</span>
+            </label>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <button id="saveToDbBtn" class="btn w-full text-sm bg-green-600 text-white rounded-lg px-3 py-2 hover:bg-green-700">שמור למסד</button>
+            <button id="cleanupOldSystemBtn" class="btn w-full text-sm bg-red-600 text-white rounded-lg px-3 py-2 hover:bg-red-700 mt-2 hidden">נקה מערכת ישנה</button>
+            <button id="closeDbConnectionBtn" class="btn w-full text-sm bg-gray-600 text-white rounded-lg px-3 py-2 hover:bg-gray-700 mt-2 hidden">סגור קשרי מסד נתונים</button>
+            <button id="resetBtn" class="btn w-full text-sm bg-red-100 text-red-700 rounded-lg px-3 py-2 hover:bg-red-200">איפוס</button>
+          </div>
+
+          <div class="border-t pt-3 mt-3">
+            <div class="flex items-start gap-3">
+              <button id="clearDbBtn" class="btn bg-red-600 text-white text-sm rounded px-3 py-2 hover:bg-red-700">נקה מסד נתונים</button>
+              <p class="text-xs text-gray-600 leading-5">
+                פעולה בלתי הפיכה. נדרש אישור כפול. מומלץ לרענן את העמוד לאחר הניקוי.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-    
-    <!-- Games Section -->
-    <section id="view-games" class="hidden">
+
+      <!-- פידבק מיפוי חסר -->
+      <div id="mappingWarn" class="hidden mt-4 p-3 bg-amber-100 text-amber-900 rounded border border-amber-200"></div>
+
+      <!-- תוצאות -->
+      <div id="results" class="mt-6 hidden">
+        <!-- שחקנים – מחולקים לקבוצות -->
+        <div id="playersByTeams" class="space-y-6"></div>
+      </div>
+    </section>
+
+    <!-- ========== All Games (view-games) ========== -->
+    <section id="view-games">
       <div class="card p-4">
         <div class="mb-3">
-          <h2 class="text-lg font-bold text-blue-900 mb-3">
-            כל המשחקים (מוצגים <span id="displayedCount" class="text-blue-600">0</span> מתוך <span id="totalCount" class="text-blue-600">0</span> משחקים)
-          </h2>
+          <h2 class="text-lg font-bold text-blue-900 mb-3">כל המשחקים (מוצגים <span id="gamesCount">0</span> משחקים)</h2>
           
-          <!-- Filters Row -->
-          <div class="flex items-center gap-3 flex-wrap mb-3">
-            <!-- Round Filter -->
+          <!-- Filters row -->
+          <div class="flex items-center gap-3 flex-wrap">
             <div class="flex items-center gap-2">
               <label for="cycleFilter" class="text-sm font-medium text-gray-700">מחזור:</label>
               <select id="cycleFilter" class="px-3 py-2 border border-gray-300 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
@@ -96,7 +164,6 @@
               </select>
             </div>
             
-            <!-- Team Filter -->
             <div class="flex items-center gap-2">
               <label for="teamFilter" class="text-sm font-medium text-gray-700">קבוצה:</label>
               <select id="teamFilter" class="px-3 py-2 border border-gray-300 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
@@ -104,58 +171,46 @@
               </select>
             </div>
             
-            <!-- Search -->
             <div class="flex-1 min-w-[200px] flex gap-2">
               <input id="gamesSearch" class="flex-1 px-3 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="חיפוש חופשי...">
-              <button id="searchBtn" class="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded border border-blue-600 transition-colors">
+              <button id="searchBtn" class="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded border border-blue-600">
                 חפש
               </button>
             </div>
             
-            <!-- Clear Filters -->
-            <button id="clearFiltersBtn" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded border border-gray-300 transition-colors">
+            <button id="clearFiltersBtn" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded border border-gray-300">
               נקה סינון
             </button>
           </div>
         </div>
         
-        <!-- Table -->
         <div class="stats-wrap">
           <table class="stats-table w-full text-sm">
             <thead>
               <tr>
-                <th class="col-team sortable" data-sort="gameId">
-                  <span class="sort-indicator" id="sort-gameId">▼</span>מזהה משחק
-                </th>
-                <th class="num sortable" data-sort="cycle">
-                  <span class="sort-indicator" id="sort-cycle"></span>מחזור
-                </th>
-                <th class="num sortable" data-sort="date">
-                  <span class="sort-indicator" id="sort-date"></span>תאריך
-                </th>
-                <th class="col-team">משחק</th>
-                <th class="col-team">תוצאה</th>
+                <th class="col-team" data-sort-field="gameId">מזהה משחק</th>
+                <th class="num" data-sort-field="cycle">מחזור</th>
+                <th class="num" data-sort-field="date">תאריך</th>
+                <th class="col-team" data-sort-field="game">משחק</th>
+                <th class="col-team" data-sort-field="result">תוצאה</th>
+                <th class="col-team">פעולות</th>
               </tr>
             </thead>
-            <tbody id="gamesTbody">
-              <tr>
-                <td colspan="5" class="text-center py-8 text-gray-500">טוען משחקים...</td>
-              </tr>
-            </tbody>
+            <tbody id="gamesTbody"></tbody>
           </table>
         </div>
       </div>
     </section>
-    
-    <!-- ========== Team Statistics Section ========== -->
+
+    <!-- ========== Teams Aggregate (view-teams) ========== -->
     <section id="view-teams" class="hidden">
       <div class="card p-4">
         <div class="flex items-center justify-between mb-3">
           <h2 class="text-lg font-bold text-blue-900">סטטיסטיקות קבוצתיות (<span id="teamsCount">0</span>)</h2>
           <div class="flex gap-2 items-center">
-            <input id="teamSearch" class="w-64 px-3 py-2 border rounded text-sm" placeholder="חפש קבוצה" oninput="filterTeams()">
-            <button id="teamStatsToggle" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm transition-colors" onclick="toggleTeamStatsView()">
-              <span id="teamToggleText">הצג סה"כ</span>
+            <input id="teamsSearch" class="w-64 px-3 py-2 border rounded text-sm" placeholder="חפש קבוצה">
+            <button id="teamsViewToggle" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm transition-colors">
+              <span id="teamsToggleText">הצג סה"כ</span>
             </button>
           </div>
         </div>
@@ -163,84 +218,44 @@
           <table class="stats-table w-full text-sm">
             <thead>
               <tr>
-                <th class="col-team sortable" onclick="sortTeams('name')">
-                  קבוצה <span id="sort-name" class="sort-indicator"></span>
-                </th>
-                <th class="num sortable" onclick="sortTeams('gamesPlayed')">
-                  מש' <span id="sort-gamesPlayed" class="sort-indicator"></span>
-                </th>
-                <th class="num sortable" onclick="sortTeams('ppg')">
-                  <span id="pointsHeader">נק'</span> <span id="sort-ppg" class="sort-indicator"></span>
-                </th>
-                <th class="num sortable" onclick="sortTeams('rpg')">
-                  <span id="reboundsHeader">ריב'</span> <span id="sort-rpg" class="sort-indicator"></span>
-                </th>
-                <th class="num sortable" onclick="sortTeams('apg')">
-                  <span id="assistsHeader">אס'</span> <span id="sort-apg" class="sort-indicator"></span>
-                </th>
-                <th class="num sortable" onclick="sortTeams('spg')">
-                  <span id="stealsHeader">חט'</span> <span id="sort-spg" class="sort-indicator"></span>
-                </th>
-                <th class="num sortable" onclick="sortTeams('bpg')">
-                  <span id="blocksHeader">חס'</span> <span id="sort-bpg" class="sort-indicator"></span>
-                </th>
-                <th class="num sortable" onclick="sortTeams('tpg')">
-                  <span id="turnoversHeader">איב'</span> <span id="sort-tpg" class="sort-indicator"></span>
-                </th>
-                <th class="num sortable" onclick="sortTeams('fpg')">
-                  <span id="foulsHeader">עב'</span> <span id="sort-fpg" class="sort-indicator"></span>
-                </th>
-                <th class="pct sortable" onclick="sortTeams('fgPct')">
-                  FG% <span id="sort-fgPct" class="sort-indicator"></span>
-                </th>
-                <th class="pct sortable" onclick="sortTeams('threePtPct')">
-                  3PT% <span id="sort-threePtPct" class="sort-indicator"></span>
-                </th>
-                <th class="pct sortable" onclick="sortTeams('ftPct')">
-                  FT% <span id="sort-ftPct" class="sort-indicator"></span>
-                </th>
-                <th class="num sortable" onclick="sortTeams('efficiency')">
-                  <span id="efficiencyHeader">יעילות</span> <span id="sort-efficiency" class="sort-indicator"></span>
-                </th>
+                <th class="col-team" data-sort-field="team">קבוצה</th>
+                <th class="num" data-sort-field="games">מש'</th>
+                <th class="num" data-sort-field="points">נק'</th>
+                <th class="num" data-sort-field="rebounds">ריב'</th>
+                <th class="num" data-sort-field="assists">אס'</th>
+                <th class="num" data-sort-field="steals">חט'</th>
+                <th class="num" data-sort-field="blocks">חס'</th>
+                <th class="num" data-sort-field="turnovers">איב'</th>
+                <th class="num" data-sort-field="fouls">עב'</th>
+                <th class="pct" data-sort-field="fgp">FG%</th>
+                <th class="pct" data-sort-field="tpp">3PT%</th>
+                <th class="pct" data-sort-field="ftp">FT%</th>
+                <th class="num" data-sort-field="efficiency">יעילות</th>
               </tr>
             </thead>
-            <tbody id="teamsTbody">
-              <tr>
-                <td colspan="13" class="text-center py-8 text-gray-500">טוען סטטיסטיקות...</td>
-              </tr>
-            </tbody>
+            <tbody id="teamsAggTbody"></tbody>
           </table>
         </div>
       </div>
     </section>
-    
-    <!-- ========== Player Statistics Section ========== -->
+
+    <!-- ========== Players DB (view-players) ========== -->
     <section id="view-players" class="hidden">
       <div class="card p-4">
         <div class="mb-3">
           <div class="flex items-center justify-between mb-2">
             <h2 class="text-lg font-bold text-blue-900">סטטיסטיקות שחקנים (<span id="playersCount">0</span>)</h2>
-            
-            <!-- Loading indicator for player names -->
-            <div id="playerNamesStatus" class="text-sm text-gray-600" style="display: none;">
-              <span class="animate-pulse">⏳ טוען שמות שחקנים...</span>
-            </div>
-            
-            <!-- Cache refresh button -->
-            <button id="refreshPlayerNamesBtn" class="text-xs text-gray-500 hover:text-blue-600 transition" onclick="forceRefreshPlayerNames()" style="display: none;" title="טען שמות שחקנים מחדש מהשרת">
-              🔄 רענן שמות
-            </button>
           </div>
           
           <!-- Filters Row with Toggle Button -->
           <div class="flex gap-2 items-center mb-2">
-            <select id="playersTeamFilter" class="px-3 py-2 border rounded text-sm" onchange="filterPlayers()">
+            <select id="playersTeamFilter" class="px-3 py-2 border rounded text-sm">
               <option value="">כל הקבוצות</option>
             </select>
             
-            <input id="playersSearch" class="w-64 px-3 py-2 border rounded text-sm" placeholder="חפש לפי שם/מס' חולצה" oninput="filterPlayers()">
+            <input id="playersSearch" class="w-64 px-3 py-2 border rounded text-sm" placeholder="חפש לפי שם/מס' חולצה/מזהה">
             
-            <button id="clearPlayersFilters" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm" onclick="clearPlayerFilters()">
+            <button id="clearPlayersFilters" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm">
               נקה סינון
             </button>
             
@@ -248,8 +263,8 @@
             <div class="flex-1"></div>
             
             <!-- View Toggle Button -->
-            <button id="playersViewToggle" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm transition-colors" onclick="togglePlayerStatsView()">
-              <span id="playerToggleText">הצג סה"כ</span>
+            <button id="playersViewToggle" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm transition-colors">
+              <span id="toggleText">הצג סה"כ</span>
             </button>
           </div>
         </div>
@@ -257,70 +272,69 @@
           <table class="stats-table" dir="rtl">
             <thead>
               <tr>
-                <th class="col-name" data-sort-field="name" onclick="sortPlayers('name')" style="cursor: pointer;">
-                  <div class="th-inner">שחקן <span id="sort-name" class="sort-indicator"></span></div>
+        <th class="col-name" data-sort-field="name">
+          <div class="th-inner">שחקן</div>
+        </th>
+        <th class="col-jersey" data-sort-field="jersey">
+          <div class="th-inner">מס'</div>
+        </th>
+        <th class="col-team" data-sort-field="team">
+          <div class="th-inner">קבוצה</div>
+        </th>
+                <th class="col-games" data-sort-field="games">
+                  <div class="th-inner">מש'</div>
                 </th>
-                <th class="col-jersey" data-sort-field="jersey" onclick="sortPlayers('jersey')" style="cursor: pointer;">
-                  <div class="th-inner">מס' <span id="sort-jersey" class="sort-indicator"></span></div>
+                <th class="num points" data-sort-field="totalPoints">
+                  <div class="th-inner">נק'</div>
                 </th>
-                <th class="col-team" data-sort-field="teamName" onclick="sortPlayers('teamName')" style="cursor: pointer;">
-                  <div class="th-inner">קבוצה <span id="sort-teamName" class="sort-indicator"></span></div>
+                <th class="num rebounds" data-sort-field="totalRebounds">
+                  <div class="th-inner">ריב'</div>
                 </th>
-                <th class="col-games" data-sort-field="gamesPlayed" onclick="sortPlayers('gamesPlayed')" style="cursor: pointer;">
-                  <div class="th-inner">מש' <span id="sort-gamesPlayed" class="sort-indicator"></span></div>
+                <th class="num assists" data-sort-field="totalAssists">
+                  <div class="th-inner">אס'</div>
                 </th>
-                <th class="num points" data-sort-field="ppg" onclick="sortPlayers('ppg')" style="cursor: pointer;">
-                  <div class="th-inner"><span id="pointsHeaderPlayer">נק'</span> <span id="sort-ppg" class="sort-indicator"></span></div>
+                <th class="num" data-sort-field="totalSteals">
+                  <div class="th-inner">חט'</div>
                 </th>
-                <th class="num rebounds" data-sort-field="rpg" onclick="sortPlayers('rpg')" style="cursor: pointer;">
-                  <div class="th-inner"><span id="reboundsHeaderPlayer">ריב'</span> <span id="sort-rpg" class="sort-indicator"></span></div>
+                <th class="num" data-sort-field="totalBlocks">
+                  <div class="th-inner">חס'</div>
                 </th>
-                <th class="num assists" data-sort-field="apg" onclick="sortPlayers('apg')" style="cursor: pointer;">
-                  <div class="th-inner"><span id="assistsHeaderPlayer">אס'</span> <span id="sort-apg" class="sort-indicator"></span></div>
+                <th class="num" data-sort-field="totalTurnovers">
+                  <div class="th-inner">איב'</div>
                 </th>
-                <th class="num" data-sort-field="spg" onclick="sortPlayers('spg')" style="cursor: pointer;">
-                  <div class="th-inner"><span id="stealsHeaderPlayer">חט'</span> <span id="sort-spg" class="sort-indicator"></span></div>
+                <th class="num" data-sort-field="totalFouls">
+                  <div class="th-inner">עב'</div>
                 </th>
-                <th class="num" data-sort-field="bpg" onclick="sortPlayers('bpg')" style="cursor: pointer;">
-                  <div class="th-inner"><span id="blocksHeaderPlayer">חס'</span> <span id="sort-bpg" class="sort-indicator"></span></div>
+                <th class="num" data-sort-field="totalFoulsDrawn">
+                  <div class="th-inner">סחט'</div>
                 </th>
-                <th class="num" data-sort-field="tpg" onclick="sortPlayers('tpg')" style="cursor: pointer;">
-                  <div class="th-inner"><span id="turnoversHeaderPlayer">איב'</span> <span id="sort-tpg" class="sort-indicator"></span></div>
+                <th class="num pct" data-sort-field="fgPercentage">
+                  <div class="th-inner">FG%</div>
                 </th>
-                <th class="num" data-sort-field="fpg" onclick="sortPlayers('fpg')" style="cursor: pointer;">
-                  <div class="th-inner"><span id="foulsHeaderPlayer">עב'</span> <span id="sort-fpg" class="sort-indicator"></span></div>
+                <th class="num pct" data-sort-field="threePointPercentage">
+                  <div class="th-inner">3PT%</div>
                 </th>
-                <th class="num" data-sort-field="foulsDrawnPg" onclick="sortPlayers('foulsDrawnPg')" style="cursor: pointer;">
-                  <div class="th-inner"><span id="foulsDrawnHeaderPlayer">סחט'</span> <span id="sort-foulsDrawnPg" class="sort-indicator"></span></div>
+                <th class="num pct" data-sort-field="ftPercentage">
+                  <div class="th-inner">FT%</div>
                 </th>
-                <th class="num pct" data-sort-field="fgPct" onclick="sortPlayers('fgPct')" style="cursor: pointer;">
-                  <div class="th-inner">FG% <span id="sort-fgPct" class="sort-indicator"></span></div>
+                <th class="num efficiency" data-sort-field="avgEfficiency">
+                  <div class="th-inner">יעילות</div>
                 </th>
-                <th class="num pct" data-sort-field="threePtPct" onclick="sortPlayers('threePtPct')" style="cursor: pointer;">
-                  <div class="th-inner">3PT% <span id="sort-threePtPct" class="sort-indicator"></span></div>
-                </th>
-                <th class="num pct" data-sort-field="ftPct" onclick="sortPlayers('ftPct')" style="cursor: pointer;">
-                  <div class="th-inner">FT% <span id="sort-ftPct" class="sort-indicator"></span></div>
-                </th>
-                <th class="num efficiency" data-sort-field="efficiencyAvg" onclick="sortPlayers('efficiencyAvg')" style="cursor: pointer;">
-                  <div class="th-inner"><span id="efficiencyHeaderPlayer">יעילות</span> <span id="sort-efficiencyAvg" class="sort-indicator"></span></div>
+                <th class="num avg-points" data-sort-field="avgPoints">
+                  <div class="th-inner">ממוצע נק'</div>
                 </th>
               </tr>
             </thead>
-            <tbody id="playersTbody">
-              <tr>
-                <td colspan="16" class="text-center py-8 text-gray-500">טוען סטטיסטיקות שחקנים...</td>
-              </tr>
-            </tbody>
+            <tbody id="playersTbody"></tbody>
           </table>
         </div>
       </div>
     </section>
-    
-    <!-- ========== League Leaders Section ========== -->
-    <section id="view-leaders" class="hidden">
+
+    <!-- ========== League Leaders (view-leagueLeaders) ========== -->
+    <section id="view-leagueLeaders" class="hidden">
       <div class="card p-4">
-        <h2 class="text-lg font-bold mb-4 text-blue-900">מובילי הליגה</h2>
+        <h2 class="text-lg font-bold mb-4 text-blue-900">מובילי הליגה - עונה 2025/26</h2>
         
         <!-- Grid layout for stat categories -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -440,29 +454,6 @@
             </div>
           </div>
 
-          <!-- Efficiency Leaders -->
-          <div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-            <div class="bg-gradient-to-r from-blue-800 to-blue-900 p-3">
-              <h3 class="text-white font-bold text-center">יעילות למשחק</h3>
-            </div>
-            <div class="p-3">
-              <table class="w-full text-sm" id="leadersEfficiency">
-                <thead>
-                  <tr class="border-b-2 border-gray-300 text-gray-700 text-xs">
-                    <th class="text-right py-2 px-2">#</th>
-                    <th class="text-right py-2 px-2">שחקן</th>
-                    <th class="text-right py-2 px-2">קבוצה</th>
-                    <th class="text-center py-2 px-2">מש'</th>
-                    <th class="text-center py-2 px-2">ממוצע</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr><td colspan="5" class="text-center py-4 text-gray-400">טוען נתונים...</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
           <!-- Minutes Leaders -->
           <div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
             <div class="bg-gradient-to-r from-blue-800 to-blue-900 p-3">
@@ -559,39 +550,390 @@
       </div>
     </section>
 
-    <!-- Game Preparation Section -->
-    <section id="view-gamePrep" class="hidden">
-      <div class="card p-4">
-        <h2 class="text-lg font-bold mb-4 text-blue-900">הכנה למשחק הבא</h2>
+    <!-- ========== Manage Teams (view-manageTeams) ========== -->
+    <section id="view-manageTeams" class="hidden">
+      <div class="card p-4 space-y-4">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-lg font-bold text-blue-900">ניהול קבוצות (<span id="manageTeamsCount">0</span>)</h2>
+          <div class="flex gap-2">
+            <button id="openTeamModal" class="btn text-sm bg-blue-600 text-white rounded px-3 py-2 hover:bg-blue-700">הוסף מיפוי</button>
+            <button id="exportTeamsBtn" class="btn text-sm bg-green-600 text-white rounded px-3 py-2 hover:bg-green-700">ייצא קבוצות</button>
+            <input id="importTeamsFile" type="file" accept=".json" class="hidden">
+            <button id="importTeamsBtn" class="btn text-sm bg-amber-500 text-white rounded px-3 py-2 hover:bg-amber-600">ייבא קבוצות</button>
+          </div>
+        </div>
+        <p class="text-xs text-gray-600">מיפוי שמות קבוצות מאנגלית לעברית. אם נתקל בשם לא ממופה, תופיע התרעה.</p>
+        <div id="teamsList" class="mt-2 stats-wrap" style="max-height:500px">
+          <table class="w-full text-xs stats-table">
+            <thead>
+              <tr>
+                <th class="col-team" data-sort-field="teamId">team_id</th>
+                <th class="col-team" data-sort-field="nameEn">EN</th>
+                <th class="col-team" data-sort-field="nameHe">HE</th>
+                <th class="col-team" data-sort-field="aliases">Aliases</th>
+                <th class="col-team">פעולות</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    
+<!-- ========== Manage Players (view-managePlayers) ========== -->
+<section id="view-managePlayers" class="hidden">
+  <div class="card p-4 space-y-4">
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="text-lg font-bold text-blue-900">ניהול שחקנים</h2>
+      <div class="flex gap-2">
+        <button id="openPlayerModal" class="btn text-sm bg-blue-600 text-white rounded px-3 py-2 hover:bg-blue-700">הוסף מיפוי</button>
+        <button id="exportPlayersMapBtn" class="btn text-sm bg-green-600 text-white rounded px-3 py-2 hover:bg-green-700">ייצא שחקנים</button>
+        <input id="importPlayersMapFile" type="file" accept=".json" class="hidden">
+        <button id="importPlayersMapBtn" class="btn text-sm bg-amber-500 text-white rounded px-3 py-2 hover:bg-amber-600">ייבא שחקנים</button>
+      </div>
+    </div>
+    <p class="text-xs text-gray-600">
+      מיפוי שמות שחקנים לפי שמות באנגלית + מס' גופייה (אופציונלי) + קבוצה (אופציונלי) → לשמות בעברית.
+    </p>
+    <div id="playersMapList" class="mt-2 stats-wrap" style="max-height:500px" >
+      <div class="table-scroll">
+
+      <table class="w-full text-xs stats-table">
+        <thead>
+          <tr>
+            <th class="col-key" data-sort-field="lookupKey">lookup_key</th>
+            <th class="col-team" data-sort-field="firstNameHe">HE First</th>
+            <th class="col-team" data-sort-field="familyNameHe">HE Family</th>
+            <th class="num" data-sort-field="jersey">Jersey</th>
+            <th class="col-team" data-sort-field="teamEn">Team EN</th>
+            <th class="col-team">פעולות</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+    <!-- ========== Transfers (view-transfers) ========== -->
+    <section id="view-transfers" class="hidden">
+      <div class="card p-4 space-y-4">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-lg font-bold text-blue-900">ניהול העברות</h2>
+          <div class="flex gap-2">
+            <button id="refreshTransfersBtn" class="btn text-sm bg-blue-600 text-white rounded px-3 py-2 hover:bg-blue-700">רענן</button>
+            <button id="clearProcessedTransfersBtn" class="btn text-sm bg-red-600 text-white rounded px-3 py-2 hover:bg-red-700">נקה מוכנים</button>
+          </div>
+        </div>
         
-        <!-- Upcoming Games -->
-        <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="font-semibold text-green-800">📅 משחקים קרובים מהליגה</h3>
-            <div class="flex items-center gap-2">
-              <span id="upcomingGamesStatus" class="text-sm text-green-700 hidden"></span>
-              <button id="refreshUpcomingGames" class="btn bg-green-600 text-white text-sm rounded px-3 py-2 hover:bg-green-700 transition-colors">
-                🔄 רענן
-              </button>
-            </div>
+        <p class="text-xs text-gray-600">
+          ניהול העברות שזוהו אוטומטית. המערכת מזהה העברות כשחקן מופיע בקבוצה אחרת.
+        </p>
+
+        <!-- Transfer Status Tabs -->
+        <div class="flex border-b border-gray-200">
+          <button id="transfersPendingTab" class="px-4 py-2 text-sm font-medium text-blue-600 border-b-2 border-blue-600">ממתינים (<span id="pendingCount">0</span>)</button>
+          <button id="transfersConfirmedTab" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700">מאושרים (<span id="confirmedCount">0</span>)</button>
+          <button id="transfersDismissedTab" class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700">נדחו (<span id="dismissedCount">0</span>)</button>
+        </div>
+
+        <!-- Transfers List -->
+        <div id="transfersList" class="mt-4">
+          <!-- Transfers will be loaded here -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== Advanced Tools (view-tools) ========== -->
+    <section id="view-tools" class="hidden">
+      <div class="card p-4 space-y-4">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-lg font-bold text-blue-900">כלים מתקדמים</h2>
+        </div>
+        
+        <div class="border-t border-b py-4 my-4">
+          <h3 class="text-md font-semibold text-blue-800 mb-2">ניהול מאגר שחקנים</h3>
+          <div class="bg-amber-50 p-3 rounded-lg border border-amber-200 mb-3">
+            <p class="text-sm text-amber-800 mb-2">
+              <strong>שים לב:</strong> פעולה זו תסרוק את כל מאגר השחקנים ותמזג רשומות כפולות של אותו שחקן.
+              מומלץ לגבות את הנתונים לפני הפעלת הכלי.
+            </p>
+            <p class="text-xs text-amber-700">
+              הכלי יוצר מזהים חדשים לכל שחקן על בסיס השם, מספר הגופייה והקבוצה, וממזג את הסטטיסטיקות בהתאם.
+            </p>
+          </div>
+          <div class="flex gap-3">
+            <button id="migratePlayersBtn" class="btn bg-amber-500 text-white text-sm rounded px-3 py-2 hover:bg-amber-600">
+              מיגרציית מאגר שחקנים
+            </button>
+            <button id="recalcStatsBtn" class="btn bg-blue-500 text-white text-sm rounded px-3 py-2 hover:bg-blue-600">
+              רענון חישוב סטטיסטיקות
+            </button>
+            <button id="clearAllBtn" class="btn bg-red-500 text-white text-sm rounded px-3 py-2 hover:bg-red-600">
+              ניקוי מלא של מסד הנתונים
+            </button>
+          </div>
+        </div>
+        
+        <div class="border-b py-4 my-4">
+          <h3 class="text-md font-semibold text-blue-800 mb-2">מיזוג קבוצות</h3>
+          <div class="bg-blue-50 p-3 rounded-lg border border-blue-200 mb-3">
+            <p class="text-sm text-blue-800 mb-2">
+              <strong>מיזוג כינויים של קבוצות:</strong> כלי זה מזהה קבוצות עם שמות דומים ומאפשר למזג אותן לקבוצה אחת.
+            </p>
+            <p class="text-xs text-blue-700">
+              זה פותר בעיות של קבוצות שמופיעות בשמות שונים במשחקים שונים (למשל: "Hapoel Haifa" vs "Hapoel Neve Sha'anan Haifa").
+            </p>
+          </div>
+          <div class="flex gap-3 flex-wrap">
+            <button id="scanTeamAliasesBtn" class="btn bg-purple-500 text-white text-sm rounded px-3 py-2 hover:bg-purple-600">
+              סרוק כינויים של קבוצות
+            </button>
+            <button id="mergeTeamsBtn" class="btn bg-orange-500 text-white text-sm rounded px-3 py-2 hover:bg-orange-600" disabled>
+              מיזוג קבוצות נבחרות
+            </button>
+            <button id="fixTeamNamesBtn" class="btn bg-blue-500 text-white text-sm rounded px-3 py-2 hover:bg-blue-600">
+              🔧 תיקון שמות קבוצות בשחקנים
+            </button>
           </div>
           
-          <!-- Round Selector -->
-          <div class="mb-3">
-            <label class="block text-sm font-medium text-gray-700 mb-2">בחר מחזור:</label>
-            <select id="roundSelector" class="w-full md:w-64 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500">
-              <option value="">טוען מחזורים...</option>
-            </select>
-          </div>
-          
-          <!-- Games Table -->
-          <div id="upcomingGamesContainer" class="stats-wrap" style="max-height: 400px;">
-            <div class="text-center py-8 text-gray-500">
-              <div class="text-4xl mb-2">🏀</div>
-              <p>טוען משחקים קרובים...</p>
+          <!-- Team Aliases Results -->
+          <div id="teamAliasesResults" class="hidden mt-4">
+            <h4 class="text-sm font-semibold text-gray-700 mb-3">כינויים שזוהו:</h4>
+            <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <table class="w-full text-sm">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-700">קבוצה יעד</th>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-700">כינויים למיזוג</th>
+                    <th class="px-3 py-2 text-center text-xs font-medium text-gray-700">פעולות</th>
+                  </tr>
+                </thead>
+                <tbody id="teamAliasesTableBody" class="divide-y divide-gray-200">
+                  <!-- Team aliases will be populated here -->
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
+        
+        <div class="border-b py-4 my-4">
+          <h3 class="text-md font-semibold text-blue-800 mb-2">מיזוג שחקנים</h3>
+          <div class="bg-green-50 p-3 rounded-lg border border-green-200 mb-3">
+            <p class="text-sm text-green-800 mb-2">
+              <strong>מיזוג שחקנים כפולים:</strong> כלי זה מזהה שחקנים עם שמות דומים באותה קבוצה ומספר ומאפשר למזג אותם לשחקן אחד.
+            </p>
+            <p class="text-xs text-green-700">
+              דוגמה: "ברנדון אדוארדס" ו"ברנדון אדווארדס" עם שגיאת כתיב יזוהו ויאוחדו. כל הסטטיסטיקות וההופעות ימוזגו לשחקן אחד.
+            </p>
+          </div>
+          <div class="flex gap-3">
+            <button id="scanPlayerAliasesBtn" class="btn bg-teal-500 text-white text-sm rounded px-3 py-2 hover:bg-teal-600">
+              🔍 סרוק שחקנים כפולים
+            </button>
+            <button id="mergePlayersBtn" class="btn bg-emerald-500 text-white text-sm rounded px-3 py-2 hover:bg-emerald-600" disabled>
+              ✅ מזג שחקנים נבחרים
+            </button>
+          </div>
+          
+          <!-- Player Aliases Results -->
+          <div id="playerAliasesResults" class="hidden mt-4">
+            <h4 class="text-sm font-semibold text-gray-700 mb-3">שחקנים כפולים שזוהו:</h4>
+            <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <table class="w-full text-sm">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="px-3 py-2 text-center text-xs font-medium text-gray-700">בחר</th>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-700">שחקן יעד</th>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-700">קבוצה</th>
+                    <th class="px-3 py-2 text-center text-xs font-medium text-gray-700">מספר</th>
+                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-700">שמות כפולים</th>
+                    <th class="px-3 py-2 text-center text-xs font-medium text-gray-700">כמות</th>
+                  </tr>
+                </thead>
+                <tbody id="playerAliasesTableBody" class="divide-y divide-gray-200">
+                  <!-- Player aliases will be populated here -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Manual Player Merge Tool -->
+        <div class="bg-teal-50 border border-teal-200 rounded-lg p-4 my-4">
+          <h3 class="text-base font-semibold text-teal-900 mb-2">🔀 איחוד ידני של שחקנים</h3>
+          <div class="bg-white border border-teal-100 rounded p-3 mb-3">
+            <p class="text-xs text-teal-700 mb-2">
+              כלי זה מאפשר לאחד שני שחקנים ידנית במקרים שהסריקה האוטומטית לא תפסה.
+            </p>
+            <p class="text-xs text-teal-700">
+              <strong>דוגמה:</strong> "רוברט טרנר" ו"רוברט יוג'ין טרנר" - כל המשחקים של השחקן הראשון יועברו לשחקן השני.
+            </p>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-3 mb-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">שחקן מקור (למחיקה):</label>
+              <select id="manualMergeSourcePlayer" class="w-full px-3 py-2 border border-gray-300 rounded text-sm bg-white">
+                <option value="">-- בחר שחקן --</option>
+              </select>
+              <p class="text-xs text-gray-500 mt-1">או הזן lookup_key:</p>
+              <input id="manualMergeSourceKey" class="w-full px-2 py-1 border border-gray-300 rounded text-xs mono mt-1" placeholder="UUID">
+            </div>
+            
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">שחקן יעד (לשמירה):</label>
+              <select id="manualMergeTargetPlayer" class="w-full px-3 py-2 border border-gray-300 rounded text-sm bg-white">
+                <option value="">-- בחר שחקן --</option>
+              </select>
+              <p class="text-xs text-gray-500 mt-1">או הזן lookup_key:</p>
+              <input id="manualMergeTargetKey" class="w-full px-2 py-1 border border-gray-300 rounded text-xs mono mt-1" placeholder="UUID">
+            </div>
+          </div>
+          
+          <div id="manualMergePreview" class="hidden bg-yellow-50 border border-yellow-200 rounded p-3 mb-3">
+            <h4 class="text-sm font-semibold text-yellow-900 mb-2">תצוגה מקדימה:</h4>
+            <div class="text-xs space-y-1">
+              <p><strong>מקור:</strong> <span id="previewSourceName"></span> (<span id="previewSourceGames"></span> משחקים)</p>
+              <p><strong>יעד:</strong> <span id="previewTargetName"></span> (<span id="previewTargetGames"></span> משחקים)</p>
+              <p class="text-yellow-700 mt-2">⚠️ לאחר האיחוד, השחקן המקור יימחק וכל משחקיו יועברו לשחקן היעד.</p>
+            </div>
+          </div>
+          
+          <div class="flex gap-3">
+            <button id="loadManualMergePlayers" class="btn bg-blue-500 text-white text-sm rounded px-3 py-2 hover:bg-blue-600">
+              📋 טען רשימת שחקנים
+            </button>
+            <button id="previewManualMerge" class="btn bg-yellow-500 text-white text-sm rounded px-3 py-2 hover:bg-yellow-600" disabled>
+              👁️ תצוגה מקדימה
+            </button>
+            <button id="executeManualMerge" class="btn bg-red-500 text-white text-sm rounded px-3 py-2 hover:bg-red-600" disabled>
+              🔀 בצע איחוד
+            </button>
+          </div>
+        </div>
+        
+        <div class="border-b py-4 my-4">
+          <h3 class="text-md font-semibold text-blue-800 mb-2">גיבוי ושחזור מסד נתונים</h3>
+          <div class="flex gap-3 flex-wrap">
+            <button id="exportDbBtn" class="btn bg-green-600 text-white text-sm rounded px-3 py-2 hover:bg-green-700">
+              גיבוי מסד נתונים
+            </button>
+            <input id="importDbFile" type="file" accept=".json" class="hidden">
+            <button id="importDbBtn" class="btn bg-blue-600 text-white text-sm rounded px-3 py-2 hover:bg-blue-700">
+              שחזור מגיבוי
+            </button>
+            <button id="reloadAllGamesBtn" class="btn bg-purple-600 text-white text-sm rounded px-3 py-2 hover:bg-purple-700">
+              🔄 טעינה מחדש של כל המשחקים
+            </button>
+          </div>
+          <div class="mt-3 bg-purple-50 p-3 rounded-lg border border-purple-200">
+            <p class="text-xs text-purple-800">
+              <strong>טעינה מחדש של כל המשחקים:</strong> כלי זה יעבד מחדש את כל המשחקים השמורים וישחזר את נתוני השחקנים מה-JSON המקורי.
+              שימושי אחרי שחזור גיבוי או כאשר נתוני שחקנים חסרים.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Modal ניהול קבוצה -->
+  <div id="teamModal" class="fixed inset-0 bg-black/30 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-lg font-semibold">הוסף/עדכן קבוצה</h3>
+        <button id="closeTeamModal" class="text-gray-500 hover:text-gray-700">✕</button>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="col-span-2">
+          <label class="block text-xs text-gray-600 mb-1">team_id (אם ריק, יווצר אוטומטית)</label>
+          <input id="tm_teamId" class="w-full border rounded px-2 py-1.5 text-sm mono" placeholder="השאר ריק לייצור אוטומטי" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-600 mb-1">שם באנגלית (canonical)</label>
+          <input id="tm_nameEn" class="w-full border rounded px-2 py-1.5 text-sm" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-600 mb-1">שם בעברית (Display)</label>
+          <input id="tm_nameHe" class="w-full border rounded px-2 py-1.5 text-sm" />
+        </div>
+        <div>
+          <label class="block text-xs text-gray-600 mb-1">Short HE</label>
+          <input id="tm_shortHe" class="w-full border rounded px-2 py-1.5 text-sm" />
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs text-gray-600 mb-1">Aliases באנגלית (מופרד בֿ;)</label>
+          <input id="tm_aliases" class="w-full border rounded px-2 py-1.5 text-sm" />
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-4">
+        <button id="saveTeam" class="btn bg-blue-600 text-white rounded px-3 py-1.5 hover:bg-blue-700">שמור</button>
+        <button id="cancelTeam" class="btn bg-gray-100 rounded px-3 py-1.5 hover:bg-gray-200">ביטול</button>
+      </div>
+    </div>
+  </div>
+
+  
+
+  <div id="undoBar" style="display:none; position:fixed; left:16px; right:16px; bottom:16px; padding:12px; background:#1f2937; color:#fff; border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,.25); z-index:9999; direction:rtl;">
+    <span id="undoMsg">הפעולה בוצעה.</span>
+    <button id="undoBtn" style="margin-inline-start:12px; text-decoration:underline; background:transparent; border:none; color:#fca5a5; cursor:pointer;">בטל</button>
+  </div>
+
+  <!-- Modal ניהול שחקן -->
+<div id="playerModal" class="fixed inset-0 bg-black/30 hidden items-center justify-center p-4">
+  <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-4">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-lg font-semibold">הוסף/עדכן שחקן</h3>
+      <button id="closePlayerModal" class="text-gray-500 hover:text-gray-700">✕</button>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="block text-xs text-gray-600 mb-1">שם פרטי (EN)</label>
+        <input id="pm_firstEn" class="w-full border rounded px-2 py-1.5 text-sm" />
+      </div>
+      <div>
+        <label class="block text-xs text-gray-600 mb-1">שם משפחה (EN)</label>
+        <input id="pm_familyEn" class="w-full border rounded px-2 py-1.5 text-sm" />
+      </div>
+      <div>
+        <label class="block text-xs text-gray-600 mb-1">שם פרטי (HE)</label>
+        <input id="pm_firstHe" class="w-full border rounded px-2 py-1.5 text-sm" />
+      </div>
+      <div>
+        <label class="block text-xs text-gray-600 mb-1">שם משפחה (HE)</label>
+        <input id="pm_familyHe" class="w-full border rounded px-2 py-1.5 text-sm" />
+      </div>
+      <div>
+        <label class="block text-xs text-gray-600 mb-1">מס' גופייה (אופציונלי)</label>
+        <input id="pm_jersey" class="w-full border rounded px-2 py-1.5 text-sm" />
+      </div>
+      <div>
+        <label class="block text-xs text-gray-600 mb-1">Team EN (אופציונלי)</label>
+        <input id="pm_teamEn" class="w-full border rounded px-2 py-1.5 text-sm" placeholder="אנגלית קנונית/אליאס" />
+      </div>
+      <div class="col-span-2">
+        <label class="block text-xs text-gray-600 mb-1">lookup_key (נוצר אוטומטית, ניתן לעריכה)</label>
+        <input id="pm_lookupKey" class="w-full border rounded px-2 py-1.5 text-sm mono" />
+      </div>
+    </div>
+    <div class="flex justify-end gap-2 mt-4">
+      <button id="savePlayerMap" class="btn bg-blue-600 text-white rounded px-3 py-1.5 hover:bg-blue-700">שמור</button>
+      <button id="cancelPlayerMap" class="btn bg-gray-100 rounded px-3 py-1.5 hover:bg-gray-200">ביטול</button>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+    <!-- ========== Game Preparation (view-gamePrep) ========== -->
+    <section id="view-gamePrep" class="hidden">
+      <div class="card p-4">
+        <h2 class="text-lg font-bold mb-4 text-blue-900">הכנה למשחק הבא</h2>
         
         <!-- Team Selection -->
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 overflow-hidden">
@@ -617,7 +959,7 @@
 
         <!-- Analysis Results -->
         <div id="gameAnalysis" class="hidden">
-          <!-- Player Comparison -->
+          <!-- Player Comparison (Top Priority) -->
           <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
             <h3 class="font-semibold text-blue-800 mb-3">השוואת שחקנים</h3>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -649,6 +991,13 @@
               <h4 class="font-semibold text-blue-800 mb-3">תוצאות השוואה</h4>
               <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
                 <table class="w-full">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">סטטיסטיקה</th>
+                      <th id="player1Name" class="px-4 py-3 text-center text-sm font-medium text-gray-700">שחקן 1</th>
+                      <th id="player2Name" class="px-4 py-3 text-center text-sm font-medium text-gray-700">שחקן 2</th>
+                    </tr>
+                  </thead>
                   <tbody id="comparisonTableBody" class="divide-y divide-gray-200">
                     <!-- Comparison rows will be populated here -->
                   </tbody>
@@ -658,10 +1007,10 @@
           </div>
 
           <!-- Top Row: Averages & Last 5 Games Side by Side -->
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 items-start">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <!-- Team Averages & Rankings -->
-            <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <h3 class="font-semibold text-gray-800 mb-4">ממוצעים ודירוגים</h3>
+            <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h3 class="font-semibold text-green-800 mb-3">ממוצעים ודירוגים</h3>
               <div id="teamAverages" class="grid grid-cols-1 gap-4">
                 <!-- Will be populated by JavaScript -->
               </div>
@@ -669,3131 +1018,144 @@
 
             <!-- Last 5 Games -->
             <div class="bg-orange-50 border border-orange-200 rounded-lg p-4">
-              <h3 class="font-semibold text-orange-800 mb-4 text-base">5 משחקים אחרונים</h3>
+              <h3 class="font-semibold text-orange-800 mb-3">5 משחקים אחרונים</h3>
               <div id="lastFiveGames" class="grid grid-cols-1 gap-4">
                 <!-- Will be populated by JavaScript -->
               </div>
             </div>
           </div>
 
-          <!-- Head-to-Head History -->
-          <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6">
+          <!-- Head-to-Head History (Full Width) -->
+          <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
             <h3 class="font-semibold text-purple-800 mb-3">מפגשים ישירים בעונה</h3>
             <div id="headToHead" class="overflow-x-auto">
               <!-- Will be populated by JavaScript -->
             </div>
           </div>
-        </div>
 
-        <!-- ============================================ -->
-        <!-- ADVANCED INSIGHTS V2 (NEW SECTION)          -->
-        <!-- ============================================ -->
-        <div id="advancedAnalysis" class="hidden">
-          <!-- Loading indicator -->
-          <div id="analysisLoading" class="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center mb-6">
-            <div class="text-4xl mb-3">⏳</div>
-            <p class="text-blue-800 font-semibold">מבצע ניתוח מתקדם...</p>
-            <p class="text-sm text-blue-600 mt-2">טוען טבלת ליגה, נתונים מתקדמים וטרנדים אחרונים</p>
-            <p class="text-xs text-blue-500 mt-3">⏱️ אנא המתינו עד 60 שניות</p>
-          </div>
-
-          <!-- TL;DR Section -->
-          <div id="tldrSection" class="hidden bg-gradient-to-br from-purple-50 to-blue-50 border-2 border-purple-300 rounded-lg p-5 mb-6 shadow-md">
-            <h3 class="text-xl font-bold text-purple-900 mb-4 flex items-center gap-2">
-              ⚡ סיכום מהיר לשדרן
-            </h3>
-            <div id="tldrContent" class="space-y-2 text-gray-800">
-              <!-- TL;DR bullets will be populated here -->
+          <!-- Advanced Game Analysis (Full Width) -->
+          <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+            <h3 class="font-semibold text-indigo-800 mb-3">ניתוח מתקדם</h3>
+            <div id="advancedAnalysis" class="hidden">
+              <!-- Advanced metrics will be populated here -->
+            </div>
+            <div id="noAnalysisData" class="text-center text-gray-500 py-4">
+              בחר קבוצות ונתח משחק כדי לראות ניתוח מתקדם
             </div>
           </div>
 
-          <!-- Teams Comparison Cards -->
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <!-- Team A Card -->
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-5 shadow-sm">
-              <h4 id="teamAHeaderAdvanced" class="text-lg font-bold text-blue-900 mb-4 flex items-center gap-2">
-                🏀 קבוצה א'
-              </h4>
-              <div id="teamAStatsAdvanced" class="space-y-2 text-sm">
-                <!-- Team A stats will be populated here -->
+          <!-- Pre-Game Analysis (Full Width) -->
+          <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+            <h3 class="font-semibold text-emerald-800 mb-3">ניתוח פרה-גיים</h3>
+            <div class="mb-4">
+              <button id="generatePreGameAnalysis" class="btn bg-emerald-500 text-white px-4 py-2 rounded hover:bg-emerald-600 disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+                צור ניתוח פרה-גיים
+              </button>
+            </div>
+            
+            <!-- Pre-Game Analysis Results -->
+            <div id="preGameAnalysisResults" class="hidden">
+              <!-- TL;DR Section -->
+              <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                <h4 class="font-bold text-green-800 mb-3">📋 סיכום מהיר לשדרן</h4>
+                <div id="preGameTldr" class="space-y-2">
+                  <!-- TL;DR points will be loaded here -->
+                </div>
+              </div>
+
+              <!-- Detailed Sections -->
+              <div id="preGameSections" class="space-y-4">
+                <!-- Detailed sections will be loaded here -->
+              </div>
+
+              <!-- Meta Information -->
+              <div class="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <h4 class="font-semibold text-gray-800 mb-3">מטא נתונים</h4>
+                <div id="preGameMeta" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <!-- Meta data will be loaded here -->
+                </div>
               </div>
             </div>
 
-            <!-- Team B Card -->
-            <div class="bg-gray-50 border border-gray-200 rounded-lg p-5 shadow-sm">
-              <h4 id="teamBHeaderAdvanced" class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                🏀 קבוצה ב'
-              </h4>
-              <div id="teamBStatsAdvanced" class="space-y-2 text-sm">
-                <!-- Team B stats will be populated here -->
-              </div>
-            </div>
-          </div>
-
-          <!-- Insights V2 Section -->
-          <div class="bg-amber-50 border border-amber-200 rounded-lg p-5 mb-6 shadow-sm">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="text-lg font-bold text-amber-900 flex items-center gap-2">
-                💡 תובנות מרכזיות למשחק
-              </h3>
-              <div class="flex gap-2">
-                <button onclick="handleExcelExport()" class="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-md transition-colors flex items-center gap-1">
-                  📊 ייצוא הכל ל-Excel
-                </button>
-                <button onclick="regenerateInsights()" class="text-xs bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-md transition-colors">
-                  🎲 וריאציות חדשות
-                </button>
-              </div>
-            </div>
-
-            <!-- Insights Categories Tabs -->
-            <div class="flex flex-wrap gap-2 mb-4 border-b border-amber-300 pb-3">
-              <button onclick="showInsightCategory('all')" class="insight-cat-tab active px-3 py-1.5 text-sm rounded-md bg-amber-200 text-amber-900 font-medium hover:bg-amber-300 transition-colors">
-                🎯 הכל
-              </button>
-              <button onclick="showInsightCategory('STREAKS')" class="insight-cat-tab px-3 py-1.5 text-sm rounded-md hover:bg-amber-100 transition-colors">
-                🔥 רצפים
-              </button>
-              <button onclick="showInsightCategory('PLAYERS')" class="insight-cat-tab px-3 py-1.5 text-sm rounded-md hover:bg-amber-100 transition-colors">
-                👤 שחקנים
-              </button>
-              <button onclick="showInsightCategory('OFFENSE')" class="insight-cat-tab px-3 py-1.5 text-sm rounded-md hover:bg-amber-100 transition-colors">
-                ⚡ התקפה
-              </button>
-              <button onclick="showInsightCategory('DEFENSE')" class="insight-cat-tab px-3 py-1.5 text-sm rounded-md hover:bg-amber-100 transition-colors">
-                🛡️ הגנה
-              </button>
-              <button onclick="showInsightCategory('LEAGUE')" class="insight-cat-tab px-3 py-1.5 text-sm rounded-md hover:bg-amber-100 transition-colors">
-                📊 ליגה
-              </button>
-              <button onclick="showInsightCategory('MOMENTUM')" class="insight-cat-tab px-3 py-1.5 text-sm rounded-md hover:bg-amber-100 transition-colors">
-                📈 מומנטום
-              </button>
-              <button onclick="showInsightCategory('H2H')" class="insight-cat-tab px-3 py-1.5 text-sm rounded-md hover:bg-amber-100 transition-colors">
-                🤝 H2H
-              </button>
-              <button onclick="showInsightCategory('QUARTERS')" class="insight-cat-tab px-3 py-1.5 text-sm rounded-md hover:bg-amber-100 transition-colors">
-                🕐 רבעים
-              </button>
-            </div>
-
-            <!-- Insights Counter -->
-            <div id="insightsCounter" class="text-xs text-amber-700 mb-3 font-medium">
-              <!-- Will show insight counts -->
-            </div>
-
-            <!-- Insights Display -->
-            <div id="insightsDisplay" class="space-y-3">
-              <!-- Insights will be populated here -->
-            </div>
-          </div>
-
-          <!-- H2H Advanced Section -->
-          <div id="h2hAdvancedSection" class="hidden bg-indigo-50 border border-indigo-200 rounded-lg p-5 shadow-sm">
-            <h3 class="text-lg font-bold text-indigo-900 mb-4">📜 מפגשים ישירים - ניתוח מפורט</h3>
-            <div id="h2hAdvancedContent" class="space-y-3">
-              <!-- H2H advanced data will be populated here -->
+            <!-- No Pre-Game Analysis Message -->
+            <div id="noPreGameAnalysisMessage" class="text-center py-8 text-gray-500">
+              <div class="text-4xl mb-4">📊</div>
+              <h4 class="text-lg font-medium mb-2">אין ניתוח פרה-גיים זמין</h4>
+              <p class="text-sm">בחר שתי קבוצות ולחץ "צור ניתוח פרה-גיים" כדי לראות ניתוח מתקדם</p>
             </div>
           </div>
         </div>
-        <!-- END ADVANCED INSIGHTS V2 -->
       </div>
     </section>
-  </div>
-  
-  <!-- Scripts -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-  <script src="js/config.js"></script>
-  <script src="js/ibba/ibba_adapter.js?v=6"></script>
-  <script src="js/ibba/ibba_analytics.js?v=7"></script>
-  <script src="js/ibba/ibba_player_names.js?v=8" defer></script>
-  <script src="js/app_upcoming_games_pure.js?v=2" defer></script>
-  
-  <!-- Insights V2 System -->
-  <script src="js/ibba/ibba_insights_templates.js"></script>
-  <script src="js/ibba/ibba_insights_v2.js"></script>
-  <script src="js/ibba/ibba_advanced.js"></script>
 
-  <script>
-    // ========================================
-    // IBBA Dashboard v1 - All Games Tab
-    // ========================================
-    
-    console.log('🎯 IBBA Dashboard v1 initializing...');
-    
-    // Global state - Games Tab (expose as window.allGames for external scripts)
-    window.allGames = [];
-    let allGames = window.allGames; // Local reference for convenience
-    let filteredGames = [];
-    let currentSort = { field: 'gameId', direction: 'desc' };
-    
-    // Global state - Teams Tab
-    let allTeamStats = [];
-    let filteredTeamStats = [];
-    let currentTeamStatsView = 'averages'; // 'averages' or 'totals'
-    let currentTeamSort = { field: 'points', direction: 'desc' };
-    
-    // Global state - Players Tab
-    let allPlayerStats = [];
-    let filteredPlayerStats = [];
-    let currentPlayerStatsView = 'averages'; // 'averages' or 'totals'
-    let currentPlayerSort = { field: 'ppg', direction: 'desc' };
-    
-    // Global state - League Leaders Tab
-    let leaderStats = null;
-    
-    // Global state - Game Prep Tab
-    let gamePrepState = {
-      homeTeamName: null,
-      awayTeamName: null,
-      selectedPlayer1: null,
-      selectedPlayer2: null,
-      upcomingGames: [],
-      rounds: [],
-      initialized: false,
-      // Data for Excel export
-      teamAveragesData: null,
-      lastFiveGamesData: {
-        homeTeam: [],
-        awayTeam: []
-      },
-      headToHeadData: []
-    };
-    
-    // ========================================
-    // TAB SWITCHING
-    // ========================================
-    
-    function disableTabs() {
-      document.querySelectorAll('#tabs .tab').forEach(tab => {
-        tab.disabled = true;
-        tab.classList.add('disabled');
-      });
-      console.log('🔒 Tabs disabled during loading');
-    }
-    
-    function enableTabs() {
-      document.querySelectorAll('#tabs .tab').forEach(tab => {
-        tab.disabled = false;
-        tab.classList.remove('disabled');
-      });
-      console.log('🔓 Tabs enabled - data loaded');
-    }
-    
-    function switchTab(tabName) {
-      console.log(`🔄 Switching to tab: ${tabName}`);
-      
-      // Update tab buttons
-      document.querySelectorAll('.tab').forEach(btn => {
-        btn.classList.remove('bg-blue-600', 'text-white');
-        btn.classList.add('bg-gray-200', 'text-gray-700');
-      });
-      
-      const activeTab = document.getElementById(`tab-${tabName}`);
-      if (activeTab) {
-        activeTab.classList.remove('bg-gray-200', 'text-gray-700');
-        activeTab.classList.add('bg-blue-600', 'text-white');
-      }
-      
-      // Hide all sections
-      document.querySelectorAll('section[id^="view-"]').forEach(section => {
-        section.classList.add('hidden');
-      });
-      
-      // Show selected section
-      const section = document.getElementById(`view-${tabName}`);
-      if (section) {
-        section.classList.remove('hidden');
-        
-        // Initialize stats if switching to tab for the first time
-        if (tabName === 'teams' && allTeamStats.length === 0) {
-          initTeamStats();
-        }
-        if (tabName === 'players' && allPlayerStats.length === 0) {
-          initPlayerStats();
-        }
-        if (tabName === 'leaders' && leaderStats === null) {
-          initLeaderStats();
-        }
-        if (tabName === 'gamePrep' && !gamePrepState.initialized) {
-          initGamePrep();
-        }
-      }
-    }
-    
-    // ========================================
-    // TEAM STATISTICS FUNCTIONS
-    // ========================================
-    
-    /**
-     * Initialize team statistics from loaded games
-     */
-    function initTeamStats() {
-      console.log('📊 Initializing team statistics...');
-      
-      if (!window.ibbaAnalytics) {
-        console.error('❌ IBBAAnalytics not initialized');
-        return;
-      }
-      
-      // Get averages (default view)
-      const averages = window.ibbaAnalytics.getTeamAverages();
-      
-      // Convert to array format if needed
-      allTeamStats = Array.isArray(averages) ? averages : Object.entries(averages).map(([teamName, stats]) => ({
-        name: teamName,
-        ...stats
-      }));
-      
-      console.log(`✅ Loaded ${allTeamStats.length} teams`);
-      
-      // Apply initial filter and render
-      filterTeams();
-    }
-    
-    /**
-     * Toggle between averages and totals view
-     */
-    function toggleTeamStatsView() {
-      const button = document.getElementById('teamToggleText');
-      
-      if (currentTeamStatsView === 'averages') {
-        // Switch to totals
-        currentTeamStatsView = 'totals';
-        button.textContent = 'הצג ממוצעים';
-        
-        // Update headers
-        document.getElementById('pointsHeader').textContent = 'סה"כ נק\'';
-        document.getElementById('reboundsHeader').textContent = 'סה"כ ריב\'';
-        document.getElementById('assistsHeader').textContent = 'סה"כ אס\'';
-        document.getElementById('stealsHeader').textContent = 'סה"כ חט\'';
-        document.getElementById('blocksHeader').textContent = 'סה"כ חס\'';
-        document.getElementById('turnoversHeader').textContent = 'סה"כ איב\'';
-        document.getElementById('foulsHeader').textContent = 'סה"כ עב\'';
-        document.getElementById('efficiencyHeader').textContent = 'סה"כ יעילות';
-        
-        // Get totals data from analytics
-        const totals = window.ibbaAnalytics.getTeamStats();
-        allTeamStats = Object.values(totals).map(team => ({
-          name: team.teamName,
-          gamesPlayed: team.gamesPlayed,
-          points: team.totalPoints,
-          rebounds: team.totalRebounds,
-          assists: team.totalAssists,
-          steals: team.totalSteals,
-          blocks: team.totalBlocks,
-          turnovers: team.totalTurnovers,
-          fouls: team.totalFouls,
-          fgPct: team.totalFGA > 0 ? (team.totalFGM / team.totalFGA * 100) : 0,
-          threePtPct: team.total3PA > 0 ? (team.total3PM / team.total3PA * 100) : 0,
-          ftPct: team.totalFTA > 0 ? (team.totalFTM / team.totalFTA * 100) : 0,
-          efficiency: team.totalEfficiency // Use efficiency from API (sum of player efficiencies)
-        }));
-        
-      } else {
-        // Switch to averages
-        currentTeamStatsView = 'averages';
-        button.textContent = 'הצג סה"כ';
-        
-        // Update headers
-        document.getElementById('pointsHeader').textContent = 'נק\'';
-        document.getElementById('reboundsHeader').textContent = 'ריב\'';
-        document.getElementById('assistsHeader').textContent = 'אס\'';
-        document.getElementById('stealsHeader').textContent = 'חט\'';
-        document.getElementById('blocksHeader').textContent = 'חס\'';
-        document.getElementById('turnoversHeader').textContent = 'איב\'';
-        document.getElementById('foulsHeader').textContent = 'עב\'';
-        document.getElementById('efficiencyHeader').textContent = 'יעילות';
-        
-        // Get averages data
-        const averages = window.ibbaAnalytics.getTeamAverages();
-        allTeamStats = Array.isArray(averages) ? averages : Object.values(averages);
-      }
-      
-      // Re-filter and render
-      filterTeams();
-    }
-    
-    /**
-     * Filter teams by search term
-     */
-    function filterTeams() {
-      const searchTerm = document.getElementById('teamSearch').value.toLowerCase().trim();
-      
-      if (!searchTerm) {
-        filteredTeamStats = [...allTeamStats];
-      } else {
-        filteredTeamStats = allTeamStats.filter(team => {
-          const teamName = team.teamName || team.name;
-          return teamName.toLowerCase().includes(searchTerm);
-        });
-      }
-      
-      // Sort and render
-      sortTeams(currentTeamSort.field, true);
-    }
-    
-    // Expose team functions globally for onclick/oninput handlers
-    window.toggleTeamStatsView = toggleTeamStatsView;
-    window.filterTeams = filterTeams;
-    
-    /**
-     * Sort teams by field
-     */
-    function sortTeams(field, skipToggle = false) {
-      console.log(`📊 Sorting teams by ${field}`);
-      
-      // Toggle direction if clicking same field
-      if (!skipToggle && currentTeamSort.field === field) {
-        currentTeamSort.direction = currentTeamSort.direction === 'asc' ? 'desc' : 'asc';
-      } else if (!skipToggle) {
-        currentTeamSort.field = field;
-        currentTeamSort.direction = 'desc'; // Default to descending for new field
-      }
-      
-      // Sort
-      filteredTeamStats.sort((a, b) => {
-        const teamNameA = a.teamName || a.name;
-        const teamNameB = b.teamName || b.name;
-        
-        let valA, valB;
-        
-        if (field === 'name') {
-          valA = teamNameA;
-          valB = teamNameB;
-          return currentTeamSort.direction === 'asc' 
-            ? valA.localeCompare(valB, 'he')
-            : valB.localeCompare(valA, 'he');
-        }
-        
-        // Special handling for efficiency (calculated field)
-        if (field === 'efficiency') {
-          valA = calculateEfficiency(a);
-          valB = calculateEfficiency(b);
-        } else {
-          valA = a[field];
-          valB = b[field];
-        }
-        
-        // Handle numeric fields - convert strings to numbers if needed
-        valA = parseFloat(valA) || 0;
-        valB = parseFloat(valB) || 0;
-        
-        if (currentTeamSort.direction === 'asc') {
-          return valA - valB;
-        } else {
-          return valB - valA;
-        }
-      });
-      
-      // Update indicators
-      updateTeamSortIndicators();
-      
-      // Render
-      renderTeams();
-    }
-    
-    // Expose sortTeams globally for onclick handlers
-    window.sortTeams = sortTeams;
-    
-    /**
-     * Update sort indicators
-     */
-    function updateTeamSortIndicators() {
-      // Clear all
-      document.querySelectorAll('.sort-indicator').forEach(span => {
-        span.textContent = '';
-      });
-      
-      // Set current
-      const indicator = document.getElementById(`sort-${currentTeamSort.field}`);
-      if (indicator) {
-        indicator.textContent = currentTeamSort.direction === 'asc' ? '▲' : '▼';
-      }
-    }
-    
-    /**
-     * Render teams table
-     */
-    function renderTeams() {
-      const tbody = document.getElementById('teamsTbody');
-      const countSpan = document.getElementById('teamsCount');
-      
-      if (!filteredTeamStats.length) {
-        tbody.innerHTML = '<tr><td colspan="13" class="text-center py-8 text-gray-500">לא נמצאו קבוצות</td></tr>';
-        countSpan.textContent = '0';
-        return;
-      }
-      
-      tbody.innerHTML = filteredTeamStats.map(team => {
-        const teamName = team.teamName || team.name;
-        return `
-          <tr class="hover:bg-blue-50 transition">
-            <td class="col-team font-semibold text-blue-900">${teamName}</td>
-            <td class="num">${team.gamesPlayed}</td>
-            <td class="num">${formatNumber(team.ppg || team.points)}</td>
-            <td class="num">${formatNumber(team.rpg || team.rebounds)}</td>
-            <td class="num">${formatNumber(team.apg || team.assists)}</td>
-            <td class="num">${formatNumber(team.spg || team.steals)}</td>
-            <td class="num">${formatNumber(team.bpg || team.blocks)}</td>
-            <td class="num">${formatNumber(team.tpg || team.turnovers)}</td>
-            <td class="num">${formatNumber(team.fpg || team.fouls)}</td>
-            <td class="pct">${formatPercentage(team.fgPct)}</td>
-            <td class="pct">${formatPercentage(team.threePtPct || team.threePct)}</td>
-            <td class="pct">${formatPercentage(team.ftPct)}</td>
-            <td class="num">${formatNumber(calculateEfficiency(team))}</td>
-          </tr>
-        `;
-      }).join('');
-      
-      countSpan.textContent = filteredTeamStats.length;
-    }
-    
-    /**
-     * Format number (1 decimal for averages, 0 for totals)
-     */
-    function formatNumber(num) {
-      if (num == null || isNaN(num)) return '-';
-      
-      const n = parseFloat(num);
-      if (currentTeamStatsView === 'averages') {
-        return n.toFixed(1);
-      } else {
-        return Math.round(n).toString();
-      }
-    }
-    
-    /**
-     * Format percentage
-     */
-    function formatPercentage(num) {
-      if (num == null || isNaN(num)) return '-';
-      return parseFloat(num).toFixed(1) + '%';
-    }
-    
-    /**
-     * Calculate efficiency for a team (PURE API - use data from API)
-     */
-    function calculateEfficiency(team) {
-      if (currentTeamStatsView === 'averages') {
-        // Use efficiency from API (sum of player efficiencies / games)
-        return parseFloat(team.efficiencyAvg) || 0;
-      } else {
-        // For totals, return total efficiency from API
-        return team._totalEfficiency || team.efficiency || 0;
-      }
-    }
-    
-    // ========================================
-    // PLAYER STATISTICS FUNCTIONS
-    // ========================================
-    
-    /**
-     * Get player display name (future-ready for real names)
-     */
-    function getPlayerDisplayName(player) {
-      // Check if player names module exists
-      if (window.playerNamesLoader) {
-        const name = window.playerNamesLoader.getPlayerName(player.playerId);
-        if (name) {
-          return name; // Just the name, no jersey number
-        }
-      }
-      
-      // Fallback to jersey number
-      return `Player #${player.jersey}`;
-    }
-    
-    /**
-     * Initialize player statistics
-     */
-    function initPlayerStats() {
-      console.log('👥 Initializing player statistics...');
-      
-      if (!window.ibbaAnalytics) {
-        console.error('❌ IBBAAnalytics not initialized');
-        return;
-      }
-      
-      // Get averages (default view)
-      const averages = window.ibbaAnalytics.getPlayerAverages();
-      
-      // Add display name to each player
-      allPlayerStats = averages.map(player => ({
-        ...player,
-        name: getPlayerDisplayName(player)
-      }));
-      
-      console.log(`✅ Loaded ${allPlayerStats.length} players`);
-      
-      // Populate team filter
-      populatePlayerTeamFilter();
-      
-      // Apply initial filter and render
-      filterPlayers();
-    }
-    
-    /**
-     * Populate player team filter dropdown
-     */
-    function populatePlayerTeamFilter() {
-      const select = document.getElementById('playersTeamFilter');
-      const teams = [...new Set(allPlayerStats.map(p => p.teamName))].sort((a, b) => a.localeCompare(b, 'he'));
-      
-      // Keep "כל הקבוצות" option, add teams
-      select.innerHTML = '<option value="">כל הקבוצות</option>' +
-        teams.map(team => `<option value="${team}">${team}</option>`).join('');
-    }
-    
-    /**
-     * Toggle between averages and totals view
-     */
-    function togglePlayerStatsView() {
-      const toggleText = document.getElementById('playerToggleText');
-      
-      if (currentPlayerStatsView === 'averages') {
-        // Switch to totals
-        currentPlayerStatsView = 'totals';
-        toggleText.textContent = 'הצג ממוצעים';
-        
-        // Update headers
-        document.getElementById('pointsHeaderPlayer').textContent = 'סה"כ נק\'';
-        document.getElementById('reboundsHeaderPlayer').textContent = 'סה"כ ריב\'';
-        document.getElementById('assistsHeaderPlayer').textContent = 'סה"כ אס\'';
-        document.getElementById('stealsHeaderPlayer').textContent = 'סה"כ חט\'';
-        document.getElementById('blocksHeaderPlayer').textContent = 'סה"כ חס\'';
-        document.getElementById('turnoversHeaderPlayer').textContent = 'סה"כ איב\'';
-        document.getElementById('foulsHeaderPlayer').textContent = 'סה"כ עב\'';
-        document.getElementById('foulsDrawnHeaderPlayer').textContent = 'סה"כ סחט\'';
-        document.getElementById('efficiencyHeaderPlayer').textContent = 'סה"כ יעילות';
-        
-        // Update column onclick handlers for totals
-        updatePlayerColumnHandlers('totals');
-        
-        // Get totals data from analytics
-        const totals = window.ibbaAnalytics.getPlayerStats();
-        allPlayerStats = Object.values(totals).map(player => ({
-          ...player,
-          name: getPlayerDisplayName(player),
-          ppg: player.totalPoints,  // Map to ppg for consistency
-          rpg: player.totalRebounds,
-          apg: player.totalAssists,
-          spg: player.totalSteals,
-          bpg: player.totalBlocks,
-          tpg: player.totalTurnovers,
-          fpg: player.totalFouls,
-          foulsDrawnPg: player.totalFoulsDrawn,
-          efficiencyAvg: player.totalEfficiency,
-          fgPct: player.totalFGA > 0 ? (player.totalFGM / player.totalFGA * 100) : 0,
-          threePtPct: player.total3PA > 0 ? (player.total3PM / player.total3PA * 100) : 0,
-          ftPct: player.totalFTA > 0 ? (player.totalFTM / player.totalFTA * 100) : 0
-        }));
-        
-      } else {
-        // Switch to averages
-        currentPlayerStatsView = 'averages';
-        toggleText.textContent = 'הצג סה"כ';
-        
-        // Update headers
-        document.getElementById('pointsHeaderPlayer').textContent = 'נק\'';
-        document.getElementById('reboundsHeaderPlayer').textContent = 'ריב\'';
-        document.getElementById('assistsHeaderPlayer').textContent = 'אס\'';
-        document.getElementById('stealsHeaderPlayer').textContent = 'חט\'';
-        document.getElementById('blocksHeaderPlayer').textContent = 'חס\'';
-        document.getElementById('turnoversHeaderPlayer').textContent = 'איב\'';
-        document.getElementById('foulsHeaderPlayer').textContent = 'עב\'';
-        document.getElementById('foulsDrawnHeaderPlayer').textContent = 'סחט\'';
-        document.getElementById('efficiencyHeaderPlayer').textContent = 'יעילות';
-        
-        // Update column onclick handlers for averages
-        updatePlayerColumnHandlers('averages');
-        
-        // Get averages data
-        const averages = window.ibbaAnalytics.getPlayerAverages();
-        allPlayerStats = averages.map(player => ({
-          ...player,
-          name: getPlayerDisplayName(player)
-        }));
-      }
-      
-      // Repopulate filter and re-filter
-      populatePlayerTeamFilter();
-      filterPlayers();
-    }
-    
-    /**
-     * Update player column onclick handlers based on view
-     */
-    function updatePlayerColumnHandlers(view) {
-      // This ensures the onclick handlers reference the correct field names
-      // Since we're using consistent field names (ppg, rpg, etc.) across both views,
-      // we don't need to change the handlers - they'll work for both views
-    }
-    
-    /**
-     * Filter players by team and search term
-     */
-    function filterPlayers() {
-      const teamFilter = document.getElementById('playersTeamFilter').value;
-      const searchTerm = document.getElementById('playersSearch').value.toLowerCase().trim();
-      
-      filteredPlayerStats = allPlayerStats.filter(player => {
-        // Team filter
-        if (teamFilter && player.teamName !== teamFilter) {
-          return false;
-        }
-        
-        // Search filter
-        if (searchTerm) {
-          const searchableText = `
-            ${player.name} 
-            ${player.jersey} 
-            ${player.teamName}
-          `.toLowerCase();
-          
-          if (!searchableText.includes(searchTerm)) {
-            return false;
-          }
-        }
-        
-        return true;
-      });
-      
-      // Sort and render
-      sortPlayers(currentPlayerSort.field, true);
-    }
-    
-    /**
-     * Clear player filters
-     */
-    function clearPlayerFilters() {
-      document.getElementById('playersTeamFilter').value = '';
-      document.getElementById('playersSearch').value = '';
-      filterPlayers();
-    }
-    
-    /**
-     * Sort players by field
-     */
-    function sortPlayers(field, skipToggle = false) {
-      console.log(`👥 Sorting players by ${field}`);
-      
-      // Toggle direction if clicking same field
-      if (!skipToggle && currentPlayerSort.field === field) {
-        currentPlayerSort.direction = currentPlayerSort.direction === 'asc' ? 'desc' : 'asc';
-      } else if (!skipToggle) {
-        currentPlayerSort.field = field;
-        currentPlayerSort.direction = 'desc'; // Default descending for new field
-      }
-      
-      // Sort
-      filteredPlayerStats.sort((a, b) => {
-        let valA = a[field];
-        let valB = b[field];
-        
-        // Handle string fields
-        if (field === 'name' || field === 'teamName') {
-          const comparison = String(valA).localeCompare(String(valB), 'he');
-          return currentPlayerSort.direction === 'asc' ? comparison : -comparison;
-        }
-        
-        // Handle numeric fields - convert strings to numbers if needed
-        valA = parseFloat(valA) || 0;
-        valB = parseFloat(valB) || 0;
-        
-        if (currentPlayerSort.direction === 'asc') {
-          return valA - valB;
-        } else {
-          return valB - valA;
-        }
-      });
-      
-      // Update indicators
-      updatePlayerSortIndicators();
-      
-      // Render
-      renderPlayers();
-    }
-    
-    /**
-     * Update player sort indicators
-     */
-    function updatePlayerSortIndicators() {
-      // Clear all
-      document.querySelectorAll('#view-players .sort-indicator').forEach(span => {
-        span.textContent = '';
-      });
-      
-      // Set current
-      const indicator = document.getElementById(`sort-${currentPlayerSort.field}`);
-      if (indicator) {
-        indicator.textContent = currentPlayerSort.direction === 'asc' ? '▲' : '▼';
-      }
-    }
-    
-    /**
-     * Render players table
-     */
-    function renderPlayers() {
-      const tbody = document.getElementById('playersTbody');
-      const countSpan = document.getElementById('playersCount');
-      
-      if (!filteredPlayerStats.length) {
-        tbody.innerHTML = '<tr><td colspan="16" class="text-center py-8 text-gray-500">לא נמצאו שחקנים</td></tr>';
-        countSpan.textContent = '0';
-        return;
-      }
-      
-      tbody.innerHTML = filteredPlayerStats.map(player => {
-        // All fields are now consistently named (ppg, rpg, etc.) regardless of view
-        return `
-          <tr class="hover:bg-blue-50 transition">
-            <td class="col-name font-semibold text-blue-900">${player.name}</td>
-            <td class="col-jersey">${player.jersey}</td>
-            <td class="col-team">${player.teamName}</td>
-            <td class="col-games">${player.gamesPlayed}</td>
-            <td class="num">${formatPlayerNumber(player.ppg)}</td>
-            <td class="num">${formatPlayerNumber(player.rpg)}</td>
-            <td class="num">${formatPlayerNumber(player.apg)}</td>
-            <td class="num">${formatPlayerNumber(player.spg)}</td>
-            <td class="num">${formatPlayerNumber(player.bpg)}</td>
-            <td class="num">${formatPlayerNumber(player.tpg)}</td>
-            <td class="num">${formatPlayerNumber(player.fpg)}</td>
-            <td class="num">${formatPlayerNumber(player.foulsDrawnPg)}</td>
-            <td class="num pct">${formatPercentage(player.fgPct)}</td>
-            <td class="num pct">${formatPercentage(player.threePtPct)}</td>
-            <td class="num pct">${formatPercentage(player.ftPct)}</td>
-            <td class="num">${formatPlayerNumber(player.efficiencyAvg)}</td>
-          </tr>
-        `;
-      }).join('');
-      
-      countSpan.textContent = filteredPlayerStats.length;
-    }
-    
-    /**
-     * Format player number (1 decimal for averages, 0 for totals)
-     */
-    function formatPlayerNumber(num) {
-      if (num == null || isNaN(num)) return '-';
-      
-      const n = parseFloat(num);
-      if (currentPlayerStatsView === 'averages') {
-        return n.toFixed(1);
-      } else {
-        return Math.round(n).toString();
-      }
-    }
-    
-    // ========================================
-    // INITIALIZATION
-    // ========================================
-    
-    async function init() {
-      try {
-        disableTabs(); // Disable tabs until data is loaded
-        updateProgress(0, 'מאתחל מודולים...', 'יוצר חיבור ל-API...');
-        
-        // Create adapter
-        const adapter = new window.IBBAAdapter();
-        console.log('✅ Adapter initialized');
-        
-        // Load games progressively
-        await loadGamesProgressive(adapter);
-        
-        // Initialize analytics
-        console.log('📊 Initializing analytics engine...');
-        window.ibbaAnalytics = new window.IBBAAnalytics(allGames);
-        console.log('✅ Analytics engine initialized');
-        
-        // === Initialize player names loader ===
-        if (window.IBBAPlayerNames) {
-          console.log('🎯 Initializing player names loader...');
-          
-          // Initialize Supabase if configured
-          let supabase = null;
-          const supabaseUrl = window.appConfig?.supabaseUrl || window.CONFIG?.SUPABASE_URL;
-          const supabaseKey = window.appConfig?.supabaseKey || window.CONFIG?.SUPABASE_ANON_KEY;
-          
-          if (supabaseUrl && supabaseKey) {
-            supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-            console.log('✅ Supabase client initialized');
-          }
-          
-          window.playerNamesLoader = new window.IBBAPlayerNames(supabase);
-          
-          // Check if we have cached names
-          if (window.playerNamesLoader.hasCachedNames()) {
-            console.log('✅ Player names loaded from cache (instant!)');
-          } else {
-            // Try loading from Supabase first (fastest!)
-            console.log('🔄 Loading player names from Supabase...');
-            
-            window.playerNamesLoader.loadFromSupabase()
-              .then(count => {
-                if (count > 0) {
-                  console.log(`✅ Loaded ${count} names from Supabase!`);
-                  // Refresh player tab if open
-                  if (currentTab === 'players') {
-                    renderPlayers();
-                  }
-                } else {
-                  // Fallback to API
-                  console.log('ℹ️ No names in Supabase, loading from API...');
-                  return window.playerNamesLoader.loadAllPlayerNames((progress) => {
-                    const statusDiv = document.getElementById('playerNamesStatus');
-                    if (statusDiv && progress.stage === 'fetching') {
-                      statusDiv.innerHTML = `<span class="animate-pulse">⏳ ${progress.message || 'טוען מ-API...'}</span>`;
-                      statusDiv.style.display = 'block';
-                    }
-                  });
-                }
-              })
-              .then(() => {
-                console.log('✅ Player names ready');
-                // Hide status
-                const statusDiv = document.getElementById('playerNamesStatus');
-                if (statusDiv) statusDiv.style.display = 'none';
-                // Refresh if needed
-                if (currentTab === 'players') renderPlayers();
-              })
-              .catch(error => {
-                console.warn('⚠️ Player names load failed:', error);
-              });
-            
-            // Old API-only fallback (commented out - now using Supabase first)
-            /*
-            console.log('🔄 Loading player names from API...');
-            
-            window.playerNamesLoader.loadAllPlayerNames((progress) => {
-              // Update status div if exists
-              const statusDiv = document.getElementById('playerNamesStatus');
-              if (statusDiv) {
-                if (progress.stage === 'fetching') {
-                  statusDiv.innerHTML = `<span class="animate-pulse">⏳ ${progress.message || 'טוען שחקנים...'}</span>`;
-                  statusDiv.style.display = 'block';
-                } else if (progress.stage === 'processing') {
-                  statusDiv.innerHTML = '<span class="animate-pulse">⏳ מעבד נתונים...</span>';
-                  statusDiv.style.display = 'block';
-                } else if (progress.stage === 'complete') {
-                  statusDiv.style.display = 'none';
-                }
-              }
-              
-              // Console progress
-              if (progress.stage === 'fetching') {
-                console.log(`📥 ${progress.message}`);
-              } else if (progress.stage === 'complete') {
-                console.log('✅ Player names loaded successfully');
-              }
-            })
-            .then(() => {
-              console.log('✅ Player names ready:', window.playerNamesLoader.getStats());
-              
-              const statusDiv = document.getElementById('playerNamesStatus');
-              if (statusDiv) {
-                statusDiv.innerHTML = '✅ שמות שחקנים נטענו';
-                setTimeout(() => statusDiv.style.display = 'none', 2000);
-              }
-              
-              // If player tab is currently open, refresh it
-              const playerTab = document.getElementById('view-players');
-              if (playerTab && !playerTab.classList.contains('hidden')) {
-                console.log('🔄 Refreshing player tab with names...');
-                renderPlayers();
-              }
-            })
-            .catch(error => {
-              console.warn('⚠️ Failed to load player names:', error);
-              console.log('➡️ Will continue with "Player #X" fallback');
-              
-              const statusDiv = document.getElementById('playerNamesStatus');
-              if (statusDiv) {
-                statusDiv.innerHTML = '⚠️ שמות שחקנים לא זמינים';
-                setTimeout(() => statusDiv.style.display = 'none', 3000);
-              }
-            });
-            */
-          }
-        } else {
-          console.warn('⚠️ Player names module not loaded');
-        }
-        // === END player names initialization ===
-        
-        // Setup UI
-        setupEventListeners();
-        
-        // Hide loading, show games tab (default)
-        document.getElementById('loadingProgress').classList.add('hidden');
-        document.getElementById('view-games').classList.remove('hidden');
-        enableTabs(); // Enable tabs now that data is loaded
-        
-        console.log('✅ Dashboard initialized successfully');
-        
-      } catch (error) {
-        console.error('❌ Initialization failed:', error);
-        showError(`שגיאה בטעינת הדשבורד: ${error.message}`);
-      }
-    }
-    
-    // ========================================
-    // PROGRESSIVE LOADING
-    // ========================================
-    
-    async function loadGamesProgressive(adapter) {
-      console.log('📊 Starting progressive loading...');
-      
-      const now = new Date().toISOString();
-      
-      // Phase 1: Load 50 games preview
-      console.time('⏱️ Load 50 games');
-      updateProgress(10, '📡 טוען תצוגה מקדימה...', 'משיכת 50 משחקים ראשונים...');
-      
-      const rawGames50 = await adapter.fetchGames(50, now, null);
-      const games50 = rawGames50
-        .map(g => adapter.convertToInternalFormat(g))
-        .filter(g => g.players && g.players.length > 0);
-      
-      console.timeEnd('⏱️ Load 50 games');
-      console.log(`✅ Loaded ${games50.length} games (preview)`);
-      
-      // Show preview
-      window.allGames = games50;
-      allGames = window.allGames;
-      processGames();
-      populateFilters();
-      applyFilters();
-      
-      updateProgress(40, `✅ נטענו ${games50.length} משחקים`, 'טוען משחקים נוספים ברקע...');
-      
-      // Phase 2: Load remaining games
-      console.time('⏱️ Load full dataset');
-      updateProgress(50, '📡 טוען מערך מלא...', 'משיכת עד 500 משחקים...');
-      
-      const rawGamesFull = await adapter.fetchGames(500, now, null);
-      const gamesFull = rawGamesFull
-        .map(g => adapter.convertToInternalFormat(g))
-        .filter(g => g.players && g.players.length > 0);
-      
-      console.timeEnd('⏱️ Load full dataset');
-      console.log(`✅ Loaded ${gamesFull.length} games (full dataset)`);
-      
-      // Update with full dataset
-      window.allGames = gamesFull;
-      allGames = window.allGames;
-      processGames();
-      populateFilters();
-      applyFilters();
-      
-      updateProgress(100, `✅ הושלם!`, `נטענו ${gamesFull.length} משחקים בהצלחה`);
-      
-      // Wait a bit before hiding loading UI
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
-    
-    // ========================================
-    // DATA PROCESSING
-    // ========================================
-    
-    function processGames() {
-      console.log(`🔄 Processing ${allGames.length} games...`);
-      
-      // Add date object for sorting
-      allGames.forEach(game => {
-        // Create date object for sorting
-        game.dateObj = new Date(game.date);
-      });
-      
-      // Initial sort (by gameId desc)
-      sortGames(currentSort.field, true);
-      
-      console.log('✅ Games processed');
-    }
-    
-    // ========================================
-    // FILTERS
-    // ========================================
-    
-    function populateFilters() {
-      console.log('🔧 Populating filters...');
-      
-      // Populate round filter
-      const rounds = [...new Set(allGames.map(g => g.cycle).filter(c => c !== null && c !== undefined))];
-      rounds.sort((a, b) => a - b);
-      
-      const cycleFilter = document.getElementById('cycleFilter');
-      cycleFilter.innerHTML = '<option value="">הכל</option>';
-      rounds.forEach(round => {
-        const option = document.createElement('option');
-        option.value = round;
-        option.textContent = `מחזור ${round}`;
-        cycleFilter.appendChild(option);
-      });
-      
-      // Populate team filter
-      const teams = new Set();
-      allGames.forEach(g => {
-        if (g.homeTeam) teams.add(g.homeTeam);
-        if (g.awayTeam) teams.add(g.awayTeam);
-      });
-      
-      const sortedTeams = [...teams].sort();
-      const teamFilter = document.getElementById('teamFilter');
-      teamFilter.innerHTML = '<option value="">הכל</option>';
-      sortedTeams.forEach(team => {
-        const option = document.createElement('option');
-        option.value = team;
-        option.textContent = team;
-        teamFilter.appendChild(option);
-      });
-      
-      console.log(`✅ Filters populated: ${rounds.length} rounds, ${sortedTeams.length} teams`);
-    }
-    
-    function applyFilters() {
-      const cycleValue = document.getElementById('cycleFilter').value;
-      const teamValue = document.getElementById('teamFilter').value;
-      const searchValue = document.getElementById('gamesSearch').value.toLowerCase().trim();
-      
-      console.log('🔍 Applying filters:', { cycle: cycleValue, team: teamValue, search: searchValue });
-      
-      filteredGames = allGames.filter(game => {
-        // Round filter
-        if (cycleValue && game.cycle != cycleValue) {
-          return false;
-        }
-        
-        // Team filter
-        if (teamValue && game.homeTeam !== teamValue && game.awayTeam !== teamValue) {
-          return false;
-        }
-        
-        // Search filter
-        if (searchValue) {
-          const searchableText = `${game.gameId} ${game.homeTeam} ${game.awayTeam}`.toLowerCase();
-          if (!searchableText.includes(searchValue)) {
-            return false;
-          }
-        }
-        
-        return true;
-      });
-      
-      console.log(`✅ Filtered: ${filteredGames.length} / ${allGames.length} games`);
-      renderGames();
-    }
-    
-    function clearFilters() {
-      document.getElementById('cycleFilter').value = '';
-      document.getElementById('teamFilter').value = '';
-      document.getElementById('gamesSearch').value = '';
-      applyFilters();
-    }
-    
-    // ========================================
-    // SORTING
-    // ========================================
-    
-    function sortGames(field, skipToggle = false) {
-      console.log(`📊 Sorting by ${field}...`);
-      
-      // Toggle direction if same field (unless skipToggle)
-      if (!skipToggle && currentSort.field === field) {
-        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
-      } else if (!skipToggle) {
-        currentSort.field = field;
-        currentSort.direction = 'asc';
-      }
-      
-      // Sort filteredGames if filters are active, otherwise sort allGames
-      const gamesToSort = filteredGames.length > 0 || document.getElementById('cycleFilter').value || document.getElementById('teamFilter').value || document.getElementById('gamesSearch').value 
-        ? filteredGames 
-        : allGames;
-      
-      gamesToSort.sort((a, b) => {
-        let valA, valB;
-        
-        if (field === 'date') {
-          valA = a.dateObj.getTime();
-          valB = b.dateObj.getTime();
-        } else if (field === 'cycle') {
-          valA = a.cycle || 0;
-          valB = b.cycle || 0;
-        } else {
-          valA = a[field];
-          valB = b[field];
-        }
-        
-        if (currentSort.direction === 'asc') {
-          return valA > valB ? 1 : valA < valB ? -1 : 0;
-        } else {
-          return valA < valB ? 1 : valA > valB ? -1 : 0;
-        }
-      });
-      
-      updateSortIndicators();
-      renderGames();
-      
-      console.log(`✅ Sorted by ${field} (${currentSort.direction})`);
-    }
-    
-    function updateSortIndicators() {
-      // Clear all indicators
-      document.querySelectorAll('.sort-indicator').forEach(el => {
-        el.textContent = '';
-      });
-      
-      // Set current indicator
-      const indicator = document.getElementById(`sort-${currentSort.field}`);
-      if (indicator) {
-        indicator.textContent = currentSort.direction === 'asc' ? '▲' : '▼';
-      }
-    }
-    
-    // ========================================
-    // RENDERING
-    // ========================================
-    
-    function renderGames() {
-      const tbody = document.getElementById('gamesTbody');
-      const gamesToRender = filteredGames.length > 0 || document.getElementById('cycleFilter').value || document.getElementById('teamFilter').value || document.getElementById('gamesSearch').value
-        ? filteredGames
-        : allGames;
-      
-      if (gamesToRender.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-gray-500">לא נמצאו משחקים התואמים לחיפוש</td></tr>';
-        updateCounts(0);
-        return;
-      }
-      
-      tbody.innerHTML = gamesToRender.map(game => {
-        const dateStr = game.dateObj.toLocaleDateString('he-IL', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric'
-        });
-        
-        const cycleStr = game.cycle ? game.cycle : '-';
-        
-        return `
-          <tr class="hover:bg-gray-50 transition-colors">
-            <td class="col-team">${game.gameId}</td>
-            <td class="num">${cycleStr}</td>
-            <td class="num">${dateStr}</td>
-            <td class="col-team font-semibold">${game.homeTeam} - ${game.awayTeam}</td>
-            <td class="col-team text-center font-bold">
-              ${game.awayScore}-${game.homeScore}
-            </td>
-          </tr>
-        `;
-      }).join('');
-      
-      updateCounts(gamesToRender.length);
-    }
-    
-    function updateCounts(displayed) {
-      document.getElementById('displayedCount').textContent = displayed;
-      document.getElementById('totalCount').textContent = allGames.length;
-    }
-    
-    // ========================================
-    // UI UPDATES
-    // ========================================
-    
-    function updateProgress(percent, status, details) {
-      document.getElementById('loadingBar').style.width = `${percent}%`;
-      document.getElementById('loadingStatus').textContent = status;
-      document.getElementById('loadingDetails').textContent = details;
-    }
-    
-    function showError(message) {
-      const loadingDiv = document.getElementById('loadingProgress');
-      loadingDiv.innerHTML = `
-        <div class="text-center">
-          <div class="text-red-600 text-lg font-semibold mb-2">❌ ${message}</div>
-          <button onclick="location.reload()" class="btn bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors">
-            🔄 נסה שוב
-          </button>
-          <div class="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4 text-right">
-            <p class="text-xs text-amber-800 mb-2"><strong>💡 פתרונות אפשריים:</strong></p>
-            <div class="text-xs text-amber-700 space-y-1">
-              <div>• <strong>HTTP Server:</strong> הרץ את האתר דרך HTTP server (לא file://)</div>
-              <div>• <strong>פקודה:</strong> <code class="bg-amber-100 px-1 rounded">python -m http.server 8000</code></div>
-              <div>• <strong>גש:</strong> http://localhost:8000/ibba_dashboard_v1.html</div>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-    
-    // ========================================
-    // EVENT LISTENERS
-    // ========================================
-    
-    function setupEventListeners() {
-      console.log('🔗 Setting up event listeners...');
-      
-      // Filter change events
-      document.getElementById('cycleFilter').addEventListener('change', applyFilters);
-      document.getElementById('teamFilter').addEventListener('change', applyFilters);
-      
-      // Search
-      document.getElementById('searchBtn').addEventListener('click', applyFilters);
-      document.getElementById('gamesSearch').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-          applyFilters();
-        }
-      });
-      
-      // Clear filters
-      document.getElementById('clearFiltersBtn').addEventListener('click', clearFilters);
-      
-      // Sortable headers (only for games table)
-      document.querySelectorAll('#view-games .sortable').forEach(header => {
-        header.addEventListener('click', () => {
-          const field = header.dataset.sort;
-          sortGames(field);
-        });
-      });
-      
-      console.log('✅ Event listeners attached');
-    }
-    
-    // ========================================
-    // START
-    // ========================================
-    
-    // Wait for DOM and IBBAAdapter to be ready
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => {
-        if (window.IBBAAdapter) {
-          init();
-        } else {
-          console.error('❌ IBBAAdapter not loaded');
-          showError('מודול IBBAAdapter לא נטען. ודא שהקובץ js/ibba/ibba_adapter.js קיים.');
-        }
-      });
-    } else {
-      if (window.IBBAAdapter) {
-        init();
-      } else {
-        console.error('❌ IBBAAdapter not loaded');
-        showError('מודול IBBAAdapter לא נטען. ודא שהקובץ js/ibba/ibba_adapter.js קיים.');
-      }
-    }
-    
-    console.log('📊 IBBA Dashboard v1 script loaded');
-    
-    // ========================================
-    // DEBUG FUNCTION - Identify Missing Players
-    // ========================================
-    
-    async function debugMissingPlayers() {
-      console.log('🔍 Starting debug - searching for players with missing names...');
-      
-      // Wait for everything to load
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      if (!window.ibbaAnalytics || !window.playerNamesLoader) {
-        console.error('❌ Required modules not loaded yet');
-        return;
-      }
-      
-      const games = window.ibbaAnalytics.games;
-      const namesMap = window.playerNamesLoader.namesMap;
-      
-      console.log(`📊 Total games: ${games.length}`);
-      console.log(`👥 Total players in namesMap: ${namesMap.size}`);
-      
-      // Collect all playerIds from games
-      const allPlayerIds = new Set();
-      const playerDetails = new Map(); // playerId → {jersey, teamName, teamId, games}
-      
-      games.forEach(game => {
-        game.players.forEach(player => {
-          const id = String(player.playerId);
-          allPlayerIds.add(id);
-          
-          if (!playerDetails.has(id)) {
-            playerDetails.set(id, {
-              jersey: player.jersey,
-              teamName: player.teamName,
-              teamId: player.teamId,
-              games: []
-            });
-          }
-          playerDetails.get(id).games.push({
-            date: game.date,
-            homeTeam: game.homeTeam,
-            awayTeam: game.awayTeam
-          });
-        });
-      });
-      
-      console.log(`🎮 Unique players in games: ${allPlayerIds.size}`);
-      
-      // Find missing players
-      const missingPlayers = [];
-      
-      allPlayerIds.forEach(playerId => {
-        if (!namesMap.has(playerId)) {
-          const details = playerDetails.get(playerId);
-          missingPlayers.push({
-            playerId,
-            ...details
-          });
-        }
-      });
-      
-      console.log(`\n❌ Found ${missingPlayers.length} players WITHOUT names in SportsPress API:\n`);
-      
-      missingPlayers.forEach((player, index) => {
-        console.log(`${index + 1}. Player ID: ${player.playerId}`);
-        console.log(`   Jersey: #${player.jersey}`);
-        console.log(`   Team: ${player.teamName} (ID: ${player.teamId})`);
-        console.log(`   Games played: ${player.games.length}`);
-        console.log(`   Last game: ${player.games[player.games.length - 1].date}`);
-        console.log(`   ---`);
-      });
-      
-      // Save list to window for further inspection
-      window.missingPlayersDebug = missingPlayers;
-      
-      console.log('\n💡 Access full data: window.missingPlayersDebug');
-      console.log('\nℹ️ Only players from league 119474 are loaded (by design)');
-      
-      return missingPlayers;
-    }
-    
-    // ========================================
-    // LEAGUE LEADERS FUNCTIONS
-    // ========================================
-    
-    /**
-     * Initialize league leaders statistics
-     * Filters: 50% minimum games, specific attempts thresholds per stat
-     */
-    function initLeaderStats() {
-      if (!window.ibbaAnalytics) {
-        console.error('❌ Analytics not loaded');
-        return;
-      }
-      
-      console.log('🏆 Initializing league leaders...');
-      
-      try {
-        // Get all player stats
-        const allPlayers = window.ibbaAnalytics.getPlayerAverages();
-        console.log(`📊 Total players: ${allPlayers.length}`);
-        
-        // Calculate games per team
-        const teamGames = {};
-        allGames.forEach(game => {
-          teamGames[game.homeTeam] = (teamGames[game.homeTeam] || 0) + 1;
-          teamGames[game.awayTeam] = (teamGames[game.awayTeam] || 0) + 1;
-        });
-        
-        console.log(`🎮 Teams and their game counts:`, teamGames);
-        
-        // Filter eligible players (50% of their team's games)
-        const eligiblePlayers = allPlayers.filter(p => {
-          const teamName = p.teamName;
-          const teamTotalGames = teamGames[teamName] || 0;
-          const minGamesForTeam = Math.ceil(teamTotalGames * 0.5);
-          return p.gamesPlayed >= minGamesForTeam && teamTotalGames > 0;
-        });
-        
-        console.log(`✅ Eligible players (50% of team games): ${eligiblePlayers.length}`);
-        
-        // Helper: Get top N players by stat
-        const getTopPlayers = (stat, n = 5) => {
-          return [...eligiblePlayers]
-            .filter(p => parseFloat(p[stat]) > 0)
-            .sort((a, b) => parseFloat(b[stat]) - parseFloat(a[stat]))
-            .slice(0, n);
-        };
-        
-        // Helper: Get top N players by percentage with minimum attempts per game
-        const getTopPlayersByPercentage = (percentageStat, minAttemptsPerGame, n = 5) => {
-          return [...eligiblePlayers]
-            .filter(p => {
-              const percentage = parseFloat(p[percentageStat]) || 0;
-              const gamesPlayed = p.gamesPlayed || 1;
-              
-              // For FG%: check FGA
-              // For 3PT%: check 3PA  
-              // For FT%: check FTA
-              let attemptsPerGame = 0;
-              if (percentageStat === 'fgPct') {
-                const totalFGA = p._totalFGA || 0;
-                attemptsPerGame = totalFGA / gamesPlayed;
-              } else if (percentageStat === 'threePtPct') {
-                const total3PA = p._total3PA || 0;
-                attemptsPerGame = total3PA / gamesPlayed;
-              } else if (percentageStat === 'ftPct') {
-                const totalFTA = p._totalFTA || 0;
-                attemptsPerGame = totalFTA / gamesPlayed;
-              }
-              
-              return attemptsPerGame >= minAttemptsPerGame && percentage > 0;
-            })
-            .sort((a, b) => parseFloat(b[percentageStat]) - parseFloat(a[percentageStat]))
-            .slice(0, n);
-        };
-        
-        // Get top players for each category
-        leaderStats = {
-          points: getTopPlayers('ppg'),
-          rebounds: getTopPlayers('rpg'),
-          assists: getTopPlayers('apg'),
-          steals: getTopPlayers('spg'),
-          blocks: getTopPlayers('bpg'),
-          minutes: getTopPlayers('mpg'),
-          efficiency: getTopPlayers('efficiencyAvg'),
-          // Percentage stats with minimum attempts per game thresholds
-          fieldGoal: getTopPlayersByPercentage('fgPct', 4),     // 4 FGA/game
-          threePoint: getTopPlayersByPercentage('threePtPct', 2), // 2 3PA/game
-          freeThrow: getTopPlayersByPercentage('ftPct', 3)      // 3 FTA/game
-        };
-        
-        console.log('✅ League leaders calculated:', {
-          points: leaderStats.points.length,
-          rebounds: leaderStats.rebounds.length,
-          assists: leaderStats.assists.length,
-          steals: leaderStats.steals.length,
-          blocks: leaderStats.blocks.length,
-          minutes: leaderStats.minutes.length,
-          fieldGoal: leaderStats.fieldGoal.length,
-          threePoint: leaderStats.threePoint.length,
-          freeThrow: leaderStats.freeThrow.length
-        });
-        
-        // Render the tables
-        renderLeaderStats();
-        
-      } catch (error) {
-        console.error('❌ Error calculating league leaders:', error);
-      }
-    }
-    
-    /**
-     * Render all league leader tables
-     */
-    function renderLeaderStats() {
-      if (!leaderStats) {
-        console.error('❌ No leader stats to render');
-        return;
-      }
-      
-      console.log('🎨 Rendering league leaders tables...');
-      
-      // Helper: Get player name from loader
-      const getPlayerName = (player) => {
-        if (window.playerNamesLoader && window.playerNamesLoader.namesMap) {
-          const playerData = window.playerNamesLoader.namesMap.get(String(player.playerId));
-          if (playerData && playerData.name) {
-            return playerData.name;
-          }
-        }
-        // Fallback to jersey number
-        return `שחקן #${player.jersey || player.playerId}`;
-      };
-      
-      // Helper: Render single table
-      const renderTable = (tableId, players, statField, suffix = '') => {
-        const tbody = document.querySelector(`#${tableId} tbody`);
-        if (!tbody) {
-          console.warn(`⚠️ Table ${tableId} not found`);
-          return;
-        }
-        
-        if (!players || players.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-gray-400">אין נתונים</td></tr>';
-          return;
-        }
-        
-        tbody.innerHTML = '';
-        
-        players.forEach((player, index) => {
-          const tr = document.createElement('tr');
-          tr.className = 'border-b border-gray-100 hover:bg-blue-50';
-          
-          const playerName = getPlayerName(player);
-          const teamName = player.teamName || 'לא ידוע';
-          const games = player.gamesPlayed || 0;
-          const statValue = parseFloat(player[statField] || 0).toFixed(1);
-          
-          tr.innerHTML = `
-            <td class="py-2 px-2 font-semibold text-gray-700">${index + 1}</td>
-            <td class="py-2 px-2 text-right font-medium">${playerName}</td>
-            <td class="py-2 px-2 text-right text-sm text-gray-600">${teamName}</td>
-            <td class="py-2 px-2 text-center text-sm text-gray-500">${games}</td>
-            <td class="py-2 px-2 text-center font-bold">${statValue}${suffix}</td>
-          `;
-          
-          tbody.appendChild(tr);
-        });
-      };
-      
-      // Render all 10 tables
-      renderTable('leadersPoints', leaderStats.points, 'ppg');
-      renderTable('leadersRebounds', leaderStats.rebounds, 'rpg');
-      renderTable('leadersAssists', leaderStats.assists, 'apg');
-      renderTable('leadersSteals', leaderStats.steals, 'spg');
-      renderTable('leadersBlocks', leaderStats.blocks, 'bpg');
-      renderTable('leadersMinutes', leaderStats.minutes, 'mpg');
-      renderTable('leadersEfficiency', leaderStats.efficiency, 'efficiencyAvg');
-      renderTable('leadersFG', leaderStats.fieldGoal, 'fgPct', '%');
-      renderTable('leaders3PT', leaderStats.threePoint, 'threePtPct', '%');
-      renderTable('leadersFT', leaderStats.freeThrow, 'ftPct', '%');
-      
-      console.log('✅ League leaders rendered successfully');
-    }
-    
-    // ========================================
-    // GAME PREPARATION TAB
-    // ========================================
-    
-    /**
-     * Initialize Game Prep tab
-     */
-    async function initGamePrep() {
-      console.log('🏀 Initializing Game Prep tab...');
-      
-      gamePrepState.initialized = true;
-      
-      // Populate team selects
-      populateTeamSelects();
-      
-      // Load upcoming games from API (using module from index.html)
-      if (typeof window.loadUpcomingGames === 'function') {
-        try {
-          await window.loadUpcomingGames();
-        } catch (error) {
-          console.error('❌ Error loading upcoming games:', error);
-        }
-      } else {
-        console.warn('⚠️ loadUpcomingGames function not available');
-      }
-      
-      // Setup event listeners
-      setupGamePrepEventListeners();
-      
-      console.log('✅ Game Prep initialized');
-    }
-    
-    /**
-     * Setup event listeners for Game Prep tab
-     */
-    function setupGamePrepEventListeners() {
-      const homeSelect = document.getElementById('homeTeamSelect');
-      const awaySelect = document.getElementById('awayTeamSelect');
-      const analyzeBtn = document.getElementById('analyzeGame');
-      const refreshBtn = document.getElementById('refreshUpcomingGames');
-      const roundSelector = document.getElementById('roundSelector');
-      const player1Select = document.getElementById('player1Select');
-      const player2Select = document.getElementById('player2Select');
-      
-      if (homeSelect && awaySelect && analyzeBtn) {
-        homeSelect.addEventListener('change', () => {
-          updateTeamSelects();
-          updateAnalyzeButton();
-        });
-        
-        awaySelect.addEventListener('change', () => {
-          updateTeamSelects();
-          updateAnalyzeButton();
-        });
-        
-        analyzeBtn.addEventListener('click', () => {
-          const homeTeam = homeSelect.value;
-          const awayTeam = awaySelect.value;
-          if (homeTeam && awayTeam && homeTeam !== awayTeam) {
-            analyzeGame(homeTeam, awayTeam);
-          }
-        });
-      }
-      
-      if (refreshBtn) {
-        refreshBtn.addEventListener('click', () => {
-          if (typeof window.loadUpcomingGames === 'function') {
-            window.loadUpcomingGames();
-          }
-        });
-      }
-      
-      if (roundSelector) {
-        roundSelector.addEventListener('change', (e) => {
-          if (typeof window.renderSelectedRound === 'function') {
-            window.renderSelectedRound(e.target.value);
-          }
-        });
-      }
-      
-      if (player1Select) {
-        player1Select.addEventListener('change', (e) => {
-          gamePrepState.selectedPlayer1 = e.target.value;
-          updatePlayerComparison();
-        });
-      }
-      
-      if (player2Select) {
-        player2Select.addEventListener('change', (e) => {
-          gamePrepState.selectedPlayer2 = e.target.value;
-          updatePlayerComparison();
-        });
-      }
-    }
-    
-    /**
-     * Populate team selection dropdowns
-     */
-    function populateTeamSelects() {
-      if (!allGames || allGames.length === 0) {
-        console.warn('⚠️ No games loaded yet');
-        return;
-      }
-      
-      // Extract unique teams
-      const teamsSet = new Set();
-      allGames.forEach(game => {
-        if (game.homeTeam) teamsSet.add(game.homeTeam);
-        if (game.awayTeam) teamsSet.add(game.awayTeam);
-      });
-      
-      const teams = Array.from(teamsSet).sort((a, b) => a.localeCompare(b, 'he'));
-      
-      const homeSelect = document.getElementById('homeTeamSelect');
-      const awaySelect = document.getElementById('awayTeamSelect');
-      
-      if (homeSelect) {
-        homeSelect.innerHTML = '<option value="">בחר קבוצת בית...</option>';
-        teams.forEach(team => {
-          const option = document.createElement('option');
-          option.value = team;
-          option.textContent = team;
-          homeSelect.appendChild(option);
-        });
-      }
-      
-      if (awaySelect) {
-        awaySelect.innerHTML = '<option value="">בחר קבוצת חוץ...</option>';
-        teams.forEach(team => {
-          const option = document.createElement('option');
-          option.value = team;
-          option.textContent = team;
-          awaySelect.appendChild(option);
-        });
-      }
-      
-      console.log(`✅ Populated team selects with ${teams.length} teams`);
-    }
-    
-    /**
-     * Update team selects to prevent selecting same team twice
-     */
-    function updateTeamSelects() {
-      const homeSelect = document.getElementById('homeTeamSelect');
-      const awaySelect = document.getElementById('awayTeamSelect');
-      
-      if (!homeSelect || !awaySelect) return;
-      
-      const homeTeam = homeSelect.value;
-      const awayTeam = awaySelect.value;
-      
-      // Disable options in away select that match home team
-      Array.from(awaySelect.options).forEach(option => {
-        option.disabled = option.value && option.value === homeTeam;
-      });
-      
-      // Disable options in home select that match away team
-      Array.from(homeSelect.options).forEach(option => {
-        option.disabled = option.value && option.value === awayTeam;
-      });
-    }
-    
-    /**
-     * Enable/disable analyze button
-     */
-    function updateAnalyzeButton() {
-      const homeSelect = document.getElementById('homeTeamSelect');
-      const awaySelect = document.getElementById('awayTeamSelect');
-      const analyzeBtn = document.getElementById('analyzeGame');
-      
-      if (!homeSelect || !awaySelect || !analyzeBtn) return;
-      
-      const homeTeam = homeSelect.value;
-      const awayTeam = awaySelect.value;
-      
-      analyzeBtn.disabled = !(homeTeam && awayTeam && homeTeam !== awayTeam);
-    }
-    
-    
-    /**
-     * Main game analysis function
-     */
-    async function analyzeGame(homeTeamName, awayTeamName) {
-      console.log('📊 Analyzing game:', homeTeamName, 'vs', awayTeamName);
-      
-      gamePrepState.homeTeamName = homeTeamName;
-      gamePrepState.awayTeamName = awayTeamName;
-      
-      // Show analysis section
-      const analysisSection = document.getElementById('gameAnalysis');
-      if (analysisSection) {
-        analysisSection.classList.remove('hidden');
-      }
-      
-      // Load all analyses (existing functionality)
-      loadTeamAverages(homeTeamName, awayTeamName);
-      loadLastFiveGames(homeTeamName, awayTeamName);
-      loadHeadToHeadHistory(homeTeamName, awayTeamName);
-      loadPlayersForComparison(homeTeamName, awayTeamName);
-      
-      // NEW: Perform advanced analysis with Insights V2
-      await performAdvancedAnalysis(homeTeamName, awayTeamName);
-      
-      console.log('✅ Game analysis complete (including advanced insights)');
-    }
-    
-    /**
-     * Calculate home/away record and average margins
-     */
-    function getHomeAwayRecord(teamName, isHome) {
-      const teamGames = allGames.filter(g => 
-        isHome ? g.homeTeam === teamName : g.awayTeam === teamName
-      );
-      
-      let wins = 0;
-      let losses = 0;
-      let winsMargin = [];
-      let lossesMargin = [];
-      
-      teamGames.forEach(game => {
-        const teamScore = isHome ? game.homeScore : game.awayScore;
-        const oppScore = isHome ? game.awayScore : game.homeScore;
-        const margin = teamScore - oppScore;
-        
-        if (margin > 0) {
-          wins++;
-          winsMargin.push(margin);
-        } else {
-          losses++;
-          lossesMargin.push(margin);
-        }
-      });
-      
-      const avgWinsMargin = winsMargin.length > 0 
-        ? (winsMargin.reduce((a, b) => a + b, 0) / winsMargin.length).toFixed(1)
-        : '0.0';
-      
-      const avgLossesMargin = lossesMargin.length > 0 
-        ? (lossesMargin.reduce((a, b) => a + b, 0) / lossesMargin.length).toFixed(1)
-        : '0.0';
-      
-      return {
-        record: `${wins}-${losses}`,
-        wins,
-        losses,
-        avgWinsMargin: parseFloat(avgWinsMargin),
-        avgLossesMargin: parseFloat(avgLossesMargin)
-      };
-    }
-    
-    /**
-     * Load team averages and rankings
-     */
-    function loadTeamAverages(homeTeamName, awayTeamName) {
-      console.log('📈 Loading team averages...');
-      
-      if (!window.ibbaAnalytics) {
-        console.error('❌ Analytics not loaded');
-        return;
-      }
-      
-      const allTeamAvgs = window.ibbaAnalytics.getTeamAverages();
-      
-      const homeTeam = allTeamAvgs.find(t => t.teamName === homeTeamName);
-      const awayTeam = allTeamAvgs.find(t => t.teamName === awayTeamName);
-      
-      if (!homeTeam || !awayTeam) {
-        console.error('❌ Teams not found in averages');
-        return;
-      }
-      
-      // Get home/away records
-      const homeRecord = getHomeAwayRecord(homeTeamName, true);
-      const awayRecord = getHomeAwayRecord(awayTeamName, false);
-      
-      // Calculate rankings
-      const getRanking = (teams, field, value) => {
-        const sorted = teams
-          .map(t => parseFloat(t[field]) || 0)
-          .filter(v => v > 0)
-          .sort((a, b) => b - a);
-        const rank = sorted.findIndex(v => v <= value) + 1;
-        return `${rank}/${sorted.length}`;
-      };
-      
-      const homeStats = {
-        name: homeTeamName,
-        games: homeTeam.gamesPlayed || 0,
-        ppg: parseFloat(homeTeam.ppg) || 0,
-        rpg: parseFloat(homeTeam.rpg) || 0,
-        apg: parseFloat(homeTeam.apg) || 0,
-        spg: parseFloat(homeTeam.spg) || 0,
-        bpg: parseFloat(homeTeam.bpg) || 0,
-        efficiency: parseFloat(homeTeam.efficiencyAvg) || 0,
-        rankPpg: getRanking(allTeamAvgs, 'ppg', parseFloat(homeTeam.ppg)),
-        rankRpg: getRanking(allTeamAvgs, 'rpg', parseFloat(homeTeam.rpg)),
-        rankApg: getRanking(allTeamAvgs, 'apg', parseFloat(homeTeam.apg)),
-        rankSpg: getRanking(allTeamAvgs, 'spg', parseFloat(homeTeam.spg)),
-        rankBpg: getRanking(allTeamAvgs, 'bpg', parseFloat(homeTeam.bpg)),
-        rankEfficiency: getRanking(allTeamAvgs, 'efficiencyAvg', parseFloat(homeTeam.efficiencyAvg)),
-        // Home/Away record
-        record: homeRecord.record,
-        avgWinsMargin: homeRecord.avgWinsMargin,
-        avgLossesMargin: homeRecord.avgLossesMargin,
-        isHome: true
-      };
-      
-      const awayStats = {
-        name: awayTeamName,
-        games: awayTeam.gamesPlayed || 0,
-        ppg: parseFloat(awayTeam.ppg) || 0,
-        rpg: parseFloat(awayTeam.rpg) || 0,
-        apg: parseFloat(awayTeam.apg) || 0,
-        spg: parseFloat(awayTeam.spg) || 0,
-        bpg: parseFloat(awayTeam.bpg) || 0,
-        efficiency: parseFloat(awayTeam.efficiencyAvg) || 0,
-        rankPpg: getRanking(allTeamAvgs, 'ppg', parseFloat(awayTeam.ppg)),
-        rankRpg: getRanking(allTeamAvgs, 'rpg', parseFloat(awayTeam.rpg)),
-        rankApg: getRanking(allTeamAvgs, 'apg', parseFloat(awayTeam.apg)),
-        rankSpg: getRanking(allTeamAvgs, 'spg', parseFloat(awayTeam.spg)),
-        rankBpg: getRanking(allTeamAvgs, 'bpg', parseFloat(awayTeam.bpg)),
-        rankEfficiency: getRanking(allTeamAvgs, 'efficiencyAvg', parseFloat(awayTeam.efficiencyAvg)),
-        // Home/Away record
-        record: awayRecord.record,
-        avgWinsMargin: awayRecord.avgWinsMargin,
-        avgLossesMargin: awayRecord.avgLossesMargin,
-        isHome: false
-      };
-      
-      // Save data for Excel export
-      gamePrepState.teamAveragesData = {
-        homeStats,
-        awayStats
-      };
-      
-      renderTeamAverages(homeStats, awayStats);
-    }
-    
-    /**
-     * Render team averages comparison
-     */
-    function renderTeamAverages(homeStats, awayStats) {
-      const container = document.getElementById('teamAverages');
-      if (!container) return;
-      
-      const createRow = (label, homeVal, homeRank, awayVal, awayRank) => {
-        const homeClass = homeVal > awayVal ? 'bg-green-100 text-green-800 font-bold' : 'bg-red-100 text-red-800';
-        const awayClass = awayVal > homeVal ? 'bg-green-100 text-green-800 font-bold' : 'bg-red-100 text-red-800';
-        
-        return `
-          <div class="bg-white border border-gray-200 rounded-lg p-3">
-            <div class="text-sm font-medium text-gray-600 mb-2">${label}</div>
-            <div class="grid grid-cols-2 gap-3">
-              <div class="${homeClass} rounded p-2 text-center">
-                <div class="font-bold text-lg">${homeVal.toFixed(1)}</div>
-                <div class="text-xs mt-1">דירוג: ${homeRank}</div>
-              </div>
-              <div class="${awayClass} rounded p-2 text-center">
-                <div class="font-bold text-lg">${awayVal.toFixed(1)}</div>
-                <div class="text-xs mt-1">דירוג: ${awayRank}</div>
-              </div>
-            </div>
-          </div>
-        `;
-      };
-      
-      const createRecordRow = (homeStats, awayStats) => {
-        const homeLocation = 'בבית';
-        const awayLocation = 'בחוץ';
-        
-        // Calculate wins - losses for background color
-        const homeRecordParts = homeStats.record.split('-');
-        const homeWins = parseInt(homeRecordParts[0]);
-        const homeLosses = parseInt(homeRecordParts[1]);
-        const homeBalance = homeWins - homeLosses;
-        
-        const awayRecordParts = awayStats.record.split('-');
-        const awayWins = parseInt(awayRecordParts[0]);
-        const awayLosses = parseInt(awayRecordParts[1]);
-        const awayBalance = awayWins - awayLosses;
-        
-        // Choose background color based on balance
-        const homeClass = homeBalance > 0 ? 'bg-green-100 text-green-800' : homeBalance < 0 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800';
-        const awayClass = awayBalance > 0 ? 'bg-green-100 text-green-800' : awayBalance < 0 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800';
-        
-        return `
-          <div class="bg-white border border-gray-200 rounded-lg p-3">
-            <div class="text-sm font-medium text-gray-600 mb-2 text-center">מאזן משחקים</div>
-            <div class="grid grid-cols-2 gap-3">
-              <div class="${homeClass} rounded p-3 text-center">
-                <div class="font-bold text-2xl">${homeStats.record}</div>
-                <div class="text-xs text-gray-600 mt-1 mb-2">${homeLocation}</div>
-                <div class="text-xs text-gray-700 mt-1">
-                  <div class="text-green-700">הפרש ממוצע בניצחונות ${homeLocation}: <span dir="ltr">${homeStats.avgWinsMargin > 0 ? '+' : ''}${homeStats.avgWinsMargin}</span></div>
-                  <div class="text-red-700 mt-1">הפרש ממוצע בהפסדים ${homeLocation}: <span dir="ltr">${homeStats.avgLossesMargin > 0 ? '+' : ''}${homeStats.avgLossesMargin}</span></div>
-                </div>
-              </div>
-              <div class="${awayClass} rounded p-3 text-center">
-                <div class="font-bold text-2xl">${awayStats.record}</div>
-                <div class="text-xs text-gray-600 mt-1 mb-2">${awayLocation}</div>
-                <div class="text-xs text-gray-700 mt-1">
-                  <div class="text-green-700">הפרש ממוצע בניצחונות ${awayLocation}: <span dir="ltr">${awayStats.avgWinsMargin > 0 ? '+' : ''}${awayStats.avgWinsMargin}</span></div>
-                  <div class="text-red-700 mt-1">הפרש ממוצע בהפסדים ${awayLocation}: <span dir="ltr">${awayStats.avgLossesMargin > 0 ? '+' : ''}${awayStats.avgLossesMargin}</span></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        `;
-      };
-      
-      container.innerHTML = `
-        <div class="text-center mb-3 grid grid-cols-2 gap-3">
-          <div class="font-bold text-blue-800">${homeStats.name}</div>
-          <div class="font-bold text-purple-800">${awayStats.name}</div>
-        </div>
-        ${createRow('נקודות למשחק', homeStats.ppg, homeStats.rankPpg, awayStats.ppg, awayStats.rankPpg)}
-        ${createRow('ריבאונדים למשחק', homeStats.rpg, homeStats.rankRpg, awayStats.rpg, awayStats.rankRpg)}
-        ${createRow('אסיסטים למשחק', homeStats.apg, homeStats.rankApg, awayStats.apg, awayStats.rankApg)}
-        ${createRow('חטיפות למשחק', homeStats.spg, homeStats.rankSpg, awayStats.spg, awayStats.rankSpg)}
-        ${createRow('חסימות למשחק', homeStats.bpg, homeStats.rankBpg, awayStats.bpg, awayStats.rankBpg)}
-        ${createRow('יעילות למשחק', homeStats.efficiency, homeStats.rankEfficiency, awayStats.efficiency, awayStats.rankEfficiency)}
-        ${createRecordRow(homeStats, awayStats)}
-      `;
-      
-      console.log('✅ Team averages rendered');
-    }
-    
-    /**
-     * Load last 5 games for both teams
-     */
-    function loadLastFiveGames(homeTeamName, awayTeamName) {
-      console.log('📋 Loading last 5 games...');
-      
-      if (!allGames || allGames.length === 0) return;
-      
-      // Get last 5 games for each team
-      const homeGames = allGames
-        .filter(g => g.homeTeam === homeTeamName || g.awayTeam === homeTeamName)
-        .sort((a, b) => new Date(b.date) - new Date(a.date))
-        .slice(0, 5);
-      
-      const awayGames = allGames
-        .filter(g => g.homeTeam === awayTeamName || g.awayTeam === awayTeamName)
-        .sort((a, b) => new Date(b.date) - new Date(a.date))
-        .slice(0, 5);
-      
-      // Save data for Excel export
-      gamePrepState.lastFiveGamesData = {
-        homeTeam: homeGames,
-        awayTeam: awayGames
-      };
-      
-      renderLastFiveGames(homeTeamName, homeGames, awayTeamName, awayGames);
-    }
-    
-    /**
-     * Render last 5 games
-     */
-    function renderLastFiveGames(homeTeamName, homeGames, awayTeamName, awayGames) {
-      const container = document.getElementById('lastFiveGames');
-      if (!container) return;
-      
-      const renderGamesList = (teamName, games) => {
-        if (!games || games.length === 0) {
-          return '<div class="text-center text-gray-500 py-4">אין משחקים</div>';
-        }
-        
-        return games.map(game => {
-          const isHome = game.homeTeam === teamName;
-          const teamScore = isHome ? game.homeScore : game.awayScore;
-          const oppScore = isHome ? game.awayScore : game.homeScore;
-          const isWin = teamScore > oppScore;
-          const resultText = isWin ? 'ניצחון' : 'הפסד';
-          const resultClass = isWin ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
-          const date = new Date(game.date).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
-          const locationIcon = isHome ? '🏠' : '🚌';
-          const opponent = isHome ? game.awayTeam : game.homeTeam;
-          
-          // פורמט פשוט: תאריך | קבוצה שעוקבים + ניקוד - יריבה + ניקוד | אייקון | תגית
-          // הקבוצה שעוקבים אחריה תמיד ראשונה, לא משנה בית או חוץ
-          
-          return `
-            <div class="bg-white border border-gray-200 rounded p-4 flex items-center justify-start gap-6" dir="rtl">
-              <span class="font-medium text-sm">${date} | ${teamName} ${teamScore} - ${oppScore} ${opponent}</span>
-              <span class="text-3xl flex-shrink-0">${locationIcon}</span>
-              <span class="${resultClass} px-3 py-1 rounded font-semibold text-sm flex-shrink-0 w-20 text-center">${resultText}</span>
-            </div>
-          `;
-        }).join('');
-      };
-      
-      container.innerHTML = `
-        <div>
-          <h4 class="font-semibold text-gray-700 mb-3">${homeTeamName}</h4>
-          <div class="space-y-3">${renderGamesList(homeTeamName, homeGames)}</div>
-        </div>
-        <div>
-          <h4 class="font-semibold text-gray-700 mb-3">${awayTeamName}</h4>
-          <div class="space-y-3">${renderGamesList(awayTeamName, awayGames)}</div>
-        </div>
-      `;
-      
-      console.log('✅ Last 5 games rendered');
-    }
-    
-    /**
-     * Load head-to-head history
-     */
-    function loadHeadToHeadHistory(homeTeamName, awayTeamName) {
-      console.log('⚔️ Loading head-to-head history...');
-      
-      if (!allGames || allGames.length === 0) return;
-      
-      const h2hGames = allGames.filter(game => 
-        (game.homeTeam === homeTeamName && game.awayTeam === awayTeamName) ||
-        (game.homeTeam === awayTeamName && game.awayTeam === homeTeamName)
-      ).sort((a, b) => new Date(b.date) - new Date(a.date));
-      
-      // Save data for Excel export
-      gamePrepState.headToHeadData = h2hGames;
-      
-      renderHeadToHeadHistory(homeTeamName, awayTeamName, h2hGames);
-    }
-    
-    /**
-     * Render head-to-head history
-     */
-    function renderHeadToHeadHistory(homeTeamName, awayTeamName, games) {
-      const container = document.getElementById('headToHead');
-      if (!container) return;
-      
-      if (!games || games.length === 0) {
-        container.innerHTML = '<div class="text-center text-gray-500 py-4">אין מפגשים ישירים בעונה זו</div>';
-        return;
-      }
-      
-      // Calculate records
-      let homeWins = 0, awayWins = 0;
-      games.forEach(game => {
-        const homeScore = game.homeTeam === homeTeamName ? game.homeScore : game.awayScore;
-        const awayScore = game.homeTeam === homeTeamName ? game.awayScore : game.homeScore;
-        if (homeScore > awayScore) homeWins++;
-        else if (awayScore > homeScore) awayWins++;
-      });
-      
-      container.innerHTML = `
-        <div class="mb-4 text-center">
-          <span class="font-bold">${homeTeamName}</span>
-          <span class="mx-3 text-2xl font-bold">${homeWins} - ${awayWins}</span>
-          <span class="font-bold">${awayTeamName}</span>
-        </div>
-        <table class="w-full text-sm border-collapse bg-white">
-          <thead class="bg-gray-100">
-            <tr>
-              <th class="text-right py-2 px-3 border-b font-semibold">תאריך</th>
-              <th class="text-right py-2 px-3 border-b font-semibold">קבוצת בית</th>
-              <th class="text-center py-2 px-3 border-b font-semibold">תוצאה</th>
-              <th class="text-right py-2 px-3 border-b font-semibold">קבוצת חוץ</th>
-              <th class="text-center py-2 px-3 border-b font-semibold">מחזור</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${games.map(game => {
-              const date = new Date(game.date).toLocaleDateString('he-IL');
-              const cycle = game.cycle || game.stage || '-';
-              const winner = game.homeScore > game.awayScore ? game.homeTeam : game.awayTeam;
-              const winnerClass = winner === homeTeamName ? 'bg-green-50' : 'bg-purple-50';
-              
-              return `
-                <tr class="${winnerClass} border-b hover:bg-opacity-70">
-                  <td class="py-2 px-3">${date}</td>
-                  <td class="py-2 px-3 font-medium">${game.homeTeam}</td>
-                  <td class="py-2 px-3 text-center font-bold">${game.homeScore} - ${game.awayScore}</td>
-                  <td class="py-2 px-3 font-medium">${game.awayTeam}</td>
-                  <td class="py-2 px-3 text-center">${cycle}</td>
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
-      `;
-      
-      console.log('✅ Head-to-head history rendered');
-    }
-    
-    /**
-     * Load players for comparison
-     */
-    function loadPlayersForComparison(homeTeamName, awayTeamName) {
-      console.log('👥 Loading players for comparison...');
-      
-      if (!window.ibbaAnalytics) {
-        console.error('❌ Analytics not loaded');
-        return;
-      }
-      
-      const allPlayers = window.ibbaAnalytics.getPlayerAverages();
-      
-      const homePlayers = allPlayers.filter(p => p.teamName === homeTeamName);
-      const awayPlayers = allPlayers.filter(p => p.teamName === awayTeamName);
-      
-      const player1Select = document.getElementById('player1Select');
-      const player2Select = document.getElementById('player2Select');
-      
-      if (player1Select) {
-        player1Select.innerHTML = '<option value="">בחר שחקן ראשון...</option>';
-        player1Select.disabled = false;
-        
-        homePlayers.forEach(player => {
-          const option = document.createElement('option');
-          option.value = player.playerId;
-          option.dataset.team = homeTeamName;
-          
-          // Get player name
-          const playerName = window.playerNamesLoader && window.playerNamesLoader.namesMap
-            ? (window.playerNamesLoader.namesMap.get(String(player.playerId))?.name || `שחקן #${player.jersey || player.playerId}`)
-            : `שחקן #${player.jersey || player.playerId}`;
-          
-          option.textContent = `${playerName} (${homeTeamName})`;
-          player1Select.appendChild(option);
-        });
-      }
-      
-      if (player2Select) {
-        player2Select.innerHTML = '<option value="">בחר שחקן שני...</option>';
-        player2Select.disabled = false;
-        
-        awayPlayers.forEach(player => {
-          const option = document.createElement('option');
-          option.value = player.playerId;
-          option.dataset.team = awayTeamName;
-          
-          // Get player name
-          const playerName = window.playerNamesLoader && window.playerNamesLoader.namesMap
-            ? (window.playerNamesLoader.namesMap.get(String(player.playerId))?.name || `שחקן #${player.jersey || player.playerId}`)
-            : `שחקן #${player.jersey || player.playerId}`;
-          
-          option.textContent = `${playerName} (${awayTeamName})`;
-          player2Select.appendChild(option);
-        });
-      }
-      
-      console.log(`✅ Loaded ${homePlayers.length} players from ${homeTeamName}, ${awayPlayers.length} from ${awayTeamName}`);
-    }
-    
-    /**
-     * Update player comparison when players are selected
-     */
-    function updatePlayerComparison() {
-      const player1Id = gamePrepState.selectedPlayer1;
-      const player2Id = gamePrepState.selectedPlayer2;
-      
-      if (!player1Id || !player2Id) {
-        document.getElementById('playerComparison')?.classList.add('hidden');
-        return;
-      }
-      
-      console.log('🔄 Updating player comparison:', player1Id, 'vs', player2Id);
-      
-      if (!window.ibbaAnalytics) return;
-      
-      const allPlayers = window.ibbaAnalytics.getPlayerAverages();
-      const player1 = allPlayers.find(p => String(p.playerId) === String(player1Id));
-      const player2 = allPlayers.find(p => String(p.playerId) === String(player2Id));
-      
-      if (!player1 || !player2) {
-        console.error('❌ Players not found');
-        return;
-      }
-      
-      renderPlayerComparison(player1, player2);
-    }
-    
-    /**
-     * Render player comparison table
-     */
-    function renderPlayerComparison(player1, player2) {
-      const comparisonDiv = document.getElementById('playerComparison');
-      if (!comparisonDiv) return;
-      
-      const player1NameHeader = document.getElementById('player1Name');
-      const player2NameHeader = document.getElementById('player2Name');
-      const tbody = document.getElementById('comparisonTableBody');
-      
-      if (!tbody) return;
-      
-      // Get player names
-      const getName = (player) => {
-        if (window.playerNamesLoader && window.playerNamesLoader.namesMap) {
-          return window.playerNamesLoader.namesMap.get(String(player.playerId))?.name || `שחקן #${player.jersey || player.playerId}`;
-        }
-        return `שחקן #${player.jersey || player.playerId}`;
-      };
-      
-      const p1Name = getName(player1);
-      const p2Name = getName(player2);
-      
-      // Create comparison rows
-      // Create category header row
-      const createCategoryHeader = (categoryName, player1Name = null, player2Name = null) => {
-        if (player1Name && player2Name) {
-          // First category header with player names
-          return `
-            <tr class="bg-blue-50">
-              <td class="px-4 py-3 text-sm font-bold text-blue-800 text-right">${categoryName}</td>
-              <td class="px-4 py-3 text-sm font-bold text-blue-800 text-center">${player1Name}</td>
-              <td class="px-4 py-3 text-sm font-bold text-blue-800 text-center">${player2Name}</td>
-            </tr>
-          `;
-        } else {
-          // Other category headers without player names
-          return `
-            <tr class="bg-blue-50">
-              <td colspan="3" class="px-4 py-3 text-sm font-bold text-blue-800 text-right">${categoryName}</td>
-            </tr>
-          `;
-        }
-      };
-      
-      const createRow = (label, p1Val, p2Val, suffix = '', useLtr = false) => {
-        const p1Num = parseFloat(p1Val) || 0;
-        const p2Num = parseFloat(p2Val) || 0;
-        
-        let p1Class, p2Class;
-        
-        // Special color logic for Plus/Minus: color by absolute value, not by comparison
-        if (label === 'פלוס/מינוס למשחק') {
-          const getPlusMinusColorClass = (val) => {
-            if (val >= 5) return 'bg-green-100 text-green-800 font-bold'; // +5 and above → dark green
-            if (val >= 1) return 'bg-green-50 text-green-700'; // +1 to +5 → light green
-            if (val >= -1) return 'bg-yellow-50 text-yellow-800'; // -1 to +1 → neutral yellow
-            if (val >= -5) return 'bg-red-50 text-red-700'; // -5 to -1 → light red
-            return 'bg-red-100 text-red-800 font-bold'; // -5 and below → dark red
-          };
-          p1Class = getPlusMinusColorClass(p1Num);
-          p2Class = getPlusMinusColorClass(p2Num);
-        } else {
-          // Normal comparison logic for other stats
-          p1Class = p1Num > p2Num ? 'bg-green-100 text-green-800 font-bold' : 
-                   p1Num < p2Num ? 'bg-red-100 text-red-800' : 
-                   'bg-gray-100 text-gray-800';
-          p2Class = p2Num > p1Num ? 'bg-green-100 text-green-800 font-bold' : 
-                   p2Num < p1Num ? 'bg-red-100 text-red-800' : 
-                   'bg-gray-100 text-gray-800';
-        }
-        
-        // For numeric values (especially negative ones), use LTR direction
-        const dirAttr = useLtr ? ' dir="ltr"' : '';
-        
-        // For Plus/Minus, add explicit + sign for positive values
-        const formatValue = (val) => {
-          if (label === 'פלוס/מינוס למשחק' && val > 0) {
-            return `+${val.toFixed(1)}`;
-          }
-          return `${val.toFixed(1)}${suffix}`;
-        };
-        
-        return `
-          <tr>
-            <td class="px-4 py-3 text-sm font-medium text-gray-900 text-right">${label}</td>
-            <td class="px-4 py-3 text-sm text-center ${p1Class}"${dirAttr}>${formatValue(p1Num)}</td>
-            <td class="px-4 py-3 text-sm text-center ${p2Class}"${dirAttr}>${formatValue(p2Num)}</td>
-          </tr>
-        `;
-      };
-      
-      tbody.innerHTML = `
-        ${createCategoryHeader('סטטיסטיקות משחק', p1Name, p2Name)}
-        ${createRow('נקודות למשחק', player1.ppg, player2.ppg)}
-        ${createRow('ריבאונדים למשחק', player1.rpg, player2.rpg)}
-        ${createRow('אסיסטים למשחק', player1.apg, player2.apg)}
-        ${createRow('חטיפות למשחק', player1.spg, player2.spg)}
-        ${createRow('חסימות למשחק', player1.bpg, player2.bpg)}
-        ${createRow('יעילות (מדד) למשחק', player1.efficiencyAvg, player2.efficiencyAvg)}
-        ${createRow('דקות למשחק', player1.mpg, player2.mpg)}
-        ${createRow('פלוס/מינוס למשחק', player1.plusMinusPg, player2.plusMinusPg, '', true)}
-        <tr><td colspan="3" class="py-2"></td></tr>
-        ${createCategoryHeader('סטטיסטיקות ציון')}
-        ${createRow('אחוזי שדה', player1.fgPct, player2.fgPct, '%')}
-        ${createRow('אחוזי 3 נקודות', player1.threePtPct, player2.threePtPct, '%')}
-        ${createRow('אחוזי עונשין', player1.ftPct, player2.ftPct, '%')}
-      `;
-      
-      comparisonDiv.classList.remove('hidden');
-      console.log('✅ Player comparison rendered');
-    }
-    
-    // Run debug function automatically
-    setTimeout(() => {
-      debugMissingPlayers();
-      
-      // Show refresh button after initial load
-      const refreshBtn = document.getElementById('refreshPlayerNamesBtn');
-      if (refreshBtn && window.playerNamesLoader) {
-        refreshBtn.style.display = 'inline-block';
-      }
-    }, 3500);
-    
-    /**
-     * Force refresh player names from Supabase
-     * Clears cache and reloads from server
-     */
-    async function forceRefreshPlayerNames() {
-      if (!window.playerNamesLoader) {
-        console.error('❌ Player names loader not initialized');
-        return;
-      }
-      
-      console.log('🔄 Force refreshing player names...');
-      
-      // Show loading
-      const statusDiv = document.getElementById('playerNamesStatus');
-      if (statusDiv) {
-        statusDiv.innerHTML = '<span class="animate-pulse">🔄 מרענן שמות שחקנים...</span>';
-        statusDiv.style.display = 'block';
-      }
-      
-      // Clear cache
-      window.playerNamesLoader.clearCache();
-      
-      // Reload from Supabase
-      try {
-        const count = await window.playerNamesLoader.loadFromSupabase();
-        
-        if (count > 0) {
-          console.log(`✅ Refreshed ${count} player names from Supabase`);
-          
-          // Refresh player tab if open
-          if (currentTab === 'players') {
-            // Re-initialize to get fresh names
-            initPlayerStats();
-          }
-          
-          if (statusDiv) {
-            statusDiv.innerHTML = `✅ רוענן! נטענו ${count} שחקנים`;
-            setTimeout(() => statusDiv.style.display = 'none', 3000);
-          }
-        } else {
-          throw new Error('No data loaded from Supabase');
-        }
-        
-      } catch (error) {
-        console.error('❌ Refresh failed:', error);
-        if (statusDiv) {
-          statusDiv.innerHTML = '❌ רענון נכשל';
-          setTimeout(() => statusDiv.style.display = 'none', 3000);
-        }
-      }
-    }
-
-    // ========================================
-    // ADVANCED INSIGHTS V2 INTEGRATION
-    // ========================================
-    
-    // Store current report for insights regeneration
-    let currentAdvancedReport = null;
-    
-    /**
-     * Find game by team names
-     */
-    function findGameByTeams(homeTeam, awayTeam) {
-      if (!allGames || allGames.length === 0) {
-        console.warn('⚠️ No games available to find match');
-        return null;
-      }
-      
-      const game = allGames.find(g => 
-        g.homeTeam === homeTeam && g.awayTeam === awayTeam
-      );
-      
-      if (game) {
-        console.log(`✅ Found game: ${homeTeam} vs ${awayTeam} on ${game.date}`);
-      } else {
-        console.warn(`⚠️ No game found for ${homeTeam} vs ${awayTeam}`);
-      }
-      
-      return game;
-    }
-
-    /**
-     * Perform advanced analysis using Insights V2 system
-     */
-    async function performAdvancedAnalysis(homeTeam, awayTeam) {
-      console.log(`🔬 Performing advanced analysis: ${homeTeam} vs ${awayTeam}`);
-      
-      // Show advanced section and loading
-      const advancedSection = document.getElementById('advancedAnalysis');
-      const loadingDiv = document.getElementById('analysisLoading');
-      const tldrSection = document.getElementById('tldrSection');
-      
-      if (advancedSection) advancedSection.classList.remove('hidden');
-      if (loadingDiv) loadingDiv.classList.remove('hidden');
-      if (tldrSection) tldrSection.classList.add('hidden');
-      
-      try {
-        // Initialize analytics with all games
-        if (!window.IBBAAnalytics) {
-          throw new Error('IBBAAnalytics not loaded');
-        }
-        if (!window.IBBAAdvanced) {
-          throw new Error('IBBAAdvanced not loaded');
-        }
-        
-        const analytics = new window.IBBAAnalytics(allGames);
-        const advanced = new window.IBBAAdvanced(analytics);
-        
-        // העבר שמות שחקנים אם זמין
-        if (window.playerNamesLoader) {
-          advanced.setPlayerNames(window.playerNamesLoader);
-          console.log('✅ Player names connected to Insights V2');
-        }
-        
-        // Build matchup report (this will load standings from HTML)
-        const report = await advanced.buildMatchupReport(homeTeam, awayTeam);
-        currentAdvancedReport = report;
-        
-        // Find and save game info (including date) for export
-        const gameInfo = findGameByTeams(homeTeam, awayTeam);
-        if (gameInfo) {
-          currentAdvancedReport.gameInfo = gameInfo;
-        }
-        
-        console.log('📊 Advanced report generated:', report);
-        
-        // Hide loading
-        if (loadingDiv) loadingDiv.classList.add('hidden');
-        
-        // Display results
-        displayAdvancedAnalysis(report);
-        
-      } catch (error) {
-        console.error('❌ Advanced analysis failed:', error);
-        if (loadingDiv) {
-          loadingDiv.innerHTML = `
-            <div class="text-red-600">
-              <div class="text-4xl mb-3">⚠️</div>
-              <p class="font-semibold">שגיאה בניתוח מתקדם</p>
-              <p class="text-sm mt-2">${error.message}</p>
-            </div>
-          `;
-        }
-      }
-    }
-    
-    /**
-     * Display advanced analysis results
-     */
-    function displayAdvancedAnalysis(report) {
-      console.log('🎨 Displaying advanced analysis results');
-      
-      // Display TL;DR
-      displayTLDR(report.narrative.tldr);
-      
-      // Display team cards
-      displayTeamCard('teamAHeaderAdvanced', 'teamAStatsAdvanced', report.teamA, report.comparison);
-      displayTeamCard('teamBHeaderAdvanced', 'teamBStatsAdvanced', report.teamB, report.comparison);
-      
-      // Display Insights V2
-      displayInsightsV2(report.insightsV2);
-      
-      // Display H2H if available
-      if (report.h2h.totalGames > 0) {
-        displayH2HAdvanced(report.h2h);
-      }
-      
-      // Show TL;DR section
-      const tldrSection = document.getElementById('tldrSection');
-      if (tldrSection) tldrSection.classList.remove('hidden');
-    }
-    
-    /**
-     * Display TL;DR (quick summary for broadcasters)
-     */
-    function displayTLDR(tldrItems) {
-      const container = document.getElementById('tldrContent');
-      if (!container || !tldrItems) return;
-      
-      container.innerHTML = tldrItems.map(item => `
-        <div class="flex items-start gap-3 bg-white/60 rounded-lg p-3 border border-purple-200">
-          <span class="text-purple-600 text-lg">▪</span>
-          <span class="text-gray-800 leading-relaxed">${item}</span>
-        </div>
-      `).join('');
-    }
-    
-    /**
-     * Display team card with stats
-     */
-    function displayTeamCard(headerId, statsId, teamData, comparison) {
-      const header = document.getElementById(headerId);
-      const stats = document.getElementById(statsId);
-      
-      if (!header || !stats) return;
-      
-      const team = teamData.name;
-      const rank = teamData.rank || '?';
-      const record = `${teamData.stats?.wins || 0}-${teamData.stats?.losses || 0}`;
-      
-      // Update header with rank
-      header.innerHTML = `
-        🏀 ${team}
-        <span class="text-sm font-normal">מקום ${rank} (${record})</span>
-      `;
-      
-      // Build stats HTML
-      const statsData = teamData.stats || {};
-      const trend = teamData.trend || {};
-      
-      stats.innerHTML = `
-        <div class="grid grid-cols-2 gap-3">
-          <div class="bg-white/70 rounded p-2">
-            <div class="text-xs text-gray-600">ניקוד</div>
-            <div class="font-bold text-lg">${parseFloat(statsData.ppg || 0).toFixed(1)}</div>
-          </div>
-          <div class="bg-white/70 rounded p-2">
-            <div class="text-xs text-gray-600">הגנה</div>
-            <div class="font-bold text-lg">${parseFloat(statsData.oppPpg || 0).toFixed(1)}</div>
-          </div>
-          <div class="bg-white/70 rounded p-2">
-            <div class="text-xs text-gray-600">ריבאונדים</div>
-            <div class="font-bold text-lg">${parseFloat(statsData.rpg || 0).toFixed(1)}</div>
-          </div>
-          <div class="bg-white/70 rounded p-2">
-            <div class="text-xs text-gray-600">אסיסטים</div>
-            <div class="font-bold text-lg">${parseFloat(statsData.apg || 0).toFixed(1)}</div>
-          </div>
+    <!-- Authentication Modal -->
+    <div id="authModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-xl font-semibold text-gray-900">כניסת מנהל</h3>
+          <button id="closeAuthModal" class="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
         </div>
         
-        ${trend.streak ? `
-          <div class="mt-3 p-2 rounded ${trend.streak.type === 'win' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
-            <div class="text-xs font-medium">רצף נוכחי</div>
-            <div class="font-bold">${trend.streak.count} ${trend.streak.type === 'win' ? 'ניצחונות' : 'הפסדים'}</div>
+        <form id="authLoginForm" class="space-y-4">
+          <div>
+            <label for="authPassword" class="block text-sm font-medium text-gray-700 mb-2">סיסמה</label>
+            <input 
+              type="password" 
+              id="authPassword" 
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="הזן סיסמת מנהל"
+              autocomplete="current-password"
+            />
           </div>
-        ` : ''}
-        
-        ${trend.lastNWins !== undefined ? `
-          <div class="mt-2 p-2 bg-white/70 rounded">
-            <div class="text-xs text-gray-600">5 משחקים אחרונים</div>
-            <div class="font-bold">${trend.lastNWins}/${trend.lastN || 5} ניצחונות</div>
+          
+          <div id="authError" class="hidden text-red-600 text-sm bg-red-50 p-2 rounded"></div>
+          
+          <div class="flex gap-3">
+            <button 
+              type="submit" 
+              id="authSubmitBtn"
+              class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+            >
+              התחבר
+            </button>
+            <button 
+              type="button" 
+              onclick="document.getElementById('authModal').classList.add('hidden')"
+              class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors"
+            >
+              ביטול
+            </button>
           </div>
-        ` : ''}
-      `;
-    }
-    
-    /**
-     * Display Insights V2
-     */
-    function displayInsightsV2(insightsV2) {
-      if (!insightsV2) {
-        console.warn('⚠️ No insights V2 data');
-        return;
-      }
-      
-      // Store all insights globally for filtering
-      window.currentInsights = insightsV2;
-      
-      // Count insights by category
-      const counts = {};
-      let totalCount = 0;
-      Object.entries(insightsV2).forEach(([category, insights]) => {
-        counts[category] = insights.length;
-        totalCount += insights.length;
-      });
-      
-      // Update counter
-      const counter = document.getElementById('insightsCounter');
-      if (counter) {
-        counter.innerHTML = `
-          סה"כ ${totalCount} תובנות:
-          ${Object.entries(counts).filter(([_, count]) => count > 0).map(([cat, count]) => 
-            `<span class="mr-2">${getCategoryIcon(cat)} ${count}</span>`
-          ).join(' • ')}
-        `;
-      }
-      
-      // Show all insights initially
-      showInsightCategory('all');
-    }
-    
-    /**
-     * Get category icon
-     */
-    function getCategoryIcon(category) {
-      const icons = {
-        'STREAKS': '🔥',
-        'PLAYERS': '👤',
-        'OFFENSE': '⚡',
-        'DEFENSE': '🛡️',
-        'MOMENTUM': '📈',
-        'H2H': '🤝',
-        'QUARTERS': '🕐',
-        'LEAGUE': '📊'
-      };
-      return icons[category] || '💡';
-    }
-    
-    /**
-     * Show insights by category
-     */
-    function showInsightCategory(category) {
-      const insights = window.currentInsights;
-      if (!insights) return;
-      
-      // Update active tab
-      document.querySelectorAll('.insight-cat-tab').forEach(btn => {
-        btn.classList.remove('active', 'bg-amber-200', 'text-amber-900', 'font-medium');
-      });
-      
-      // Add active class to clicked button or first button for 'all'
-      if (typeof event !== 'undefined' && event.target) {
-        event.target.classList.add('active', 'bg-amber-200', 'text-amber-900', 'font-medium');
-      } else if (category === 'all') {
-        // Auto-select first button when called without event
-        const firstButton = document.querySelector('.insight-cat-tab');
-        if (firstButton) {
-          firstButton.classList.add('active', 'bg-amber-200', 'text-amber-900', 'font-medium');
-        }
-      }
-      
-      // Collect insights to display
-      let insightsToShow = [];
-      
-      if (category === 'all') {
-        // Show all categories
-        Object.entries(insights).forEach(([cat, items]) => {
-          items.forEach(item => {
-            insightsToShow.push({ ...item, category: cat });
-          });
-        });
-      } else {
-        // Show specific category
-        insightsToShow = (insights[category] || []).map(item => ({ ...item, category }));
-      }
-      
-      // Sort by importance
-      const importanceOrder = { 'high': 0, 'medium': 1, 'low': 2 };
-      insightsToShow.sort((a, b) => {
-        const aImp = importanceOrder[a.importance] || 2;
-        const bImp = importanceOrder[b.importance] || 2;
-        return aImp - bImp;
-      });
-      
-      // Render insights
-      const container = document.getElementById('insightsDisplay');
-      if (!container) return;
-      
-      if (insightsToShow.length === 0) {
-        container.innerHTML = `
-          <div class="text-center py-8 text-gray-500">
-            <div class="text-4xl mb-2">🤷</div>
-            <p>אין תובנות בקטגוריה זו</p>
-          </div>
-        `;
-        return;
-      }
-      
-      container.innerHTML = insightsToShow.map(insight => {
-        const importanceColors = {
-          'high': 'bg-red-50 border-red-300 text-red-900',
-          'medium': 'bg-blue-50 border-blue-300 text-blue-900',
-          'low': 'bg-gray-50 border-gray-300 text-gray-900'
-        };
-        const colorClass = importanceColors[insight.importance] || importanceColors['low'];
+        </form>
         
-        return `
-          <div class="insight-item ${colorClass} border rounded-lg p-3 hover:shadow-md transition-shadow">
-            <div class="flex items-start gap-3">
-              <span class="text-2xl">${insight.icon || '💡'}</span>
-              <div class="flex-1">
-                <div class="text-sm font-medium leading-relaxed">${insight.text}</div>
-              </div>
-              <span class="text-xs px-2 py-1 bg-white/60 rounded-full whitespace-nowrap">
-                ${getCategoryIcon(insight.category)} ${getCategoryName(insight.category)}
-              </span>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-    
-    /**
-     * Get category name in Hebrew
-     */
-    function getCategoryName(category) {
-      const names = {
-        'STREAKS': 'רצפים',
-        'PLAYERS': 'שחקנים',
-        'OFFENSE': 'התקפה',
-        'DEFENSE': 'הגנה',
-        'MOMENTUM': 'מומנטום',
-        'H2H': 'H2H',
-        'QUARTERS': 'רבעים',
-        'LEAGUE': 'ליגה'
-      };
-      return names[category] || category;
-    }
-    
-    /**
-     * Regenerate insights with new variations
-     */
-    function regenerateInsights() {
-      if (!currentAdvancedReport) {
-        console.warn('⚠️ No report to regenerate');
-        return;
-      }
-      
-      console.log('🎲 Regenerating insights with new variations...');
-      
-      // Just re-display the insights (templates are randomly selected each time)
-      displayInsightsV2(currentAdvancedReport.insightsV2);
-    }
-    
-    /**
-     * Export insights to Excel
-     */
-    // Wrapper function for proper async error handling
-    function handleExcelExport() {
-      exportInsightsToExcel().catch(error => {
-        console.error('❌ Unhandled error in Excel export:', error);
-        alert('שגיאה לא צפויה ביצירת קובץ Excel: ' + error.message);
-      });
-    }
-
-    async function exportInsightsToExcel() {
-      if (!currentAdvancedReport || !currentAdvancedReport.insightsV2) {
-        alert('אין תובנות לייצוא. אנא בחר משחק ובצע ניתוח תחילה.');
-        return;
-      }
-
-      // Prepare data for Excel (array of arrays)
-      const excelData = [];
-      
-      // Get team names
-      const homeTeamName = gamePrepState.homeTeamName || 'קבוצת בית';
-      const awayTeamName = gamePrepState.awayTeamName || 'קבוצת חוץ';
-      
-      // ========================================
-      // SECTION 1: TEAM AVERAGES AND RANKINGS
-      // ========================================
-      if (gamePrepState.teamAveragesData) {
-        const { homeStats, awayStats } = gamePrepState.teamAveragesData;
-        
-        excelData.push(['']); // Empty row
-        excelData.push(['=== ממוצעים ודירוגים ===']);
-        excelData.push(['']); // Empty row
-        excelData.push(['סטטיסטיקה', `${homeTeamName} (בית)`, `${awayTeamName} (חוץ)`]);
-        
-        excelData.push(['נקודות למשחק', `${homeStats.ppg.toFixed(1)} (דירוג: ${homeStats.rankPpg})`, `${awayStats.ppg.toFixed(1)} (דירוג: ${awayStats.rankPpg})`]);
-        excelData.push(['ריבאונדים למשחק', `${homeStats.rpg.toFixed(1)} (דירוג: ${homeStats.rankRpg})`, `${awayStats.rpg.toFixed(1)} (דירוג: ${awayStats.rankRpg})`]);
-        excelData.push(['אסיסטים למשחק', `${homeStats.apg.toFixed(1)} (דירוג: ${homeStats.rankApg})`, `${awayStats.apg.toFixed(1)} (דירוג: ${awayStats.rankApg})`]);
-        excelData.push(['חטיפות למשחק', `${homeStats.spg.toFixed(1)} (דירוג: ${homeStats.rankSpg})`, `${awayStats.spg.toFixed(1)} (דירוג: ${awayStats.rankSpg})`]);
-        excelData.push(['חסימות למשחק', `${homeStats.bpg.toFixed(1)} (דירוג: ${homeStats.rankBpg})`, `${awayStats.bpg.toFixed(1)} (דירוג: ${awayStats.rankBpg})`]);
-        excelData.push(['יעילות למשחק', `${homeStats.efficiency.toFixed(1)} (דירוג: ${homeStats.rankEfficiency})`, `${awayStats.efficiency.toFixed(1)} (דירוג: ${awayStats.rankEfficiency})`]);
-        excelData.push(['מאזן (בית/חוץ)', homeStats.record, awayStats.record]);
-        excelData.push(['הפרש ממוצע בניצחונות', homeStats.avgWinsMargin.toFixed(1), awayStats.avgWinsMargin.toFixed(1)]);
-        excelData.push(['הפרש ממוצע בהפסדים', homeStats.avgLossesMargin.toFixed(1), awayStats.avgLossesMargin.toFixed(1)]);
-      }
-      
-      // ========================================
-      // SECTION 2: LAST 5 GAMES
-      // ========================================
-      if (gamePrepState.lastFiveGamesData) {
-        const { homeTeam: homeGames, awayTeam: awayGames } = gamePrepState.lastFiveGamesData;
-        
-        // Home team last 5 games
-        excelData.push(['']); // Empty row
-        excelData.push(['']); // Empty row
-        excelData.push([`=== 5 משחקים אחרונים - ${homeTeamName} ===`]);
-        excelData.push(['']); // Empty row
-        
-        if (homeGames && homeGames.length > 0) {
-          excelData.push(['תאריך', 'יריבה', 'תוצאה', 'ניקוד', 'מיקום']);
-          homeGames.forEach(game => {
-            const isHome = game.homeTeam === homeTeamName;
-            const teamScore = isHome ? game.homeScore : game.awayScore;
-            const oppScore = isHome ? game.awayScore : game.homeScore;
-            const opponent = isHome ? game.awayTeam : game.homeTeam;
-            const result = teamScore > oppScore ? 'ניצחון' : 'הפסד';
-            const location = isHome ? 'בית' : 'חוץ';
-            const date = new Date(game.date).toLocaleDateString('he-IL');
-            
-            excelData.push([date, opponent, result, `${teamScore}-${oppScore}`, location]);
-          });
-        } else {
-          excelData.push(['אין משחקים']);
-        }
-        
-        // Away team last 5 games
-        excelData.push(['']); // Empty row
-        excelData.push([`=== 5 משחקים אחרונים - ${awayTeamName} ===`]);
-        excelData.push(['']); // Empty row
-        
-        if (awayGames && awayGames.length > 0) {
-          excelData.push(['תאריך', 'יריבה', 'תוצאה', 'ניקוד', 'מיקום']);
-          awayGames.forEach(game => {
-            const isHome = game.homeTeam === awayTeamName;
-            const teamScore = isHome ? game.homeScore : game.awayScore;
-            const oppScore = isHome ? game.awayScore : game.homeScore;
-            const opponent = isHome ? game.awayTeam : game.homeTeam;
-            const result = teamScore > oppScore ? 'ניצחון' : 'הפסד';
-            const location = isHome ? 'בית' : 'חוץ';
-            const date = new Date(game.date).toLocaleDateString('he-IL');
-            
-            excelData.push([date, opponent, result, `${teamScore}-${oppScore}`, location]);
-          });
-        } else {
-          excelData.push(['אין משחקים']);
-        }
-      }
-      
-      // ========================================
-      // SECTION 3: HEAD-TO-HEAD
-      // ========================================
-      excelData.push(['']); // Empty row
-      excelData.push(['']); // Empty row
-      excelData.push(['=== מפגשים ישירים בעונה ===']);
-      excelData.push(['']); // Empty row
-      
-      if (gamePrepState.headToHeadData && gamePrepState.headToHeadData.length > 0) {
-        const h2hGames = gamePrepState.headToHeadData;
-        
-        // Calculate records
-        let homeWins = 0, awayWins = 0;
-        h2hGames.forEach(game => {
-          const homeScore = game.homeTeam === homeTeamName ? game.homeScore : game.awayScore;
-          const awayScore = game.homeTeam === homeTeamName ? game.awayScore : game.homeScore;
-          if (homeScore > awayScore) homeWins++;
-          else if (awayScore > homeScore) awayWins++;
-        });
-        
-        excelData.push([`מאזן ניצחונות: ${homeTeamName} ${homeWins}-${awayWins} ${awayTeamName}`]);
-        excelData.push(['']); // Empty row
-        
-        excelData.push(['תאריך', 'קבוצת בית', 'ניקוד', 'קבוצת חוץ', 'ניקוד', 'מנצחת']);
-        h2hGames.forEach(game => {
-          const date = new Date(game.date).toLocaleDateString('he-IL');
-          const winner = game.homeScore > game.awayScore ? game.homeTeam : game.awayTeam;
-          excelData.push([date, game.homeTeam, game.homeScore, game.awayTeam, game.awayScore, winner]);
-        });
-      } else {
-        excelData.push(['אין מפגשים ישירים בעונה זו']);
-      }
-      
-      // ========================================
-      // SECTION 4: QUICK SUMMARY (TL;DR)
-      // ========================================
-      if (currentAdvancedReport.narrative && currentAdvancedReport.narrative.tldr) {
-        excelData.push(['']); // Empty row
-        excelData.push(['']); // Empty row
-        excelData.push(['=== סיכום מהיר לשדרן ===']);
-        excelData.push(['']); // Empty row
-        
-        currentAdvancedReport.narrative.tldr.forEach(item => {
-          excelData.push([`• ${item}`]);
-        });
-      }
-      
-      // ========================================
-      // SECTION 5: KEY INSIGHTS
-      // ========================================
-      const insightsV2 = currentAdvancedReport.insightsV2;
-      
-      excelData.push(['']); // Empty row
-      excelData.push(['']); // Empty row
-      excelData.push(['=== תובנות מרכזיות למשחק ===']);
-      excelData.push(['']); // Empty row
-      excelData.push(['קטגוריה', 'חשיבות', 'קבוצה', 'תובנה']);
-      
-      // Category names in Hebrew
-      const categoryNames = {
-        'STREAKS': 'רצפים',
-        'PLAYERS': 'שחקנים',
-        'OFFENSE': 'התקפה',
-        'DEFENSE': 'הגנה',
-        'MOMENTUM': 'מומנטום',
-        'H2H': 'מפגשים ישירים',
-        'QUARTERS': 'רבעים',
-        'LEAGUE': 'ליגה',
-        'VENUE': 'בית/חוץ'
-      };
-      
-      const importanceNames = {
-        'high': 'גבוהה',
-        'medium': 'בינונית',
-        'low': 'נמוכה'
-      };
-
-      // Category order for organized export
-      const categoryOrder = ['STREAKS', 'PLAYERS', 'OFFENSE', 'DEFENSE', 'MOMENTUM', 'H2H', 'QUARTERS', 'LEAGUE', 'VENUE'];
-
-      // Iterate through categories in order
-      categoryOrder.forEach(category => {
-        const insights = insightsV2[category];
-        if (insights && insights.length > 0) {
-          insights.forEach(insight => {
-            excelData.push([
-              categoryNames[category] || category,
-              importanceNames[insight.importance] || insight.importance,
-              insight.teamName || '',
-              insight.text || ''
-            ]);
-          });
-        }
-      });
-
-      // Check if there's any data to export
-      if (excelData.length === 0) {
-        alert('אין נתונים לייצוא.');
-        return;
-      }
-
-      // Create workbook and worksheet
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.aoa_to_sheet(excelData);
-      
-      // Set column widths
-      ws['!cols'] = [
-        { wch: 20 },  // Column 1
-        { wch: 30 },  // Column 2
-        { wch: 30 },  // Column 3
-        { wch: 80 }   // Column 4 (for long text)
-      ];
-
-      const sheetName = 'הכנה למשחק';
-      XLSX.utils.book_append_sheet(wb, ws, sheetName);
-
-      // Write to ArrayBuffer
-      const xlsxArray = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-
-      // Post-process with JSZip to inject RTL
-      try {
-        const zip = await JSZip.loadAsync(xlsxArray);
-        
-        const sheetIndex = wb.SheetNames.indexOf(sheetName);
-        const sheetPath = `xl/worksheets/sheet${sheetIndex + 1}.xml`;
-        const sheetFile = zip.file(sheetPath);
-
-        if (sheetFile) {
-          let xml = await sheetFile.async('string');
-
-          // Inject rightToLeft="1" into sheetView
-          if (xml.includes('<sheetViews')) {
-            xml = xml.replace(
-              /<sheetView\b([^>]*)>/,
-              (m, attrs) =>
-                attrs.includes('rightToLeft=')
-                  ? m.replace(/rightToLeft="[^"]*"/, 'rightToLeft="1"')
-                  : `<sheetView rightToLeft="1"${attrs}>`
-            );
-          } else {
-            xml = xml.replace(
-              /<worksheet\b([^>]*)>/,
-              `<worksheet$1><sheetViews><sheetView rightToLeft="1" workbookViewId="0"/></sheetViews>`
-            );
-          }
-
-          zip.file(sheetPath, xml);
-        }
-
-        // Generate filename with team names and date
-        const homeSelect = document.getElementById('homeTeamSelect');
-        const awaySelect = document.getElementById('awayTeamSelect');
-        const homeTeam = homeSelect?.selectedOptions?.[0]?.text || 'קבוצת-בית';
-        const awayTeam = awaySelect?.selectedOptions?.[0]?.text || 'קבוצת-חוץ';
-        
-        // Format date as DDMMYYYY (use game date if available)
-        let dateToUse;
-        if (currentAdvancedReport.gameInfo && currentAdvancedReport.gameInfo.date) {
-          dateToUse = new Date(currentAdvancedReport.gameInfo.date);
-          console.log('📅 Using game date:', currentAdvancedReport.gameInfo.date);
-        } else {
-          dateToUse = new Date();
-          console.log('📅 Using current date (no game date found)');
-        }
-        
-        const day = String(dateToUse.getDate()).padStart(2, '0');
-        const month = String(dateToUse.getMonth() + 1).padStart(2, '0');
-        const year = dateToUse.getFullYear();
-        const dateStr = `${day}${month}${year}`;
-        // Filename format: "הכנה למשחק_DDMMYYYY_שם-קבוצת-בית_נגד_שם-קבוצת-חוץ"
-        const filename = `הכנה למשחק_${dateStr}_${homeTeam}_נגד_${awayTeam}.xlsx`;
-
-        // Generate Blob and download
-        const outBlob = await zip.generateAsync({ type: 'blob' });
-        
-        // Trigger download
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(outBlob);
-        link.download = filename;
-        link.click();
-        URL.revokeObjectURL(link.href);
-
-        console.log(`✅ Exported complete game preparation data to Excel with RTL`);
-      } catch (error) {
-        console.error('❌ Error processing Excel file:', error);
-        alert('שגיאה ביצירת קובץ Excel. אנא נסה שוב.');
-      }
-    }
-
-
-    
-    /**
-     * Display H2H advanced data
-     */
-    function displayH2HAdvanced(h2h) {
-      const section = document.getElementById('h2hAdvancedSection');
-      const container = document.getElementById('h2hAdvancedContent');
-      
-      if (!section || !container) return;
-      
-      section.classList.remove('hidden');
-      
-      container.innerHTML = `
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <div class="bg-white rounded-lg p-4 text-center">
-            <div class="text-3xl font-bold text-indigo-600">${h2h.totalGames}</div>
-            <div class="text-sm text-gray-600">סה"כ משחקים</div>
-          </div>
-          <div class="bg-white rounded-lg p-4 text-center">
-            <div class="text-3xl font-bold text-green-600">${h2h.teamAWins}-${h2h.teamBWins}</div>
-            <div class="text-sm text-gray-600">מאזן ניצחונות</div>
-          </div>
-          <div class="bg-white rounded-lg p-4 text-center">
-            <div class="text-3xl font-bold text-orange-600">${h2h.avgMargin}</div>
-            <div class="text-sm text-gray-600">פער ממוצע</div>
-          </div>
+        <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p class="text-xs text-blue-800">
+            <strong>💡 למנהלי המערכת:</strong> לאחר התחברות תוכל לגשת לכל הכלים וטאבי הניהול.
+          </p>
         </div>
-        
-        ${h2h.lastMeeting ? `
-          <div class="bg-white rounded-lg p-4">
-            <h4 class="font-semibold text-indigo-800 mb-2">מפגש אחרון</h4>
-            <p class="text-gray-800">
-              <span class="font-bold">${h2h.lastMeeting.winner}</span> ניצחה 
-              ${h2h.lastMeeting.teamAScore}-${h2h.lastMeeting.teamBScore}
-              (פער: ${h2h.lastMeeting.margin} נקודות)
-            </p>
-          </div>
-        ` : ''}
-      `;
-    }
+      </div>
+    </div>
+
+    <!-- Configuration and Core Libraries -->
+    <script defer src="js/config.js?v=2"></script>
+    <script defer src="js/db_adapter.js?v=4"></script>
+    <script defer src="js/auth.js?v=2"></script>
+    <script defer src="js/app_version.js?v=1"></script>
+    <script defer src="js/gameAnalysis.js?v=1"></script>
+    <script defer src="js/preGamePrep.js?v=1"></script>
+    <script defer src="js/preGameNarratives.js?v=1"></script>
+    <script defer src="js/app_utils.js?v=7"></script>
+    <script defer src="js/app_game_serial.js?v=8"></script>
+    <script defer src="js/cp1252Utf8Repair.js?v=4"></script>
+    <script defer src="js/app_teams_ui.js?v=36"></script>
+    <script defer src="js/app_events.js?v=8"></script>
+    <script defer src="js/app_bootstrap.js?v=9"></script>
+    <script defer src="js/app_last_mile.js?v=7"></script>
+    <script defer src="js/app_expose.js?v=8"></script>
+    <script defer src="js/app_game_analysis.js?v=1"></script>
+    <script defer src="js/team_merge_tool.js?v=1"></script>
+    <script defer src="js/player_merge_tool.js?v=12"></script>
+    <script defer src="js/app_db_save.js?v=93"></script>
     
-  </script>
 </body>
 </html>
-

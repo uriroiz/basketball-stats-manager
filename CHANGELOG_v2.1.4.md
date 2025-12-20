@@ -198,3 +198,8 @@ const MAX_RANK = Math.ceil(leagueSize * 0.4); // 40% עליון
 
 
 
+
+
+
+
+

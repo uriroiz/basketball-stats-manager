@@ -926,9 +926,6 @@ class IBBAAdvanced {
     comparison.efficiency.advantage = comparison.efficiency.teamATS > comparison.efficiency.teamBTS ? teamA : teamB;
     comparison.pace.expectedPace = ((comparison.pace.teamAPace + comparison.pace.teamBPace) / 2).toFixed(1);
 
-    // Build narrative
-    const narrative = this.buildNarrative(teamA, teamB, teamAStats, teamBStats, teamAAdv, teamBAdv, teamATrend, teamBTrend, h2h, comparison, teamARank, teamBRank);
-
     // Generate insights - בדיקה אם יש מערכת Insights V2
     let insights = [];
     let insightsV2 = null;
@@ -965,6 +962,9 @@ class IBBAAdvanced {
       });
     }
 
+    // Build narrative - with insightsV2 for enhanced TL;DR
+    const narrative = this.buildNarrative(teamA, teamB, teamAStats, teamBStats, teamAAdv, teamBAdv, teamATrend, teamBTrend, h2h, comparison, teamARank, teamBRank, insightsV2);
+
     console.timeEnd('⏱️ Matchup Report');
 
     return {
@@ -994,60 +994,193 @@ class IBBAAdvanced {
   }
 
   /**
-   * בניית נרטיב לשדרן (מבוסס על preGameNarratives.js)
+   * חישוב ניקוד לכל Insight לפי חשיבות (Weighted Scoring)
    */
-  buildNarrative(teamA, teamB, statsA, statsB, advA, advB, trendA, trendB, h2h, comparison, rankA, rankB) {
+  calculateInsightScore(insight) {
+    const weights = {
+      // קונפליקטים וזהות ליגתית
+      'DEFENSIVE_WALL': 80,
+      'HIGH_SCORING': 80,
+      // מומנטום ודומיננטיות
+      'WINNING_STREAK': 75,
+      'BLOWOUT_WINS': 70,
+      'LOSING_STREAK': 70,
+      'CLUTCH_STREAK': 65,
+      // שחקנים מובילים
+      'HOT_HAND': 65,
+      'TEAM_LEADER': 60,
+      // קאמבקים ורבעים
+      'COMEBACK_KINGS': 55,
+      'BEST_QUARTER': 50,
+      'QUARTER_DOMINANCE': 50,
+      // מגמות
+      'SCHEDULE_STRENGTH': 45,
+      'SEASON_HALVES': 40,
+      // ברירת מחדל
+      'default': 30
+    };
+    
+    let score = weights[insight.type] || weights['default'];
+    
+    // בונוס לפי importance
+    if (insight.importance === 'high') score += 15;
+    else if (insight.importance === 'medium') score += 5;
+    
+    // בונוס לפי rank (אם קיים ומקום 1-3)
+    if (insight.rank && insight.rank <= 3) score += 20;
+    
+    // בונוס לפי ערך (value) גבוה
+    if (insight.value) {
+      const val = parseFloat(insight.value);
+      if (insight.type === 'WINNING_STREAK' && val >= 5) score += 10;
+      if (insight.type === 'BLOWOUT_WINS' && val >= 3) score += 10;
+    }
+    
+    return score;
+  }
+
+  /**
+   * זיהוי קונפליקטים - כאשר שתי הקבוצות חזקות באותו תחום
+   */
+  detectConflicts(insightsA, insightsB, teamA, teamB, rankA, rankB) {
+    const conflicts = [];
+    
+    // קונפליקט הגנות
+    const defenseA = insightsA.find(i => i.type === 'DEFENSIVE_WALL');
+    const defenseB = insightsB.find(i => i.type === 'DEFENSIVE_WALL');
+    if (defenseA && defenseB && defenseA.rank <= 5 && defenseB.rank <= 5) {
+      conflicts.push(`⚔️ קרב הגנות: מקום ${defenseA.rank} נגד מקום ${defenseB.rank}`);
+    }
+    
+    // קונפליקט התקפות
+    const offenseA = insightsA.find(i => i.type === 'HIGH_SCORING');
+    const offenseB = insightsB.find(i => i.type === 'HIGH_SCORING');
+    if (offenseA && offenseB && offenseA.rank <= 5 && offenseB.rank <= 5) {
+      conflicts.push(`🚀 קרב התקפות: מקום ${offenseA.rank} נגד מקום ${offenseB.rank}`);
+    }
+    
+    // שתיהן בפורמה מצוינת
+    const streakA = insightsA.find(i => i.type === 'WINNING_STREAK');
+    const streakB = insightsB.find(i => i.type === 'WINNING_STREAK');
+    if (streakA && streakB) {
+      conflicts.push(`🔥 שתיהן במומנטום: ${teamA} ${streakA.value} ברצף, ${teamB} ${streakB.value} ברצף`);
+    }
+    
+    // שתיהן דורסות
+    const blowoutA = insightsA.find(i => i.type === 'BLOWOUT_WINS');
+    const blowoutB = insightsB.find(i => i.type === 'BLOWOUT_WINS');
+    if (blowoutA && blowoutB) {
+      conflicts.push(`💪 שתיהן דורסות: ${blowoutA.value} ו-${blowoutB.value} ניצחונות ב-15+`);
+    }
+    
+    return conflicts;
+  }
+
+  /**
+   * בניית נרטיב לשדרן (מבוסס על preGameNarratives.js)
+   * משופר עם TL;DR מבוסס Insights
+   */
+  buildNarrative(teamA, teamB, statsA, statsB, advA, advB, trendA, trendB, h2h, comparison, rankA, rankB, insightsV2 = null) {
     const tldr = [];
     const sections = {};
-
-    // TL;DR - נקודות עיקריות
-    
-    // 1. תמיד: דירוג ומאזן
     const recordA = `${statsA?.wins || 0}-${statsA?.losses || 0}`;
     const recordB = `${statsB?.wins || 0}-${statsB?.losses || 0}`;
+
+    // === TL;DR משופר (מבוסס Insights) ===
+    
+    // 1. The Hook - סוג המשחק
     if (rankA && rankB) {
-      tldr.push(`${teamA} במקום ${rankA} (${recordA}) מול ${teamB} במקום ${rankB} (${recordB})`);
+      if (rankA <= 4 && rankB <= 4) {
+        tldr.push(`🏆 קרב צמרת: מקום ${rankA} (${recordA}) מול מקום ${rankB} (${recordB})`);
+      } else if (rankA >= 10 && rankB >= 10) {
+        tldr.push(`⚠️ משחק תחתית גורלי: מקום ${rankA} נגד מקום ${rankB}`);
+      } else {
+        tldr.push(`${teamA} מקום ${rankA} (${recordA}) מול ${teamB} מקום ${rankB} (${recordB})`);
+      }
     } else {
       tldr.push(`${teamA} (${recordA}) מול ${teamB} (${recordB})`);
     }
-    
-    // 2. אם יש H2H - להציג (רק אם יש לפחות משחק אחד)
-    if (h2h.totalGames > 0) {
-      tldr.push(`במפגשים העונה: ${teamA} ${h2h.teamAWins} ניצחונות, ${teamB} ${h2h.teamBWins} ניצחונות (${h2h.totalGames} משחקים)`);
-    }
-    
-    // 3. רצף אם יש (3+)
-    if (trendA && trendA.streak && trendA.streak.count >= 3) {
-      const streakType = trendA.streak.type === 'win' ? 'ניצחונות' : 'הפסדים';
-      tldr.push(`${teamA} ברצף של ${trendA.streak.count} ${streakType}`);
-    } else if (trendB && trendB.streak && trendB.streak.count >= 3) {
-      const streakType = trendB.streak.type === 'win' ? 'ניצחונות' : 'הפסדים';
-      tldr.push(`${teamB} ברצף של ${trendB.streak.count} ${streakType}`);
-    }
-    
-    // 4. פער PPG אם משמעותי (>10)
-    const ppgDiff = Math.abs(comparison.offense.teamAPpg - comparison.offense.teamBPpg);
-    if (ppgDiff > 10) {
-      if (comparison.offense.advantage === teamA) {
-        tldr.push(`יתרון התקפי ל-${teamA}: ${comparison.offense.teamAPpg.toFixed(1)} נק' למשחק לעומת ${comparison.offense.teamBPpg.toFixed(1)}`);
-      } else {
-        tldr.push(`יתרון התקפי ל-${teamB}: ${comparison.offense.teamBPpg.toFixed(1)} נק' למשחק לעומת ${comparison.offense.teamAPpg.toFixed(1)}`);
+
+    // אם יש Insights V2, נבנה TL;DR חכם מהם
+    // המבנה של insightsV2 הוא לפי קטגוריות: { STREAKS: [], PLAYERS: [], ... }
+    if (insightsV2 && (insightsV2.STREAKS || insightsV2.PLAYERS || insightsV2.DEFENSE)) {
+      // איסוף כל ה-insights מכל הקטגוריות
+      const allCategories = ['STREAKS', 'PLAYERS', 'OFFENSE', 'DEFENSE', 'MOMENTUM', 'QUARTERS', 'LEAGUE'];
+      let allInsights = [];
+      
+      for (const category of allCategories) {
+        if (insightsV2[category]) {
+          allInsights = allInsights.concat(insightsV2[category]);
+        }
+      }
+      
+      // חלוקה לפי קבוצה
+      const insightsA = allInsights.filter(i => i.teamName === teamA);
+      const insightsB = allInsights.filter(i => i.teamName === teamB);
+      
+      // 2. זיהוי קונפליקטים (שתי הקבוצות חזקות באותו דבר)
+      const conflicts = this.detectConflicts(insightsA, insightsB, teamA, teamB, rankA, rankB);
+      conflicts.slice(0, 2).forEach(c => tldr.push(c));
+      
+      // 3. חישוב ניקוד לכל insight
+      allInsights.forEach(insight => {
+        insight.score = this.calculateInsightScore(insight);
+        insight.team = insight.teamName; // הוסף שדה team לשימוש מאוחר יותר
+      });
+      
+      // מיון לפי ניקוד
+      allInsights.sort((a, b) => b.score - a.score);
+      
+      // 4. סינון לפי סוגים (לא לחזור על אותו סוג פעמיים)
+      const usedTypes = new Set();
+      const usedTeams = { [teamA]: 0, [teamB]: 0 };
+      const maxPerTeam = 3;
+      
+      for (const insight of allInsights) {
+        if (tldr.length >= 7) break;
+        if (usedTypes.has(insight.type)) continue;
+        if (usedTeams[insight.team] >= maxPerTeam) continue;
+        
+        // השתמש ב-broadcastShort אם קיים, אחרת צור טקסט
+        if (insight.broadcastShort) {
+          tldr.push(insight.broadcastShort);
+          usedTypes.add(insight.type);
+          usedTeams[insight.team]++;
+        }
+      }
+    } else {
+      // Fallback לשיטה הישנה אם אין Insights V2
+      
+      // H2H
+      if (h2h.totalGames > 0) {
+        tldr.push(`🤝 מפגשים: ${teamA} ${h2h.teamAWins}, ${teamB} ${h2h.teamBWins}`);
+      }
+      
+      // רצפים
+      if (trendA && trendA.streak && trendA.streak.count >= 3) {
+        const emoji = trendA.streak.type === 'win' ? '📈' : '📉';
+        const streakType = trendA.streak.type === 'win' ? 'ניצחונות' : 'הפסדים';
+        tldr.push(`${emoji} ${teamA}: ${trendA.streak.count} ${streakType} ברצף`);
+      }
+      if (trendB && trendB.streak && trendB.streak.count >= 3) {
+        const emoji = trendB.streak.type === 'win' ? '📈' : '📉';
+        const streakType = trendB.streak.type === 'win' ? 'ניצחונות' : 'הפסדים';
+        tldr.push(`${emoji} ${teamB}: ${trendB.streak.count} ${streakType} ברצף`);
+      }
+      
+      // פורמה
+      if (trendA && trendB) {
+        tldr.push(`📊 פורמה: ${teamA} ${trendA.lastNWins}/${trendA.lastN}, ${teamB} ${trendB.lastNWins}/${trendB.lastN}`);
       }
     }
-    
-    // 5. פורמה אחרונה
-    if (trendA && trendB) {
-      tldr.push(`פורמה אחרונה: ${teamA} ${trendA.lastNWins} ניצחונות מ-${trendA.lastN} משחקים, ${teamB} ${trendB.lastNWins} ניצחונות מ-${trendB.lastN} משחקים`);
-    }
 
-    // Sections
+    // === Sections (נשאר כמו קודם) ===
 
     sections['פרופיל קליעה'] = [
       `${teamA} - FG%: ${statsA?.fgPct || 'N/A'}% | 3P%: ${statsA?.threePtPct || 'N/A'}% | FT%: ${statsA?.ftPct || 'N/A'}%`,
       `${teamB} - FG%: ${statsB?.fgPct || 'N/A'}% | 3P%: ${statsB?.threePtPct || 'N/A'}% | FT%: ${statsB?.ftPct || 'N/A'}%`
     ];
     
-    // הוספת ניתוח עם נפח זריקות
     const fgPctA = parseFloat(statsA?.fgPct || 0);
     const fgPctB = parseFloat(statsB?.fgPct || 0);
     const gamesA = statsA?.gamesPlayed || 1;
@@ -1065,9 +1198,6 @@ class IBBAAdvanced {
       );
     }
 
-    // פורמה כבר מופיעה ב-TL;DR ובכרטיסים, לא צריך לחזור עליה
-
-    // מפגשים ישירים - רק אם יש
     if (h2h.totalGames > 0) {
       sections['מפגשים ישירים'] = [
         `${h2h.totalGames} משחקים בעונה זו`,
@@ -1083,7 +1213,7 @@ class IBBAAdvanced {
     }
 
     return {
-      tldr: tldr.slice(0, 5),
+      tldr: tldr.slice(0, 7),
       sections: sections
     };
   }
