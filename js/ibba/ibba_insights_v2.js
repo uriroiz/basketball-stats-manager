@@ -474,8 +474,8 @@ class IBBAInsightsV2 {
           seasonMinutesAvg: seasonMinutesAvg.toFixed(1),
           recentMinutesAvg: recentMinutesAvg.toFixed(1),
           icon: '🔥',
-          text: `${playerName} בוער! ${recentAvg.toFixed(1)} נק' ב-3 משחקים אחרונים (לעומת ${seasonAvg.toFixed(1)} עונתי) - +${percentAbove}%${minutesNote}`,
-          textShort: `${playerName} בוער (${recentAvg.toFixed(1)} vs ${seasonAvg.toFixed(1)})`
+          text: `${playerName} נמצא בתקופה מצוינת: קולע ${recentAvg.toFixed(1)} נק' ב-3 המשחקים האחרונים – שיפור של ${percentAbove}% לעומת הממוצע העונתי (${seasonAvg.toFixed(1)} נק')${minutesNote}`,
+          textShort: `${playerName} בפורמה: ${recentAvg.toFixed(1)} נק' (+${percentAbove}%)`
         };
       }
     }
@@ -567,8 +567,8 @@ class IBBAInsightsV2 {
           seasonMinutesAvg: seasonMinutesAvg.toFixed(1),
           recentMinutesAvg: recentMinutesAvg.toFixed(1),
           icon: '❄️',
-          text: `${playerName} במשבר - רק ${recentAvg.toFixed(1)} נק' ב-3 משחקים אחרונים (לעומת ${seasonAvg.toFixed(1)} עונתי) - ירידה של ${percentBelow}%${minutesNote}`,
-          textShort: `${playerName} במשבר (${recentAvg.toFixed(1)} vs ${seasonAvg.toFixed(1)})`
+          text: `${playerName} נמצא בתקופה פחות טובה: קולע ${recentAvg.toFixed(1)} נק' ב-3 המשחקים האחרונים (ירידה של ${percentBelow}% לעומת הממוצע העונתי)${minutesNote}`,
+          textShort: `${playerName} בירידה: ${recentAvg.toFixed(1)} נק' (-${percentBelow}%)`
         };
       }
     }

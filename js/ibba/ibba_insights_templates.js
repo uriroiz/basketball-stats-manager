@@ -203,7 +203,7 @@ const IBBAInsightTemplates = {
       "${teamName} ברצף של ${losses} הפסדים - מגיעה עם נקודת שאלה",
       "משבר: ${teamName} עם ${losses} הפסדים ברצף",
       "${teamName} בקשיים - ${losses} הפסדים רצופים",
-      "${teamName} במשבר עם ${losses} הפסדים ברצף",
+      "${teamName} בתקופה קשה עם ${losses} הפסדים ברצף",
       "${teamName} מחפשת את עצמה - ${losses} הפסדים רצופים",
       "מומנטום שלילי: ${teamName} הפסידה ${losses} פעמים ברצף",
       "${teamName} על סדרת הפסדים - ${losses} ברצף",
