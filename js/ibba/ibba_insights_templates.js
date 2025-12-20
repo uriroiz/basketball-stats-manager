@@ -75,14 +75,14 @@ const IBBAInsightTemplates = {
     ],
     
     ASSIST_HEAVY: [
-      "${assistRatio}% מהסלים של ${teamName}${rankText} מגיעים מאסיסט – משחק קבוצתי בולט",
-      "משחק קבוצתי מעולה: ${assistRatio}% מהסלים של ${teamName}${rankText} עם אסיסט",
-      "${teamName}${rankText} משחקת יחד: ${assistRatio}% מהסלים מאסיסטים",
-      "על הנייר, ${teamName}${rankText} מצטיינת במשחק קבוצתי: ${assistRatio}% מהסלים מאסיסט",
-      "${teamName}${rankText} עם כימיה התקפית: ${assistRatio}% מהסלים עם אסיסט",
-      "משחק צוותי במיטבו: ${assistRatio}% מהסלים של ${teamName}${rankText} מאסיסט",
-      "${teamName}${rankText} משתפת פעולה: ${assistRatio}% מהסלים מגיעים מאסיסטים",
-      "תרבות של שיתוף ב-${teamName}${rankText}: ${assistRatio}% מהסלים עם אסיסט"
+      "${assistRatio}% מהסלים של ${teamName}${rankText} מגיעים מאסיסט – דגש על הנעת כדור",
+      "סגנון משחק קבוצתי: ${assistRatio}% מהסלים של ${teamName}${rankText} הגיעו מאסיסט",
+      "התקפה מבוססת מסירה ב-${teamName}${rankText}: ${assistRatio}% מהסלים מאסיסטים",
+      "ניתוח סגנון: ${teamName}${rankText} קולעת ${assistRatio}% מסלי השדה שלה דרך אסיסט",
+      "בנייה קבוצתית ב-${teamName}${rankText}: ${assistRatio}% מהסלים מגיעים מאסיסט",
+      "משחק צוותי ב-${teamName}${rankText}: ${assistRatio}% מהסלים מגיעים דרך אסיסט",
+      "${teamName}${rankText} מניעה כדור: ${assistRatio}% מהסלים מגיעים ממסירה אחרונה",
+      "נתון הנעת כדור ב-${teamName}${rankText}: ${assistRatio}% מהסלים הגיעו מאסיסט"
     ],
     
     DAY_OF_WEEK: [
@@ -222,14 +222,14 @@ const IBBAInsightTemplates = {
     ],
     
     BLOWOUT_WINS: [
-      "${teamName} בדומיננטיות מלאה: השיגה ${blowouts} ניצחונות בהפרש גדול ב-5 המשחקים האחרונים",
-      "${teamName} ניצחה ${blowouts} פעמים בהפרש משמעותי מתוך 5 האחרונים",
-      "כוח מרשים: ${teamName} עם ${blowouts} ניצחונות של 15+ נקודות ב-5 המשחקים האחרונים",
-      "${teamName} מנצחת ובגדול – ${blowouts} ניצחונות משכנעים ב-5 מחזורים",
-      "הצהרת כוונות: ${teamName} רשמה ${blowouts} ניצחונות ב-15+ נקודות לאחרונה",
-      "${teamName} השיגה ${blowouts} ניצחונות דומיננטיים ב-5 המשחקים האחרונים",
-      "יכולת דומיננטית: ${teamName} ניצחה ${blowouts} פעמים בהפרש דו-ספרתי גבוה",
-      "${teamName} מציגה עוצמה התקפית – ${blowouts} ניצחונות גדולים ב-5 האחרונים"
+      "${teamName} בדומיננטיות מלאה: ${blowouts} ניצחונות בהפרש של 15 נק' ומעלה ב-5 האחרונים",
+      "${teamName} ניצחה ${blowouts} פעמים בהפרש של 15 נק' ומעלה בחמשת המשחקים האחרונים",
+      "עוצמה מרשימה: ${teamName} רשמה ${blowouts} ניצחונות ב-15+ הפרש ב-5 המחזורים האחרונים",
+      "${teamName} מנצחת ובגדול: ${blowouts} ניצחונות בדו-ספרתי גבוה (15+) ב-5 מחזורים",
+      "הצהרת כוונות: ${teamName} עם ${blowouts} ניצחונות בהפרש של 15 נק' ומעלה לאחרונה",
+      "${teamName} דורסת את הליגה: ${blowouts} ניצחונות ב-15 הפרש ומעלה ב-5 האחרונים",
+      "יכולת דומיננטית: ${teamName} ניצחה ${blowouts} פעמים בדו-ספרתי גבוה (15+ נק')",
+      "מפגן כוח של ${teamName}: ${blowouts} ניצחונות בהפרש של 15+ נק' ב-5 האחרונים"
     ],
     
     // ========== Bench & Lineup Insights (v2.2.7) ==========

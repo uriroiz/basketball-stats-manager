@@ -2189,8 +2189,8 @@ class IBBAInsightsV2 {
         importance: 'medium',
         teamName,
         icon,
-        text: `${teamName} ${trend} במהלך העונה! מחצית ראשונה: ${firstWinPct.toFixed(0)}% (${firstWins}/${firstHalf.length}) → מחצית שנייה: ${secondWinPct.toFixed(0)}% (${secondWins}/${secondHalf.length})`,
-        textShort: `${trend}: ${change > 0 ? '+' : ''}${change.toFixed(0)}%`
+        text: `מגמת ${trend} בין חצאי העונה: ${teamName} עברה מ-${firstWinPct.toFixed(0)}% הצלחה בחצי הראשון ל-${secondWinPct.toFixed(0)}% בחצי השני`,
+        textShort: `מגמה עונתית: ${trend} (${change > 0 ? '+' : ''}${change.toFixed(0)}%)`
       };
     }
     return null;
