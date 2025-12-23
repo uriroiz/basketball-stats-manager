@@ -76,13 +76,13 @@ class IBBAAdapter {
 
   /**
    * קריאה דרך CORS proxy (fallback)
-   * משתמש במספר proxies עם fallback
+   * משתמש ב-proxy מותאם אישית של Vercel + fallback ל-proxies ציבוריים
    */
   async fetchViaProxy(targetUrl) {
-    // רשימת proxies לניסיון - corsproxy.io ראשון כי הוא הכי אמין!
+    // רשימת proxies לניסיון - proxy מותאם אישית ראשון!
     const proxies = [
+      `/api/proxy?url=${encodeURIComponent(targetUrl)}`,  // Vercel API route - הכי אמין!
       `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
-      `https://cors-anywhere.herokuapp.com/${targetUrl}`,
       `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
     ];
     
