@@ -101,19 +101,23 @@ class IBBAAdapter {
     const env = this.getEnvironment();
     console.log(`🌍 Environment detected: ${env}`);
     
+    // ה-URL של ה-proxy שלנו ב-Vercel (production)
+    const VERCEL_PROXY = 'https://basketball-stats-manager.vercel.app/api/proxy';
+    
     // בניית רשימת proxies לפי הסביבה
     let proxies = [];
     
-    if (env === 'vercel' || env === 'other') {
-      // Production - הproxy שלנו קודם
+    if (env === 'vercel') {
+      // Production - הproxy היחסי שלנו קודם
       proxies = [
-        `/api/proxy?url=${encodeURIComponent(targetUrl)}`,  // Vercel API route - הכי אמין!
+        `/api/proxy?url=${encodeURIComponent(targetUrl)}`,  // Vercel API route (relative)
         `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
         `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
       ];
-    } else if (env === 'localhost') {
-      // Local server - רק proxies ציבוריים
+    } else if (env === 'localhost' || env === 'other') {
+      // Local/Other - הproxy המלא שלנו ב-Vercel קודם!
       proxies = [
+        `${VERCEL_PROXY}?url=${encodeURIComponent(targetUrl)}`,  // Vercel API route (absolute)
         `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
         `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
       ];
@@ -124,10 +128,10 @@ class IBBAAdapter {
       console.error('   python -m http.server 8000');
       console.error('   Then open: http://localhost:8000/admin_players.html');
       
-      // עדיין ננסה - אולי corsproxy יעבוד
+      // עדיין ננסה דרך Vercel proxy
       proxies = [
-        `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+        `${VERCEL_PROXY}?url=${encodeURIComponent(targetUrl)}`,
+        `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
       ];
     }
     
