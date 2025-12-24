@@ -75,24 +75,69 @@ class IBBAAdapter {
   }
 
   /**
+   * זיהוי סביבת ההרצה
+   */
+  getEnvironment() {
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    
+    if (protocol === 'file:') {
+      return 'file'; // פתיחה ישירה מקובץ
+    }
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'localhost'; // שרת מקומי
+    }
+    if (hostname.includes('vercel.app') || hostname.includes('basketball-stats')) {
+      return 'vercel'; // production
+    }
+    return 'other'; // סביבה אחרת
+  }
+
+  /**
    * קריאה דרך CORS proxy (fallback)
    * משתמש ב-proxy מותאם אישית של Vercel + fallback ל-proxies ציבוריים
    */
   async fetchViaProxy(targetUrl) {
-    // רשימת proxies לניסיון - proxy מותאם אישית ראשון!
-    const proxies = [
-      `/api/proxy?url=${encodeURIComponent(targetUrl)}`,  // Vercel API route - הכי אמין!
-      `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
-      `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
-    ];
+    const env = this.getEnvironment();
+    console.log(`🌍 Environment detected: ${env}`);
+    
+    // בניית רשימת proxies לפי הסביבה
+    let proxies = [];
+    
+    if (env === 'vercel' || env === 'other') {
+      // Production - הproxy שלנו קודם
+      proxies = [
+        `/api/proxy?url=${encodeURIComponent(targetUrl)}`,  // Vercel API route - הכי אמין!
+        `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+      ];
+    } else if (env === 'localhost') {
+      // Local server - רק proxies ציבוריים
+      proxies = [
+        `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+      ];
+    } else if (env === 'file') {
+      // פתיחה ישירה מקובץ - בעייתי!
+      console.error('⚠️ Running from file:// protocol - CORS will fail!');
+      console.error('💡 Please run a local server:');
+      console.error('   python -m http.server 8000');
+      console.error('   Then open: http://localhost:8000/admin_players.html');
+      
+      // עדיין ננסה - אולי corsproxy יעבוד
+      proxies = [
+        `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
+      ];
+    }
     
     for (let i = 0; i < proxies.length; i++) {
       try {
         console.log(`🔄 Trying proxy ${i + 1}/${proxies.length}...`);
         
-        // הוספת timeout של 10 שניות
+        // הוספת timeout של 15 שניות (הגדלנו מ-10)
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
         
         const response = await fetch(proxies[i], { signal: controller.signal });
         clearTimeout(timeoutId);
@@ -106,12 +151,15 @@ class IBBAAdapter {
         return data;
         
       } catch (error) {
-        const errorMsg = error.name === 'AbortError' ? 'timeout (10s)' : error.message;
+        const errorMsg = error.name === 'AbortError' ? 'timeout (15s)' : error.message;
         console.warn(`⚠️ Proxy ${i + 1} failed:`, errorMsg);
         
         // אם זה הproxy האחרון - זרוק שגיאה
         if (i === proxies.length - 1) {
-          throw new Error(`All proxies failed. Please run on local server (python -m http.server 8000)`);
+          const helpMsg = env === 'file' 
+            ? 'Cannot run from file://. Please use: python -m http.server 8000'
+            : 'All proxies failed. Try running a local server (python -m http.server 8000)';
+          throw new Error(helpMsg);
         }
       }
     }
