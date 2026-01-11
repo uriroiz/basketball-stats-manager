@@ -1525,6 +1525,13 @@
           
           window.playerNamesLoader = new window.IBBAPlayerNames(supabase);
           
+          // Progress callback for proxy attempts
+          const onProxyProgress = (progress) => {
+            if (progress.stage === 'proxy') {
+              updateProgress(96, '👥 טוען נתונים נוספים...', `מנסה שרת ${progress.proxy}/${progress.total}...`);
+            }
+          };
+          
           // Check if we have cached names
           if (window.playerNamesLoader.hasCachedNames()) {
             console.log('✅ Player names loaded from cache (instant!)');
@@ -1533,17 +1540,21 @@
             console.log('🔄 Loading player names from Supabase...');
             
             try {
-              const count = await window.playerNamesLoader.loadFromSupabase();
+              const count = await window.playerNamesLoader.loadFromSupabase(onProxyProgress);
               if (count > 0) {
                 console.log(`✅ Loaded ${count} names from Supabase!`);
               } else {
                 // Fallback to API
                 console.log('ℹ️ No names in Supabase, loading from API...');
                 await window.playerNamesLoader.loadAllPlayerNames((progress) => {
-                  const statusDiv = document.getElementById('playerNamesStatus');
-                  if (statusDiv && progress.stage === 'fetching') {
-                    statusDiv.innerHTML = `<span class="animate-pulse">⏳ ${progress.message || 'טוען מ-API...'}</span>`;
-                    statusDiv.style.display = 'block';
+                  if (progress.stage === 'proxy') {
+                    updateProgress(96, '👥 טוען נתונים נוספים...', `מנסה שרת ${progress.proxy}/${progress.total}...`);
+                  } else if (progress.stage === 'fetching') {
+                    const statusDiv = document.getElementById('playerNamesStatus');
+                    if (statusDiv) {
+                      statusDiv.innerHTML = `<span class="animate-pulse">⏳ ${progress.message || 'טוען מ-API...'}</span>`;
+                      statusDiv.style.display = 'block';
+                    }
                   }
                 });
               }

@@ -209,9 +209,10 @@ class IBBAPlayerNames {
   
   /**
    * Load player statistics (Plus/Minus) from league HTML page
+   * @param {Function} onProgress - Optional callback for progress updates
    * @private
    */
-  async loadPlayerStatsFromHTML() {
+  async loadPlayerStatsFromHTML(onProgress = null) {
     try {
       console.log('🔄 Loading player Plus/Minus stats from league HTML via CORS proxy...');
       
@@ -219,21 +220,25 @@ class IBBAPlayerNames {
       let html = null;
       
       // Use CORS proxies (direct fetch will fail due to CORS policy)
+      // Ordered by reliability - corsproxy.io is most reliable
       const proxies = [
         { 
-          url: 'https://api.allorigins.win/raw?url=',
-          parseResponse: (response) => response.text()
+          url: 'https://corsproxy.io/?',  // Most reliable - try first
+          parseResponse: (response) => response.text(),
+          timeout: 8000
         },
         { 
-          url: 'https://api.allorigins.win/get?url=',
+          url: 'https://api.allorigins.win/get?url=',  // /get works better than /raw
           parseResponse: async (response) => {
             const data = await response.json();
             return data.contents;
-          }
+          },
+          timeout: 8000
         },
         { 
-          url: 'https://corsproxy.io/?',
-          parseResponse: (response) => response.text()
+          url: 'https://api.allorigins.win/raw?url=',  // Fallback
+          parseResponse: (response) => response.text(),
+          timeout: 5000  // Shorter timeout for known-problematic proxy
         }
       ];
       
@@ -243,7 +248,18 @@ class IBBAPlayerNames {
           const proxyUrl = proxy.url + encodeURIComponent(leaguePageUrl);
           console.log(`🔄 Trying proxy ${i + 1}/${proxies.length}...`);
           
-          const response = await fetch(proxyUrl);
+          // Report progress to UI
+          if (onProgress) {
+            onProgress({ stage: 'proxy', proxy: i + 1, total: proxies.length });
+          }
+          
+          // Use AbortController with timeout
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), proxy.timeout || 8000);
+          
+          const response = await fetch(proxyUrl, { signal: controller.signal });
+          clearTimeout(timeoutId);
+          
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
           }
@@ -258,7 +274,8 @@ class IBBAPlayerNames {
           }
           
         } catch (error) {
-          console.warn(`⚠️ Proxy ${i + 1} failed:`, error.message);
+          const errorMsg = error.name === 'AbortError' ? `timeout (${proxies[i].timeout}ms)` : error.message;
+          console.warn(`⚠️ Proxy ${i + 1} failed:`, errorMsg);
           if (i === proxies.length - 1) {
             throw new Error('All proxies failed for league HTML');
           }
@@ -384,9 +401,9 @@ class IBBAPlayerNames {
       
       console.log(`✅ Built mapping for ${this.namesMap.size} players`);
       
-      // Load Plus/Minus stats from HTML
+      // Load Plus/Minus stats from HTML (pass progress callback)
       if (onProgress) onProgress({ stage: 'stats', percent: 85, message: 'Loading Plus/Minus stats...' });
-      await this.loadPlayerStatsFromHTML();
+      await this.loadPlayerStatsFromHTML(onProgress);
       
       if (onProgress) onProgress({ stage: 'complete', percent: 100, message: 'Complete!' });
       
@@ -500,8 +517,9 @@ class IBBAPlayerNames {
   
   /**
    * Load player names from Supabase (fastest!)
+   * @param {Function} onProgress - Optional callback for progress updates during HTML stats loading
    */
-  async loadFromSupabase() {
+  async loadFromSupabase(onProgress = null) {
     if (!this.supabase) {
       console.log('ℹ️ Supabase not configured, skipping Supabase load');
       return 0;
@@ -532,8 +550,8 @@ class IBBAPlayerNames {
         console.log(`✅ Loaded ${data.length} player names from Supabase (instant!)`);
         this.isLoaded = true;
         
-        // Load Plus/Minus stats from HTML
-        await this.loadPlayerStatsFromHTML();
+        // Load Plus/Minus stats from HTML (pass progress callback)
+        await this.loadPlayerStatsFromHTML(onProgress);
         
         // Cache for next time
         this.saveToCache();
