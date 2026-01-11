@@ -1508,9 +1508,10 @@
         window.ibbaAnalytics = new window.IBBAAnalytics(allGames);
         console.log('✅ Analytics engine initialized');
         
-        // === Initialize player names loader ===
+        // === Initialize player names loader (AWAITED to ensure names are ready before enabling tabs) ===
         if (window.IBBAPlayerNames) {
           console.log('🎯 Initializing player names loader...');
+          updateProgress(95, '👥 טוען שמות שחקנים...', 'מסיים טעינה...');
           
           // Initialize Supabase if configured
           let supabase = null;
@@ -1528,99 +1529,39 @@
           if (window.playerNamesLoader.hasCachedNames()) {
             console.log('✅ Player names loaded from cache (instant!)');
           } else {
-            // Try loading from Supabase first (fastest!)
+            // Try loading from Supabase first (fastest!) - NOW AWAITED!
             console.log('🔄 Loading player names from Supabase...');
             
-            window.playerNamesLoader.loadFromSupabase()
-              .then(count => {
-                if (count > 0) {
-                  console.log(`✅ Loaded ${count} names from Supabase!`);
-                  // Refresh player tab if open
-                  if (currentTab === 'players') {
-                    renderPlayers();
+            try {
+              const count = await window.playerNamesLoader.loadFromSupabase();
+              if (count > 0) {
+                console.log(`✅ Loaded ${count} names from Supabase!`);
+              } else {
+                // Fallback to API
+                console.log('ℹ️ No names in Supabase, loading from API...');
+                await window.playerNamesLoader.loadAllPlayerNames((progress) => {
+                  const statusDiv = document.getElementById('playerNamesStatus');
+                  if (statusDiv && progress.stage === 'fetching') {
+                    statusDiv.innerHTML = `<span class="animate-pulse">⏳ ${progress.message || 'טוען מ-API...'}</span>`;
+                    statusDiv.style.display = 'block';
                   }
-                } else {
-                  // Fallback to API
-                  console.log('ℹ️ No names in Supabase, loading from API...');
-                  return window.playerNamesLoader.loadAllPlayerNames((progress) => {
-                    const statusDiv = document.getElementById('playerNamesStatus');
-                    if (statusDiv && progress.stage === 'fetching') {
-                      statusDiv.innerHTML = `<span class="animate-pulse">⏳ ${progress.message || 'טוען מ-API...'}</span>`;
-                      statusDiv.style.display = 'block';
-                    }
-                  });
-                }
-              })
-              .then(() => {
-                console.log('✅ Player names ready');
-                // Hide status
-                const statusDiv = document.getElementById('playerNamesStatus');
-                if (statusDiv) statusDiv.style.display = 'none';
-                // Refresh if needed
-                if (currentTab === 'players') renderPlayers();
-              })
-              .catch(error => {
-                console.warn('⚠️ Player names load failed:', error);
-              });
-            
-            // Old API-only fallback (commented out - now using Supabase first)
-            /*
-            console.log('🔄 Loading player names from API...');
-            
-            window.playerNamesLoader.loadAllPlayerNames((progress) => {
-              // Update status div if exists
+                });
+              }
+              console.log('✅ Player names ready');
+              // Hide status
               const statusDiv = document.getElementById('playerNamesStatus');
-              if (statusDiv) {
-                if (progress.stage === 'fetching') {
-                  statusDiv.innerHTML = `<span class="animate-pulse">⏳ ${progress.message || 'טוען שחקנים...'}</span>`;
-                  statusDiv.style.display = 'block';
-                } else if (progress.stage === 'processing') {
-                  statusDiv.innerHTML = '<span class="animate-pulse">⏳ מעבד נתונים...</span>';
-                  statusDiv.style.display = 'block';
-                } else if (progress.stage === 'complete') {
-                  statusDiv.style.display = 'none';
-                }
-              }
-              
-              // Console progress
-              if (progress.stage === 'fetching') {
-                console.log(`📥 ${progress.message}`);
-              } else if (progress.stage === 'complete') {
-                console.log('✅ Player names loaded successfully');
-              }
-            })
-            .then(() => {
-              console.log('✅ Player names ready:', window.playerNamesLoader.getStats());
-              
-              const statusDiv = document.getElementById('playerNamesStatus');
-              if (statusDiv) {
-                statusDiv.innerHTML = '✅ שמות שחקנים נטענו';
-                setTimeout(() => statusDiv.style.display = 'none', 2000);
-              }
-              
-              // If player tab is currently open, refresh it
-              const playerTab = document.getElementById('view-players');
-              if (playerTab && !playerTab.classList.contains('hidden')) {
-                console.log('🔄 Refreshing player tab with names...');
-                renderPlayers();
-              }
-            })
-            .catch(error => {
-              console.warn('⚠️ Failed to load player names:', error);
+              if (statusDiv) statusDiv.style.display = 'none';
+            } catch (error) {
+              console.warn('⚠️ Player names load failed:', error);
               console.log('➡️ Will continue with "Player #X" fallback');
-              
-              const statusDiv = document.getElementById('playerNamesStatus');
-              if (statusDiv) {
-                statusDiv.innerHTML = '⚠️ שמות שחקנים לא זמינים';
-                setTimeout(() => statusDiv.style.display = 'none', 3000);
-              }
-            });
-            */
+            }
           }
         } else {
           console.warn('⚠️ Player names module not loaded');
         }
         // === END player names initialization ===
+        
+        updateProgress(100, '✅ הושלם!', 'כל הנתונים נטענו בהצלחה');
         
         // Setup UI
         setupEventListeners();
@@ -1628,7 +1569,7 @@
         // Hide loading, show games tab (default)
         document.getElementById('loadingProgress').classList.add('hidden');
         document.getElementById('view-games').classList.remove('hidden');
-        enableTabs(); // Enable tabs now that data is loaded
+        enableTabs(); // Enable tabs now that ALL data is loaded (including player names)
         
         console.log('✅ Dashboard initialized successfully');
         
@@ -3300,6 +3241,9 @@
      * Display Insights V2
      */
     function displayInsightsV2(insightsV2) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ce49948a-072e-434e-b168-78e26c50a8d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:displayInsightsV2:entry',message:'displayInsightsV2 called',data:{hasInsights:!!insightsV2,categoriesReceived:Object.keys(insightsV2||{})},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2-H4'})}).catch(()=>{});
+      // #endregion
       if (!insightsV2) {
         console.warn('⚠️ No insights V2 data');
         return;
@@ -3329,6 +3273,9 @@
       
       // Show all insights initially
       showInsightCategory('all');
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ce49948a-072e-434e-b168-78e26c50a8d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:displayInsightsV2:end',message:'displayInsightsV2 finished, called showInsightCategory',data:{totalCount:totalCount},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+      // #endregion
     }
     
     /**
@@ -3408,6 +3355,9 @@
         return;
       }
       
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ce49948a-072e-434e-b168-78e26c50a8d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:showInsightCategory:render',message:'About to render insights',data:{count:insightsToShow.length,firstInsightText:insightsToShow[0]?.text?.substring(0,80),containerId:'insightsDisplay',containerFound:!!container},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3-H4-H5'})}).catch(()=>{});
+      // #endregion
       container.innerHTML = insightsToShow.map(insight => {
         const importanceColors = {
           'high': 'bg-red-50 border-red-300 text-red-900',
@@ -3450,9 +3400,73 @@
     }
     
     /**
+     * Mapping from insight type to template category and type
+     * Used for regenerating insight text with new random variations
+     */
+    const insightTypeToTemplate = {
+      // STREAKS
+      'CLUTCH_STREAK': { category: 'streaks', type: 'CLUTCH_WINS', paramMap: (i) => ({ teamName: i.teamName, clutchWins: i.value }) },
+      'WINNING_STREAK': { category: 'streaks', type: 'WINNING_STREAK', paramMap: (i) => ({ teamName: i.teamName, wins: i.value }) },
+      'LOSING_STREAK': { category: 'streaks', type: 'LOSING_STREAK', paramMap: (i) => ({ teamName: i.teamName, losses: i.value }) },
+      'BLOWOUT_WINS': { category: 'streaks', type: 'BLOWOUT_WINS', paramMap: (i) => ({ teamName: i.teamName, blowouts: i.value }) },
+      // PLAYERS
+      'ASSIST_MACHINE': { category: 'player', type: 'ASSIST_MACHINE', paramMap: (i) => ({ playerName: i.playerName, teamName: i.teamName, apg: i.value }) },
+      'REBOUND_MACHINE': { category: 'player', type: 'REBOUND_MACHINE', paramMap: (i) => ({ playerName: i.playerName, teamName: i.teamName, rpg: i.value }) },
+      'TEAM_LEADER': { category: 'player', type: 'TEAM_LEADER', paramMap: (i) => ({ playerName: i.playerName, teamName: i.teamName, ppg: i.value }) },
+      'DOUBLE_DOUBLE_MACHINE': { category: 'player', type: 'DOUBLE_DOUBLE_MACHINE', paramMap: (i) => ({ playerName: i.playerName, teamName: i.teamName, ddCount: i.value }) },
+      // OFFENSE / TEAM
+      'THREE_POINT_DEPENDENT': { category: 'team', type: 'THREE_POINT_DEPENDENT', paramMap: (i) => ({ teamName: i.teamName, threePointPct: i.value }) },
+      'ASSIST_HEAVY': { category: 'team', type: 'ASSIST_HEAVY', paramMap: (i) => ({ teamName: i.teamName, assistRatio: i.value }) },
+      'HIGH_SCORING_OFFENSE': { category: 'team', type: 'HIGH_SCORING_OFFENSE', paramMap: (i) => ({ teamName: i.teamName, ppg: i.value, rankText: '', diff: '' }) },
+      'FAST_BREAK_KINGS': { category: 'team', type: 'FAST_BREAK_KINGS', paramMap: (i) => ({ teamName: i.teamName, fastBreakPpg: i.value }) },
+      'PAINT_DOMINANCE': { category: 'team', type: 'PAINT_DOMINANCE', paramMap: (i) => ({ teamName: i.teamName, paintPct: i.value, paintPpg: i.value }) },
+      // DEFENSE
+      'DEFENSIVE_WALL': { category: 'team', type: 'DEFENSIVE_WALL', paramMap: (i) => ({ teamName: i.teamName, oppPpg: i.value, rankText: '', diff: '' }) },
+      'REBOUND_DOMINANCE': { category: 'team', type: 'REBOUND_DOMINANCE', paramMap: (i) => ({ teamName: i.teamName, opponentName: i.opponentName || '', diff: i.value }) },
+      // MOMENTUM
+      'DAY_OF_WEEK': { category: 'team', type: 'DAY_OF_WEEK', paramMap: (i) => ({ teamName: i.teamName, day: i.day || '', wins: i.value, games: i.games || 0, winPct: i.winPct || 0 }) },
+      'COMEBACK_KINGS': { category: 'team', type: 'COMEBACK_KINGS', paramMap: (i) => ({ teamName: i.teamName, comebacks: i.value }) },
+      'FOURTH_QUARTER_COLLAPSE': { category: 'team', type: 'FOURTH_QUARTER_COLLAPSE', paramMap: (i) => ({ teamName: i.teamName, collapses: i.value }) },
+      // QUARTERS
+      'BEST_QUARTER': { category: 'team', type: 'BEST_QUARTER', paramMap: (i) => ({ teamName: i.teamName, quarterName: i.quarterName || '', diff: i.value }) }
+    };
+
+    /**
+     * Regenerate text for all insights with new random template variations
+     */
+    function regenerateInsightTexts(insightsV2) {
+      if (!insightsV2 || !window.IBBAInsightTemplates?.getRandomText) {
+        console.warn('⚠️ Cannot regenerate: missing insights or templates');
+        return insightsV2;
+      }
+
+      Object.keys(insightsV2).forEach(category => {
+        insightsV2[category].forEach(insight => {
+          const mapping = insightTypeToTemplate[insight.type];
+          if (mapping) {
+            try {
+              const params = mapping.paramMap(insight);
+              const newText = window.IBBAInsightTemplates.getRandomText(mapping.category, mapping.type, params);
+              if (newText) {
+                insight.text = newText;
+              }
+            } catch (e) {
+              console.warn(`⚠️ Could not regenerate text for ${insight.type}:`, e.message);
+            }
+          }
+        });
+      });
+
+      return insightsV2;
+    }
+
+    /**
      * Regenerate insights with new variations
      */
     function regenerateInsights() {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ce49948a-072e-434e-b168-78e26c50a8d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:regenerateInsights:entry',message:'regenerateInsights called',data:{hasReport:!!currentAdvancedReport,hasInsightsV2:!!(currentAdvancedReport?.insightsV2)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1-H2'})}).catch(()=>{});
+      // #endregion
       if (!currentAdvancedReport) {
         console.warn('⚠️ No report to regenerate');
         return;
@@ -3460,8 +3474,25 @@
       
       console.log('🎲 Regenerating insights with new variations...');
       
-      // Just re-display the insights (templates are randomly selected each time)
+      // #region agent log
+      const sampleInsightBefore = currentAdvancedReport.insightsV2?.STREAKS?.[0] || currentAdvancedReport.insightsV2?.OFFENSE?.[0] || Object.values(currentAdvancedReport.insightsV2 || {})[0]?.[0];
+      fetch('http://127.0.0.1:7242/ingest/ce49948a-072e-434e-b168-78e26c50a8d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:regenerateInsights:before-regen',message:'BEFORE regenerateInsightTexts',data:{sampleTextBefore:sampleInsightBefore?.text?.substring(0,80)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FIX-VERIFY'})}).catch(()=>{});
+      // #endregion
+      
+      // Regenerate texts with new random template variations
+      regenerateInsightTexts(currentAdvancedReport.insightsV2);
+      
+      // #region agent log
+      const sampleInsightAfter = currentAdvancedReport.insightsV2?.STREAKS?.[0] || currentAdvancedReport.insightsV2?.OFFENSE?.[0] || Object.values(currentAdvancedReport.insightsV2 || {})[0]?.[0];
+      fetch('http://127.0.0.1:7242/ingest/ce49948a-072e-434e-b168-78e26c50a8d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:regenerateInsights:after-regen',message:'AFTER regenerateInsightTexts',data:{sampleTextAfter:sampleInsightAfter?.text?.substring(0,80),textChanged:sampleInsightBefore?.text !== sampleInsightAfter?.text},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FIX-VERIFY'})}).catch(()=>{});
+      // #endregion
+      
+      // Display the updated insights
       displayInsightsV2(currentAdvancedReport.insightsV2);
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/ce49948a-072e-434e-b168-78e26c50a8d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:regenerateInsights:after-display',message:'displayInsightsV2 completed',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
+      // #endregion
     }
     
     /**
