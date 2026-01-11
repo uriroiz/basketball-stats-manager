@@ -244,8 +244,13 @@
               נקה סינון
             </button>
             
-            <!-- Spacer to push toggle to the left -->
+            <!-- Spacer to push buttons to the left -->
             <div class="flex-1"></div>
+            
+            <!-- Refresh Button -->
+            <button id="refreshPlayersBtn" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm transition-colors" onclick="refreshPlayerData()">
+              🔄 רענן
+            </button>
             
             <!-- View Toggle Button -->
             <button id="playersViewToggle" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm transition-colors" onclick="togglePlayerStatsView()">
@@ -1245,6 +1250,38 @@
       // Keep "כל הקבוצות" option, add teams
       select.innerHTML = '<option value="">כל הקבוצות</option>' +
         teams.map(team => `<option value="${team}">${team}</option>`).join('');
+    }
+    
+    /**
+     * Refresh player data (names + statistics)
+     */
+    async function refreshPlayerData() {
+      const btn = document.getElementById('refreshPlayersBtn');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '🔄 טוען...';
+      btn.disabled = true;
+      
+      try {
+        console.log('🔄 Refreshing player data...');
+        
+        // Refresh names from Supabase
+        if (window.playerNamesLoader) {
+          window.playerNamesLoader.clearCache();
+          await window.playerNamesLoader.loadFromSupabase();
+          console.log('✅ Player names refreshed from Supabase');
+        }
+        
+        // Re-initialize player stats (recalculates from analytics)
+        allPlayerStats = [];
+        initPlayerStats();
+        
+        console.log('✅ Player data refreshed successfully');
+      } catch (error) {
+        console.error('❌ Refresh failed:', error);
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
     }
     
     /**
