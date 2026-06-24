@@ -70,7 +70,14 @@ async function loadUpcomingGames() {
     console.log(`📊 Received ${allGames.length} total games from API`);
     
     // כל המשחקים רלוונטיים - ההחלטה לפי תאריך בלבד (לא לפי status שלא אמין)
-    const relevantGames = allGames;
+    let relevantGames = allGames;
+    
+    if (relevantGames.length === 0) {
+      relevantGames = getFallbackGamesFromLoadedSeason();
+      if (relevantGames.length > 0) {
+        console.log(`Using ${relevantGames.length} already-loaded season games as fallback`);
+      }
+    }
     
     console.log(`📊 Processing ${relevantGames.length} games from API`);
     
@@ -123,6 +130,22 @@ function groupGamesByRound(games) {
   return gamesByRound;
 }
 
+function getFallbackGamesFromLoadedSeason() {
+  if (!Array.isArray(window.allGames) || window.allGames.length === 0) {
+    return [];
+  }
+  
+  return window.allGames
+    .filter(game => game && game.date && (game.homeTeam || game.home?.team) && (game.awayTeam || game.away?.team))
+    .map((game, index) => ({
+      id: game.gameId || game.gameSerial || game.id || `loaded-${index}`,
+      date: game.date,
+      stage_id: String(game.cycle || game.stage_id || game.round || 'unknown'),
+      home: { team: game.homeTeam || game.home?.team || 'unknown' },
+      away: { team: game.awayTeam || game.away?.team || 'unknown' }
+    }));
+}
+
 // ========================================
 // מציאת מחזור ברירת מחדל (הכי קרוב להיום)
 // ========================================
@@ -146,8 +169,25 @@ function findDefaultRound(gamesByRound) {
     });
   });
   
-  // אם לא נמצא משחק עתידי, קח את המחזור הראשון
+  // אם לא נמצא משחק עתידי, קח את המחזור האחרון ששוחק
   if (!closestRound && Object.keys(gamesByRound).length > 0) {
+    let latestPastRound = null;
+    let latestPastDate = -Infinity;
+    
+    Object.entries(gamesByRound).forEach(([round, games]) => {
+      games.forEach(game => {
+        const gameTime = new Date(game.date).getTime();
+        if (gameTime < now.getTime() && gameTime > latestPastDate) {
+          latestPastDate = gameTime;
+          latestPastRound = round;
+        }
+      });
+    });
+    
+    if (latestPastRound) {
+      return latestPastRound;
+    }
+    
     const sortedRounds = Object.keys(gamesByRound).sort((a, b) => {
       // מיון מספרי של מחזורים
       const numA = parseInt(a) || 0;
@@ -684,4 +724,3 @@ window.loadUpcomingGames = loadUpcomingGames;
 window.renderSelectedRound = renderSelectedRound;
 
 console.log('✅ Upcoming Games module loaded successfully! (PURE API version)');
-
