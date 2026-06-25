@@ -314,7 +314,7 @@ class IBBAPlayerNames {
       return statsCount;
       
     } catch (error) {
-      console.error('❌ Failed to load player stats from HTML:', error);
+      console.warn('⚠️ Failed to load player stats from HTML:', error);
       // Don't throw - this is optional enrichment
       return 0;
     }

@@ -8,9 +8,70 @@
 class IBBAAdapter {
   constructor() {
     this.baseURL = 'https://ibasketball.co.il/wp-json/wp/v2';
+    this.sportspressURL = 'https://ibasketball.co.il/wp-json/sportspress/v2';
     this.leagueId = 119474; // ליגה לאומית 2025
     this.seasonId = 119472; // עונת 2025
     this.playersPageURL = 'https://ibasketball.co.il/league/2025-2/';
+    this.seasonMonths = [
+      '2025-10',
+      '2025-11',
+      '2025-12',
+      '2026-01',
+      '2026-02',
+      '2026-03',
+      '2026-04',
+      '2026-05',
+      '2026-06'
+    ];
+  }
+
+  async fetchSeasonMonthGames(limit = 500) {
+    const shouldLoadPreview = limit <= 100;
+    const months = shouldLoadPreview ? [...this.seasonMonths].reverse() : this.seasonMonths;
+    const gamesById = new Map();
+    
+    for (const month of months) {
+      const url = `${this.sportspressURL}/events?order=asc&by=post_date&seasons=${this.seasonId}&leagues=${this.leagueId}&month=${month}&per_page=1000`;
+      console.log(`Fetching monthly games from: ${url}`);
+      
+      try {
+        const monthGames = await this.fetchJsonWithProxyFallback(url);
+        
+        if (Array.isArray(monthGames)) {
+          monthGames.forEach(game => {
+            if (game?.id) {
+              gamesById.set(game.id, game);
+            }
+          });
+        }
+        
+        if (shouldLoadPreview && gamesById.size >= limit) {
+          break;
+        }
+      } catch (error) {
+        console.warn(`Failed to fetch games for ${month}:`, error.message);
+      }
+    }
+    
+    const games = Array.from(gamesById.values())
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    return shouldLoadPreview ? games.slice(0, limit) : games;
+  }
+
+  async fetchJsonWithProxyFallback(url) {
+    try {
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.warn('Direct monthly fetch failed, trying via CORS proxy...', error.message);
+      return await this.fetchViaProxy(url);
+    }
   }
 
   /**
@@ -37,6 +98,14 @@ class IBBAAdapter {
       
       const data = await response.json();
       console.log(`✅ Fetched ${data.length} games from API`);
+      
+      if (data.length === 0) {
+        const monthlyGames = await this.fetchSeasonMonthGames(limit);
+        if (monthlyGames.length > 0) {
+          console.log(`Fetched ${monthlyGames.length} games from monthly fallback`);
+          return monthlyGames;
+        }
+      }
       
       return data;
       
@@ -492,4 +561,3 @@ class IBBAAdapter {
 window.IBBAAdapter = IBBAAdapter;
 
 console.log('✅ IBBA Adapter loaded successfully');
-
