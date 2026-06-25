@@ -112,7 +112,17 @@ class IBBAAdapter {
     } catch (error) {
       // אם נכשל בגלל CORS - נסה דרך proxy
       console.warn('⚠️ Direct fetch failed, trying via CORS proxy...', error.message);
-      return await this.fetchViaProxy(url);
+      const data = await this.fetchViaProxy(url);
+      
+      if (Array.isArray(data) && data.length === 0) {
+        const monthlyGames = await this.fetchSeasonMonthGames(limit);
+        if (monthlyGames.length > 0) {
+          console.log(`Fetched ${monthlyGames.length} games from monthly fallback`);
+          return monthlyGames;
+        }
+      }
+      
+      return data;
     }
   }
 

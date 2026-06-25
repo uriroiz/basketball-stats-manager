@@ -18,30 +18,52 @@ function loadAdapter(fetchImpl) {
 }
 
 async function run() {
-  const urls = [];
-  const IBBAAdapter = loadAdapter(async url => {
-    urls.push(url);
-    const parsed = new URL(url);
-    const month = parsed.searchParams.get('month');
-    const data = month === '2026-06'
-      ? [
-          { id: 1, date: '2026-06-04T20:00:00', performance: { a: {} } },
-          { id: 2, date: '2026-06-08T20:00:00', performance: { a: {} } }
-        ]
-      : [];
+  {
+    const urls = [];
+    const IBBAAdapter = loadAdapter(async url => {
+      urls.push(url);
+      const parsed = new URL(url);
+      const month = parsed.searchParams.get('month');
+      const data = month === '2026-06'
+        ? [
+            { id: 1, date: '2026-06-04T20:00:00', performance: { a: {} } },
+            { id: 2, date: '2026-06-08T20:00:00', performance: { a: {} } }
+          ]
+        : [];
 
-    return {
-      ok: true,
-      json: async () => data
+      return {
+        ok: true,
+        json: async () => data
+      };
+    });
+
+    const adapter = new IBBAAdapter();
+    const games = await adapter.fetchGames(50, '2026-06-25T00:00:00', null);
+
+    assert.deepStrictEqual(Array.from(games, game => game.id), [2, 1]);
+    assert(urls.some(url => url.includes('month=2026-06')), 'fetches month fallback data');
+    assert(urls.every(url => url.includes('leagues=119474')), 'keeps league filter');
+  }
+
+  {
+    const proxiedUrls = [];
+    const IBBAAdapter = loadAdapter(async () => {
+      throw new Error('CORS blocked');
+    });
+
+    const adapter = new IBBAAdapter();
+    adapter.fetchViaProxy = async url => {
+      proxiedUrls.push(url);
+      return url.includes('month=2026-06')
+        ? [{ id: 3, date: '2026-06-11T20:00:00', performance: { a: {} } }]
+        : [];
     };
-  });
 
-  const adapter = new IBBAAdapter();
-  const games = await adapter.fetchGames(50, '2026-06-25T00:00:00', null);
+    const games = await adapter.fetchGames(50, '2026-06-25T00:00:00', null);
 
-  assert.deepStrictEqual(Array.from(games, game => game.id), [2, 1]);
-  assert(urls.some(url => url.includes('month=2026-06')), 'fetches month fallback data');
-  assert(urls.every(url => url.includes('leagues=119474')), 'keeps league filter');
+    assert.deepStrictEqual(Array.from(games, game => game.id), [3]);
+    assert(proxiedUrls.some(url => url.includes('month=2026-06')), 'uses month fallback after proxy returns empty');
+  }
 
   console.log('ibba-adapter tests passed');
 }
