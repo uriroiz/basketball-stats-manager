@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>תשובות משוב שדרים</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-slate-100 text-gray-900">
+  <main class="min-h-screen px-4 py-6">
+    <div class="mx-auto max-w-7xl">
+      <header class="header-gradient rounded-lg p-5 mb-4 shadow-md">
+        <p class="text-sm text-blue-100 mb-1">IBBA Dashboard</p>
+        <h1 class="text-2xl md:text-3xl font-bold">תשובות משוב שדרים</h1>
+        <p class="text-blue-100 mt-2">צפייה נוחה בכל התשובות, ספירת בחירות וייצוא ל-CSV.</p>
+      </header>
+
+      <section id="loginPanel" class="card p-5 md:p-6 max-w-md mx-auto">
+        <h2 class="text-xl font-bold mb-4">כניסת מנהל</h2>
+        <form id="adminLoginForm" class="space-y-4">
+          <div>
+            <label for="adminPassword" class="block font-semibold mb-2">סיסמת מנהל</label>
+            <input id="adminPassword" type="password" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white" autocomplete="current-password">
+          </div>
+          <button type="submit" class="w-full px-5 py-3 bg-blue-700 text-white rounded hover:bg-blue-800 transition-colors font-semibold">כניסה</button>
+          <div id="loginMessage" class="hidden rounded p-3 text-sm"></div>
+        </form>
+      </section>
+
+      <section id="responsesPanel" class="hidden space-y-4">
+        <div class="card p-4">
+          <div class="flex flex-col md:flex-row md:items-center gap-3 justify-between">
+            <div>
+              <h2 class="text-xl font-bold">תשובות שהתקבלו</h2>
+              <p class="text-sm text-gray-600">סה"כ: <span id="totalResponses">0</span></p>
+            </div>
+            <div class="flex flex-col md:flex-row gap-2">
+              <input id="searchResponses" class="px-3 py-2 border border-gray-300 rounded bg-white" placeholder="חיפוש בשם או בטקסט...">
+              <button id="refreshResponsesBtn" class="px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-800">רענון</button>
+              <button id="exportCsvBtn" class="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100">ייצוא CSV</button>
+            </div>
+          </div>
+          <div id="adminMessage" class="hidden rounded p-3 text-sm mt-3"></div>
+        </div>
+
+        <div class="card p-4">
+          <div class="stats-wrap">
+            <table class="stats-table text-sm">
+              <thead>
+                <tr>
+                  <th>תאריך</th>
+                  <th>שם</th>
+                  <th>תדירות</th>
+                  <th>דירוג</th>
+                  <th>חלקים בשימוש</th>
+                  <th>הכי שימושי</th>
+                  <th>מה האט</th>
+                  <th>רעיונות נוספים</th>
+                </tr>
+              </thead>
+              <tbody id="responsesTableBody">
+                <tr>
+                  <td colspan="8" class="text-center py-8 text-gray-500">טוען תשובות...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/feedback_admin.js?v=3"></script>
+</body>
+</html>

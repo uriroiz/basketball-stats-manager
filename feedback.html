@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>משוב שדרים לעונה הבאה</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-slate-100 text-gray-900">
+  <main class="min-h-screen px-4 py-6">
+    <div class="mx-auto max-w-3xl">
+      <header class="header-gradient rounded-lg p-5 mb-4 shadow-md">
+        <p class="text-sm text-blue-100 mb-1">IBBA Dashboard</p>
+        <h1 class="text-2xl md:text-3xl font-bold">משוב שדרים לעונה הבאה</h1>
+        <p class="text-blue-100 mt-2">
+          נשמח להבין מה עזר לכם בהכנה לשידורים, מה חסר, ומה כדאי לפתח לקראת העונה הבאה.
+        </p>
+      </header>
+
+      <section class="card p-5 md:p-6">
+        <form id="broadcasterFeedbackForm" class="space-y-6" novalidate>
+          <div>
+            <label for="fullName" class="block font-semibold mb-2">שם מלא <span class="text-red-600">*</span></label>
+            <input id="fullName" name="fullName" required autocomplete="name" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
+          </div>
+
+          <fieldset>
+            <legend class="font-semibold mb-3">באיזו תדירות השתמשת במערכת בעונה האחרונה? <span class="text-red-600">*</span></legend>
+            <div class="grid gap-2">
+              <label class="flex items-center gap-2"><input type="radio" name="frequency" value="לפני כל שידור" required> לפני כל שידור</label>
+              <label class="flex items-center gap-2"><input type="radio" name="frequency" value="כמה פעמים בחודש"> כמה פעמים בחודש</label>
+              <label class="flex items-center gap-2"><input type="radio" name="frequency" value="מדי פעם"> מדי פעם</label>
+              <label class="flex items-center gap-2"><input type="radio" name="frequency" value="כמעט לא השתמשתי"> כמעט לא השתמשתי</label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend class="font-semibold mb-3">באילו חלקים השתמשת בעיקר? <span class="text-red-600">*</span></legend>
+            <div class="grid gap-2 md:grid-cols-2">
+              <label class="flex items-center gap-2"><input type="checkbox" name="usedSections" value="משחקים"> משחקים</label>
+              <label class="flex items-center gap-2"><input type="checkbox" name="usedSections" value="סטטיסטיקות קבוצתיות"> סטטיסטיקות קבוצתיות</label>
+              <label class="flex items-center gap-2"><input type="checkbox" name="usedSections" value="שחקנים"> שחקנים</label>
+              <label class="flex items-center gap-2"><input type="checkbox" name="usedSections" value="מובילי ליגה"> מובילי ליגה</label>
+              <label class="flex items-center gap-2"><input type="checkbox" name="usedSections" value="הכנה למשחק"> הכנה למשחק</label>
+              <label class="flex items-center gap-2"><input type="checkbox" name="usedSections" value="אחר"> אחר</label>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend class="font-semibold mb-3">עד כמה המערכת עזרה לך להתכונן לשידור? <span class="text-red-600">*</span></legend>
+            <div class="grid grid-cols-5 gap-2 text-center">
+              <label class="border rounded p-2 bg-white"><input type="radio" name="helpRating" value="1" required><span class="block mt-1">1</span></label>
+              <label class="border rounded p-2 bg-white"><input type="radio" name="helpRating" value="2"><span class="block mt-1">2</span></label>
+              <label class="border rounded p-2 bg-white"><input type="radio" name="helpRating" value="3"><span class="block mt-1">3</span></label>
+              <label class="border rounded p-2 bg-white"><input type="radio" name="helpRating" value="4"><span class="block mt-1">4</span></label>
+              <label class="border rounded p-2 bg-white"><input type="radio" name="helpRating" value="5"><span class="block mt-1">5</span></label>
+            </div>
+            <div class="flex justify-between text-xs text-gray-600 mt-1">
+              <span>לא עזרה בכלל</span>
+              <span>עזרה מאוד</span>
+            </div>
+          </fieldset>
+
+          <div>
+            <label for="mostUseful" class="block font-semibold mb-2">מה היה הכי שימושי עבורך? <span class="text-red-600">*</span></label>
+            <textarea id="mostUseful" name="mostUseful" required rows="4" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"></textarea>
+          </div>
+
+          <div>
+            <label for="blockers" class="block font-semibold mb-2">מה הפריע או האט אותך בזמן ההכנה?</label>
+            <textarea id="blockers" name="blockers" rows="4" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"></textarea>
+          </div>
+
+          <div>
+            <label for="ideas" class="block font-semibold mb-2">איזה שיפורים, רעיונות או צרכים נוספים היית רוצה שניקח בחשבון לקראת העונה הבאה? אפשר לכתוב כל דבר שעולה לך.</label>
+            <textarea id="ideas" name="ideas" rows="5" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"></textarea>
+          </div>
+
+          <div id="formMessage" class="hidden rounded p-3 text-sm" role="status" aria-live="polite"></div>
+
+          <div class="flex flex-col md:flex-row gap-3 md:items-center">
+            <button id="submitFeedbackBtn" type="submit" class="px-5 py-3 bg-blue-700 text-white rounded hover:bg-blue-800 transition-colors font-semibold">
+              שליחת משוב
+            </button>
+            <button id="copyFeedbackBtn" type="button" class="hidden px-5 py-3 border border-gray-300 rounded hover:bg-gray-100 transition-colors">
+              העתקת התשובה
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/feedback.js?v=3"></script>
+</body>
+</html>
