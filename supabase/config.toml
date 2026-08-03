@@ -37,7 +37,28 @@ enable_refresh_token_rotation = true
 refresh_token_reuse_interval = 10
 
 [auth.email]
-enable_signup = true
+enable_signup = false
 double_confirm_changes = true
-enable_confirmations = false
+enable_confirmations = true
+
+[functions.save-game]
+verify_jwt = true
+
+[functions.save-team]
+verify_jwt = true
+
+[functions.save-player]
+verify_jwt = true
+
+[functions.delete-game]
+verify_jwt = true
+
+[functions.delete-player]
+verify_jwt = true
+
+[functions.recalculate-stats]
+verify_jwt = true
+
+[functions.clean-orphaned-games]
+verify_jwt = true
 

@@ -7,13 +7,15 @@
 
 class IBBAPlayerNames {
   constructor(supabaseClient = null) {
+    const config = window.appConfig || {};
     this.namesMap = new Map(); // playerId → { name, jersey, teamId }
     this.isLoading = false;
     this.isLoaded = false;
     this.supabase = supabaseClient; // Optional Supabase client
     this.apiUrl = 'https://ibasketball.co.il/wp-json/sportspress/v2/players';
-    this.leagueId = '119474'; // Current league
-    this.cacheKey = 'ibba_player_names_api_2025-2_v7'; // v7 = 5min expiry for fast updates
+    this.leagueId = String(config.leagueId || 119474);
+    this.playersPageUrl = config.playersPageUrl || 'https://ibasketball.co.il/league/2025-2/';
+    this.cacheKey = `ibba_player_names_api_${config.seasonId || 119472}_v8`;
     this.cacheExpiry = 5 * 60 * 1000; // 5 minutes (fast refresh for admin changes)
     
     // Try loading from cache immediately
@@ -172,11 +174,7 @@ class IBBAPlayerNames {
     }
     
     // Fallback to CORS proxy
-    const proxies = [
-      'https://corsproxy.io/?',
-      'https://api.allorigins.win/raw?url=',
-      'https://cors-anywhere.herokuapp.com/'
-    ];
+    const proxies = [`${window.appConfig?.ibbaProxyUrl || '/api/ibba'}?url=`];
     
     for (let i = 0; i < proxies.length; i++) {
       try {
@@ -216,29 +214,14 @@ class IBBAPlayerNames {
     try {
       console.log('🔄 Loading player Plus/Minus stats from league HTML via CORS proxy...');
       
-      const leaguePageUrl = 'https://ibasketball.co.il/league/2025-2/';
+      const leaguePageUrl = this.playersPageUrl;
       let html = null;
       
-      // Use CORS proxies (direct fetch will fail due to CORS policy)
-      // Ordered by reliability - corsproxy.io is most reliable
       const proxies = [
-        { 
-          url: 'https://corsproxy.io/?',  // Most reliable - try first
+        {
+          url: `${window.appConfig?.ibbaProxyUrl || '/api/ibba'}?url=`,
           parseResponse: (response) => response.text(),
-          timeout: 8000
-        },
-        { 
-          url: 'https://api.allorigins.win/get?url=',  // /get works better than /raw
-          parseResponse: async (response) => {
-            const data = await response.json();
-            return data.contents;
-          },
-          timeout: 8000
-        },
-        { 
-          url: 'https://api.allorigins.win/raw?url=',  // Fallback
-          parseResponse: (response) => response.text(),
-          timeout: 5000  // Shorter timeout for known-problematic proxy
+          timeout: 12000
         }
       ];
       

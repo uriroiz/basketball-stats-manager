@@ -4,8 +4,11 @@
   "description": "Basketball Stats Manager - Pure API (Real-time IBBA data)",
   "main": "index.html",
   "scripts": {
-    "dev": "python -m http.server 8000",
-    "preview": "python -m http.server 8000"
+    "dev": "node tools/dev_server.mjs",
+    "preview": "node tools/dev_server.mjs",
+    "test": "node tests/upcoming-games.test.js && node tests/player-names.test.js && node tests/ibba-adapter.test.js",
+    "test:syntax": "node tools/check_js_syntax.mjs",
+    "check": "npm run test:syntax && npm test"
   },
   "keywords": [
     "basketball",
@@ -14,10 +17,5 @@
     "analytics"
   ],
   "author": "",
-  "license": "MIT",
-  "dependencies": {
-    "@supabase/supabase-js": "^2.39.0"
-  },
-  "devDependencies": {}
+  "license": "MIT"
 }
-

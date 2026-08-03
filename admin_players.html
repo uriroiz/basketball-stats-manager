@@ -50,8 +50,12 @@
       <p class="text-gray-600 mb-4 text-center">ניהול שמות שחקנים - IBBA Dashboard</p>
       
       <div class="form-group">
-        <label>סיסמת מנהל:</label>
-        <input type="password" id="adminPasswordInput" placeholder="הזן סיסמה" onkeypress="if(event.key==='Enter') checkPassword()">
+        <label for="adminEmailInput">דוא״ל מנהל:</label>
+        <input type="email" id="adminEmailInput" autocomplete="username" placeholder="admin@example.com">
+      </div>
+      <div class="form-group">
+        <label for="adminPasswordInput">סיסמה:</label>
+        <input type="password" id="adminPasswordInput" autocomplete="current-password" placeholder="הזן סיסמה" onkeypress="if(event.key==='Enter') checkPassword()">
       </div>
       
       <button class="btn btn-primary w-full" onclick="checkPassword()">כניסה</button>
@@ -192,10 +196,10 @@
   </div>
 
   <!-- Scripts -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/config.js"></script>
-  <script src="js/ibba/ibba_adapter.js?v=5"></script>
-  <script src="js/ibba/ibba_player_names.js?v=5"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.111.0"></script>
+  <script src="js/config.js?v=3"></script>
+  <script src="js/ibba/ibba_adapter.js?v=9"></script>
+  <script src="js/ibba/ibba_player_names.js?v=9"></script>
   <script src="js/admin_player_names.js"></script>
 
   <script>
@@ -217,35 +221,42 @@
     // LOGIN
     // ========================================
     async function checkPassword() {
-      const input = document.getElementById('adminPasswordInput');
-      const password = input.value.trim();
+      const emailInput = document.getElementById('adminEmailInput');
+      const passwordInput = document.getElementById('adminPasswordInput');
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
       const errorDiv = document.getElementById('loginError');
 
-      if (!password) {
-        errorDiv.textContent = 'נא להזין סיסמה';
+      if (!email || !password) {
+        errorDiv.textContent = 'נא להזין דוא״ל וסיסמה';
         errorDiv.classList.remove('hidden');
         return;
       }
 
-      // Get admin password from config
-      const adminPassword = window.appConfig?.adminPassword || 'admin123';
+      const client = window.supabaseClient;
+      if (!client) {
+        errorDiv.textContent = 'החיבור ל-Supabase לא זמין';
+        errorDiv.classList.remove('hidden');
+        return;
+      }
 
-      if (password === adminPassword) {
+      const { data, error } = await client.auth.signInWithPassword({ email, password });
+      if (!error && data?.user?.app_metadata?.role === 'admin') {
         errorDiv.classList.add('hidden');
         document.getElementById('loginScreen').classList.add('hidden');
         document.getElementById('adminPanel').classList.remove('hidden');
-        
-        // Initialize
         await initAdminPanel();
       } else {
-        errorDiv.textContent = 'סיסמה שגויה';
+        if (data?.session) await client.auth.signOut();
+        errorDiv.textContent = 'ההתחברות נכשלה או שלמשתמש אין הרשאת מנהל';
         errorDiv.classList.remove('hidden');
-        input.value = '';
-        input.focus();
+        passwordInput.value = '';
+        passwordInput.focus();
       }
     }
 
-    function logout() {
+    async function logout() {
+      await window.supabaseClient?.auth.signOut();
       document.getElementById('adminPanel').classList.add('hidden');
       document.getElementById('loginScreen').classList.remove('hidden');
       document.getElementById('adminPasswordInput').value = '';
@@ -258,29 +269,11 @@
       console.log('🎯 Initializing Admin Panel...');
 
       try {
-        // Initialize Supabase with service role for admin operations (if available)
-        const supabaseUrl = window.appConfig?.supabaseUrl || window.CONFIG?.SUPABASE_URL;
-        const serviceRoleKey = window.CONFIG?.SUPABASE_SERVICE_ROLE_KEY || '';
-        const anonKey = window.appConfig?.supabaseKey || window.CONFIG?.SUPABASE_ANON_KEY || '';
-
-        // Prefer an already-initialized client from config.js when service role isn't provided
-        // (config.js sets window.supabaseClient).
-        if (!serviceRoleKey && window.supabaseClient) {
+        if (window.supabaseClient) {
           supabaseClient = window.supabaseClient;
           console.log('✅ Using existing Supabase client (from config.js)');
-        } else if (supabaseUrl && (serviceRoleKey || anonKey) && window.supabase?.createClient) {
-          const keyToUse = serviceRoleKey || anonKey;
-          supabaseClient = window.supabase.createClient(supabaseUrl, keyToUse);
-          window.supabaseClient = supabaseClient; // keep consistent across pages
-          console.log(serviceRoleKey ? '✅ Supabase initialized (service-role admin mode)' : '✅ Supabase initialized (anon mode)');
         } else {
-          console.warn('⚠️ Supabase not configured - will work in API-only mode');
-          console.log('Config:', {
-            supabaseUrl,
-            hasServiceRoleKey: !!serviceRoleKey,
-            hasAnonKey: !!anonKey,
-            hasSdk: !!window.supabase?.createClient
-          });
+          throw new Error('Supabase client is not configured');
         }
 
         // Initialize IBBA Adapter
@@ -380,6 +373,13 @@
         return;
       }
 
+      const safeAdminText = (value) => String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+
       tbody.innerHTML = filteredPlayers.map(player => {
         const inDb = adminManager.namesInDb.get(player.player_id);
         const hasName = !!inDb;
@@ -399,20 +399,24 @@
 
         return `
           <tr>
-            <td><code>${player.player_id}</code></td>
-            <td><strong>#${player.jersey}</strong></td>
-            <td><strong>${name}</strong></td>
-            <td>${player.team_name || '-'}</td>
+            <td><code>${safeAdminText(player.player_id)}</code></td>
+            <td><strong>#${safeAdminText(player.jersey)}</strong></td>
+            <td><strong>${safeAdminText(name)}</strong></td>
+            <td>${safeAdminText(player.team_name || '-')}</td>
             <td class="text-center">${player.games.length}</td>
             <td>${statusBadge}</td>
             <td>
-              <button class="btn btn-primary" style="font-size: 12px; padding: 4px 8px;" onclick="editPlayer('${player.player_id}')">
+              <button class="btn btn-primary edit-player-btn" data-player-id="${safeAdminText(player.player_id)}" style="font-size: 12px; padding: 4px 8px;">
                 ${hasName ? '✏️' : '➕'}
               </button>
             </td>
           </tr>
         `;
       }).join('');
+
+      tbody.querySelectorAll('.edit-player-btn').forEach(button => {
+        button.addEventListener('click', () => editPlayer(button.dataset.playerId));
+      });
     }
 
     // ========================================
@@ -461,7 +465,7 @@
         hideProgress();
         
         // Show success message
-        showSuccessMessage(`✅ סנכרון הושלם! נוספו ${result.added} שחקנים<br><small>השינויים יופיעו בדשבורד הציבורי תוך 5 דקות</small>`, 6000);
+        showSuccessMessage(`✅ סנכרון הושלם! נוספו ${result.added} שחקנים. השינויים יופיעו בדשבורד הציבורי תוך 5 דקות.`, 6000);
         
         updateStats();
         renderPlayers();
@@ -538,7 +542,7 @@
         renderPlayers();
         
         // Show success message with cache clear info
-        showSuccessMessage(`✅ שם השחקן נשמר בהצלחה: ${name}<br><small>השינויים יופיעו בדשבורד הציבורי תוך 5 דקות (או עם ניקוי cache ידני)</small>`);
+        showSuccessMessage(`✅ שם השחקן נשמר בהצלחה: ${name}. השינויים יופיעו בדשבורד הציבורי תוך 5 דקות.`);
         
         console.log(`✅ Saved player ${playerId}: ${name}`);
 
@@ -595,7 +599,7 @@
       }
       
       // Set message and show
-      toast.innerHTML = message;
+      toast.textContent = message;
       toast.style.opacity = '1';
       
       // Auto-hide
@@ -607,8 +611,17 @@
     // ========================================
     // INIT
     // ========================================
+    document.addEventListener('DOMContentLoaded', async () => {
+      const client = window.supabaseClient;
+      if (!client) return;
+      const { data, error } = await client.auth.getUser();
+      if (!error && data?.user?.app_metadata?.role === 'admin') {
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('adminPanel').classList.remove('hidden');
+        await initAdminPanel();
+      }
+    });
     console.log('🎯 Admin Players page loaded');
   </script>
 </body>
 </html>
-

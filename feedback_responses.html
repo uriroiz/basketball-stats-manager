@@ -20,7 +20,11 @@
         <h2 class="text-xl font-bold mb-4">כניסת מנהל</h2>
         <form id="adminLoginForm" class="space-y-4">
           <div>
-            <label for="adminPassword" class="block font-semibold mb-2">סיסמת מנהל</label>
+            <label for="adminEmail" class="block font-semibold mb-2">דוא״ל מנהל</label>
+            <input id="adminEmail" type="email" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white" autocomplete="username">
+          </div>
+          <div>
+            <label for="adminPassword" class="block font-semibold mb-2">סיסמה</label>
             <input id="adminPassword" type="password" class="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white" autocomplete="current-password">
           </div>
           <button type="submit" class="w-full px-5 py-3 bg-blue-700 text-white rounded hover:bg-blue-800 transition-colors font-semibold">כניסה</button>
@@ -39,6 +43,7 @@
               <input id="searchResponses" class="px-3 py-2 border border-gray-300 rounded bg-white" placeholder="חיפוש בשם או בטקסט...">
               <button id="refreshResponsesBtn" class="px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-800">רענון</button>
               <button id="exportCsvBtn" class="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100">ייצוא CSV</button>
+              <button id="logoutAdminBtn" class="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100">יציאה</button>
             </div>
           </div>
           <div id="adminMessage" class="hidden rounded p-3 text-sm mt-3"></div>
@@ -71,8 +76,8 @@
     </div>
   </main>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.111.0"></script>
+  <script src="js/config.js?v=3"></script>
   <script src="js/feedback_admin.js?v=3"></script>
 </body>
 </html>

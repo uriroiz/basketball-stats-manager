@@ -440,45 +440,25 @@
         try {
           typeof showOk==='function' && showOk('טוען נתונים מהקישור...');
           
-          // נסיון עם מספר proxies שונים (מעודכן)
-          const proxies = [
-            `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-            `https://corsproxy.io/?${encodeURIComponent(url)}`,
-            `https://thingproxy.freeboard.io/fetch/${url}`,
-            `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-            `https://cors-anywhere.herokuapp.com/${url}`
-          ];
-          
-          let success = false;
-          for (const proxyUrl of proxies) {
-            try {
-              const controller = new AbortController();
-              const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 שניות timeout
-              
-              const response = await fetch(proxyUrl, {
-                signal: controller.signal,
-                headers: {
-                  'X-Requested-With': 'XMLHttpRequest'
-                }
-              });
-              
-              clearTimeout(timeoutId);
-              
-              if (response.ok) {
-                const data = await response.text();
-                jsonTa.value = data;
-                typeof showOk==='function' && showOk('הנתונים נטענו בהצלחה! לחץ על "פענח" כדי לעבד אותם.');
-                success = true;
-                break;
-              }
-            } catch (proxyError) {
-              console.log(`Proxy failed: ${proxyUrl}`, proxyError);
-              continue;
-            }
+          const targetUrl = new URL(url);
+          const isIbbaHost = targetUrl.hostname === 'ibasketball.co.il' || targetUrl.hostname.endsWith('.ibasketball.co.il');
+          if (targetUrl.protocol !== 'https:' || !isIbbaHost || targetUrl.username || targetUrl.password || targetUrl.port) {
+            throw new Error('ניתן לטעון רק קישור HTTPS תקין מאתר איגוד הכדורסל.');
           }
-          
-          if (!success) {
-            throw new Error('הטעינה נכשלה אחרי 10 שניות. מומלץ לטעון את הנתונים ידנית - פתח את הקישור בחלון חדש, העתק את הנתונים והדבק כאן.');
+
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000);
+          try {
+            const proxyBaseUrl = window.appConfig?.ibbaProxyUrl || '/api/ibba';
+            const response = await fetch(`${proxyBaseUrl}?url=${encodeURIComponent(targetUrl.href)}`, {
+              signal: controller.signal
+            });
+            if (!response.ok) throw new Error(`השרת החזיר שגיאה ${response.status}`);
+
+            jsonTa.value = await response.text();
+            typeof showOk==='function' && showOk('הנתונים נטענו בהצלחה! לחץ על "פענח" כדי לעבד אותם.');
+          } finally {
+            clearTimeout(timeoutId);
           }
           
         } catch (error) {
@@ -496,11 +476,8 @@
             typeof showOk==='function' && showOk('הקישור נפתח בחלון חדש. העתק את הנתונים והדבק כאן.');
           } else {
             typeof showError==='function' && showError(
-              'שגיאה בטעינת הנתונים (CORS).<br>' +
-              'פתרונות אפשריים:<br>' +
-              '1. השתמש בהרחבה "CORS Unblock"<br>' +
-              '2. פתח את הדפדפן עם --disable-web-security<br>' +
-              '3. העתק את הנתונים ידנית מהקישור'
+              'שגיאה בטעינת הנתונים.<br>' +
+              'אפשר להעתיק את הנתונים ידנית מהקישור ולהדביק אותם כאן.'
             );
           }
         }

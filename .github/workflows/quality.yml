@@ -1,0 +1,33 @@
+name: Quality
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm run check
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno check supabase/functions/*/index.ts
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Validate database migrations
+        run: |
+          supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,realtime,storage,studio,vector
+          supabase db reset
+      - name: Stop local Supabase
+        if: always()
+        run: supabase stop --no-backup

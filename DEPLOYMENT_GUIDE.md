@@ -127,7 +127,7 @@ git push -u origin main
 בדף ההגדרות:
 
 1. לחץ על "Environment Variables"
-2. הוסף 3 משתנים:
+2. הוסף 2 משתנים:
 
 **משתנה 1:**
 - **Name**: `VITE_SUPABASE_URL`
@@ -137,11 +137,6 @@ git push -u origin main
 **משתנה 2:**
 - **Name**: `VITE_SUPABASE_ANON_KEY`
 - **Value**: ה-Anon Key מ-Supabase (למפתח הארוך)
-- **Environments**: סמן Production, Preview, Development
-
-**משתנה 3:**
-- **Name**: `ADMIN_PASSWORD`
-- **Value**: סיסמה לכניסת מנהל (בחר סיסמה חזקה!)
 - **Environments**: סמן Production, Preview, Development
 
 ### 4.4 הגדרות Build
@@ -172,7 +167,6 @@ git push -u origin main
 ```javascript
 window.SUPABASE_URL = 'YOUR_SUPABASE_URL_HERE';
 window.SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY_HERE';
-window.ADMIN_PASSWORD = 'YOUR_ADMIN_PASSWORD_HERE';
 ```
 
 ### 5.2 עדכן את index.html
@@ -262,7 +256,8 @@ Vercel יעשה deploy אוטומטית!
 
 ### לא מצליח להתחבר כמנהל
 
-- ודא שה-`ADMIN_PASSWORD` הוגדר נכון
+- ודא שקיים משתמש Supabase Auth ושהוגדר לו `app_metadata.role = admin`
+- ודא שהאימייל אושר ושה־Edge Functions פורסמו עם אימות JWT
 - נקה Cache של הדפדפן
 - נסה בחלון פרטי/incognito
 

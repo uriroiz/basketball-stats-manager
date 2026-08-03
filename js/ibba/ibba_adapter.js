@@ -7,21 +7,16 @@
  */
 class IBBAAdapter {
   constructor() {
+    const config = window.appConfig || {};
     this.baseURL = 'https://ibasketball.co.il/wp-json/wp/v2';
     this.sportspressURL = 'https://ibasketball.co.il/wp-json/sportspress/v2';
-    this.leagueId = 119474; // ליגה לאומית 2025
-    this.seasonId = 119472; // עונת 2025
-    this.playersPageURL = 'https://ibasketball.co.il/league/2025-2/';
-    this.seasonMonths = [
-      '2025-10',
-      '2025-11',
-      '2025-12',
-      '2026-01',
-      '2026-02',
-      '2026-03',
-      '2026-04',
-      '2026-05',
-      '2026-06'
+    this.leagueId = config.leagueId || 119474;
+    this.seasonId = config.seasonId || 119472;
+    this.playersPageURL = config.playersPageUrl || 'https://ibasketball.co.il/league/2025-2/';
+    this.seasonMonths = config.seasonMonths || [
+      '2025-10', '2025-11', '2025-12',
+      '2026-01', '2026-02', '2026-03',
+      '2026-04', '2026-05', '2026-06'
     ];
   }
 
@@ -69,7 +64,7 @@ class IBBAAdapter {
       
       return await response.json();
     } catch (error) {
-      console.warn('Direct monthly fetch failed, trying via CORS proxy...', error.message);
+      console.warn('Direct monthly fetch failed, trying the first-party proxy...', error.message);
       return await this.fetchViaProxy(url);
     }
   }
@@ -111,7 +106,7 @@ class IBBAAdapter {
       
     } catch (error) {
       // אם נכשל בגלל CORS - נסה דרך proxy
-      console.warn('⚠️ Direct fetch failed, trying via CORS proxy...', error.message);
+      console.warn('⚠️ Direct fetch failed, trying the first-party proxy...', error.message);
       const data = await this.fetchViaProxy(url);
       
       if (Array.isArray(data) && data.length === 0) {
@@ -148,7 +143,7 @@ class IBBAAdapter {
       
     } catch (error) {
       // אם נכשל בגלל CORS - נסה דרך proxy
-      console.warn('⚠️ Direct fetch failed, trying via CORS proxy...', error.message);
+      console.warn('⚠️ Direct fetch failed, trying the first-party proxy...', error.message);
       return await this.fetchViaProxy(url);
     }
   }
@@ -173,46 +168,24 @@ class IBBAAdapter {
   }
 
   /**
-   * קריאה דרך CORS proxy (fallback)
-   * משתמש ב-proxy מותאם אישית של Vercel + fallback ל-proxies ציבוריים
+   * קריאה דרך ה-proxy המצומצם של האפליקציה (fallback)
+   * משתמש ב-proxy מוגבל של Vercel שמורשה לפנות רק ל-IBBA.
    */
   async fetchViaProxy(targetUrl) {
     const env = this.getEnvironment();
     console.log(`🌍 Environment detected: ${env}`);
     
-    // ה-URL של ה-proxy שלנו ב-Vercel (production)
-    const VERCEL_PROXY = 'https://basketball-stats-manager.vercel.app/api/proxy';
-    
-    // בניית רשימת proxies לפי הסביבה
-    let proxies = [];
-    
-    if (env === 'vercel') {
-      // Production - הproxy היחסי שלנו קודם
-      proxies = [
-        `/api/proxy?url=${encodeURIComponent(targetUrl)}`,  // Vercel API route (relative)
-        `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
-      ];
-    } else if (env === 'localhost' || env === 'other') {
-      // Local/Other - הproxy המלא שלנו ב-Vercel קודם!
-      proxies = [
-        `${VERCEL_PROXY}?url=${encodeURIComponent(targetUrl)}`,  // Vercel API route (absolute)
-        `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
-        `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`
-      ];
-    } else if (env === 'file') {
+    if (env === 'file') {
       // פתיחה ישירה מקובץ - בעייתי!
       console.error('⚠️ Running from file:// protocol - CORS will fail!');
       console.error('💡 Please run a local server:');
-      console.error('   python -m http.server 8000');
+      console.error('   npm run dev');
       console.error('   Then open: http://localhost:8000/admin_players.html');
       
-      // עדיין ננסה דרך Vercel proxy
-      proxies = [
-        `${VERCEL_PROXY}?url=${encodeURIComponent(targetUrl)}`,
-        `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
-      ];
     }
+
+    const proxyBaseUrl = window.appConfig?.ibbaProxyUrl || '/api/ibba';
+    const proxies = [`${proxyBaseUrl}?url=${encodeURIComponent(targetUrl)}`];
     
     for (let i = 0; i < proxies.length; i++) {
       try {
@@ -240,8 +213,8 @@ class IBBAAdapter {
         // אם זה הproxy האחרון - זרוק שגיאה
         if (i === proxies.length - 1) {
           const helpMsg = env === 'file' 
-            ? 'Cannot run from file://. Please use: python -m http.server 8000'
-            : 'All proxies failed. Try running a local server (python -m http.server 8000)';
+            ? 'Cannot run from file://. Please use: npm run dev'
+            : 'The IBBA proxy failed. Verify the network and run: npm run dev';
           throw new Error(helpMsg);
         }
       }
@@ -266,8 +239,10 @@ class IBBAAdapter {
     let homeScore = 0;
     let awayScore = 0;
     if (ibbaGame.performance) {
-      homeScore = ibbaGame.performance[homeTeamId]?.[0]?.pts || 0;
-      awayScore = ibbaGame.performance[awayTeamId]?.[0]?.pts || 0;
+      const rawHomeScore = Number(ibbaGame.performance[homeTeamId]?.[0]?.pts);
+      const rawAwayScore = Number(ibbaGame.performance[awayTeamId]?.[0]?.pts);
+      homeScore = Number.isFinite(rawHomeScore) ? rawHomeScore : 0;
+      awayScore = Number.isFinite(rawAwayScore) ? rawAwayScore : 0;
     }
     
     const game = {

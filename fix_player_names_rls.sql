@@ -6,34 +6,29 @@
 -- Drop existing restrictive policies
 DROP POLICY IF EXISTS "Authenticated users can insert player names" ON public.player_names;
 DROP POLICY IF EXISTS "Authenticated users can update player names" ON public.player_names;
+DROP POLICY IF EXISTS "Authenticated users can delete player names" ON public.player_names;
 
--- Create permissive policies for admin operations
--- Option 1: Allow all (simple, less secure)
-CREATE POLICY "Anyone can insert player names" ON public.player_names
-    FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Anyone can insert player names" ON public.player_names;
+DROP POLICY IF EXISTS "Anyone can update player names" ON public.player_names;
+DROP POLICY IF EXISTS "Admin users can manage player names" ON public.player_names;
 
-CREATE POLICY "Anyone can update player names" ON public.player_names
-    FOR UPDATE USING (true);
+CREATE POLICY "Admin users can manage player names" ON public.player_names
+    FOR ALL TO authenticated
+    USING ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+    WITH CHECK ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
 
 -- Success message
 DO $$
 BEGIN
     RAISE NOTICE '✅ RLS policies updated successfully!';
-    RAISE NOTICE 'player_names table is now writable from admin page.';
+    RAISE NOTICE 'player_names is writable only by authenticated administrators.';
 END $$;
 
 -- ========================================
 -- SECURITY NOTE:
 -- ========================================
--- This allows anyone with the anon key to write to player_names.
--- 
--- For better security, you can either:
--- 1. Use Service Role Key (recommended):
---    - Get your service_role key from Supabase Dashboard
---    - Add it to config.js: supabaseServiceRoleKey
---    - Revert these policies to authenticated only
---
--- 2. Add custom authentication logic
+-- Assign the administrator via Supabase Auth app_metadata.role = "admin".
+-- Never place the service-role key or an administrator password in browser code.
 -- ========================================
 
 

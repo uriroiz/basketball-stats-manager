@@ -48,13 +48,7 @@ cd basketball-stats-manager
 
 2. **הרץ שרת מקומי**:
 ```bash
-# עם Python
-python -m http.server 8000
-
-# או עם Node.js (npx)
-npx serve .
-
-# או פשוט פתח את index.html בדפדפן
+npm run dev
 ```
 
 3. **פתח בדפדפן**:
@@ -150,9 +144,8 @@ basketball-stats-manager/
 
 ### שגיאת CORS בטעינה
 
-- השתמש בשרת מקומי (Python/Node.js) ולא בפתיחה ישירה של הקובץ
-- או השתמש ב-Chrome עם `--disable-web-security` (בזהירות)
-- או התקן הרחבה כמו "CORS Unblock"
+- הרץ `npm run dev`; שרת הפיתוח כולל proxy מוגבל לדומיין IBBA
+- אל תשבית את אבטחת הדפדפן ואל תשתמש בהרחבת CORS
 
 ### הנתונים איטיים להיטען
 

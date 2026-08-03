@@ -1,77 +1,44 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-admin-password',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
+import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
+import {
+  authorizeAdmin,
+  errorResponse,
+  HttpError,
+  jsonResponse,
+  preflight,
+  pickFields,
+  readJson,
+  requireRecord,
+} from '../_shared/http.ts'
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  const options = preflight(req)
+  if (options) return options
 
   try {
-    // Get admin password from header
-    const authPassword = req.headers.get('x-admin-password')
-    const expectedPassword = Deno.env.get('ADMIN_PASSWORD')
-    
-    if (!authPassword || authPassword !== expectedPassword) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized - Invalid admin password' }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
+    const body = await readJson(req)
+    const teamData = requireRecord(body.teamData, 'teamData')
+    if (typeof teamData.team_id !== 'string' || !teamData.team_id.trim()) {
+      throw new HttpError(400, 'teamData.team_id is required')
+    }
+    if (typeof teamData.name_en !== 'string' || !teamData.name_en.trim()) {
+      throw new HttpError(400, 'teamData.name_en is required')
     }
 
-    // Create Supabase client with SERVICE_ROLE_KEY
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
-
-    // Get data from request
-    const { teamData } = await req.json()
-    
-    console.log('💾 Saving team:', teamData?.name)
-
-    // Save team
-    const { data: team, error: teamError } = await supabaseAdmin
+    const safeTeamData = pickFields(teamData, [
+      'team_id', 'name_en', 'name_he', 'short_he', 'aliases',
+    ])
+    const { adminClient } = await authorizeAdmin(req)
+    const { data, error } = await adminClient
       .from('teams')
-      .upsert(teamData, { onConflict: 'name' })
+      .upsert(safeTeamData, { onConflict: 'team_id' })
       .select()
       .single()
-
-    if (teamError) {
-      console.error('❌ Team save error:', teamError)
-      throw teamError
+    if (error) {
+      console.error('Team save failed:', error.code)
+      throw new Error('Team save failed')
     }
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        team: team
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    )
-
+    return jsonResponse(req, { success: true, team: data })
   } catch (error) {
-    console.error('❌ Error:', error)
-    return new Response(
-      JSON.stringify({ 
-        error: error.message || 'Internal server error'
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    )
+    return errorResponse(req, error)
   }
 })
-

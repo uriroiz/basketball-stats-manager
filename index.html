@@ -49,37 +49,37 @@
     </div>
     
     <!-- Tabs Navigation -->
-    <nav id="tabs" class="flex flex-wrap items-center gap-2 justify-center mb-4">
-      <button id="tab-games" class="tab bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors" onclick="switchTab('games')">
+    <nav id="tabs" role="tablist" aria-label="תצוגות הדשבורד" class="flex flex-wrap items-center gap-2 justify-center mb-4">
+      <button id="tab-games" role="tab" aria-selected="true" aria-controls="view-games" class="tab bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors" onclick="switchTab('games')">
         כל המשחקים
       </button>
-      <button id="tab-teams" class="tab bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors" onclick="switchTab('teams')">
+      <button id="tab-teams" role="tab" aria-selected="false" aria-controls="view-teams" class="tab bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors" onclick="switchTab('teams')">
         סטטיסטיקות קבוצתיות
       </button>
-      <button id="tab-players" class="tab bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors" onclick="switchTab('players')">
+      <button id="tab-players" role="tab" aria-selected="false" aria-controls="view-players" class="tab bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors" onclick="switchTab('players')">
         סטטיסטיקות שחקנים
       </button>
-      <button id="tab-leaders" class="tab bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors" onclick="switchTab('leaders')">
+      <button id="tab-leaders" role="tab" aria-selected="false" aria-controls="view-leaders" class="tab bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors" onclick="switchTab('leaders')">
         מובילי הליגה
       </button>
-      <button id="tab-gamePrep" class="tab bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors" onclick="switchTab('gamePrep')">
+      <button id="tab-gamePrep" role="tab" aria-selected="false" aria-controls="view-gamePrep" class="tab bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition-colors" onclick="switchTab('gamePrep')">
         הכנה למשחק
       </button>
     </nav>
     
     <!-- Loading Progress -->
-    <div id="loadingProgress" class="card p-4 mb-4">
+    <div id="loadingProgress" role="status" aria-live="polite" class="card p-4 mb-4">
       <div class="text-center">
         <div class="text-lg font-semibold mb-2" id="loadingStatus">🔄 טוען נתונים...</div>
         <div class="w-full bg-gray-200 rounded-full h-2.5">
-          <div id="loadingBar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+          <div id="loadingBar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
         </div>
         <div class="text-sm text-gray-600 mt-2" id="loadingDetails">מאתחל...</div>
       </div>
     </div>
     
     <!-- Games Section -->
-    <section id="view-games" class="hidden">
+    <section id="view-games" role="tabpanel" aria-labelledby="tab-games" class="hidden">
       <div class="card p-4">
         <div class="mb-3">
           <h2 class="text-lg font-bold text-blue-900 mb-3">
@@ -148,7 +148,7 @@
     </section>
     
     <!-- ========== Team Statistics Section ========== -->
-    <section id="view-teams" class="hidden">
+    <section id="view-teams" role="tabpanel" aria-labelledby="tab-teams" class="hidden">
       <div class="card p-4">
         <div class="flex items-center justify-between mb-3">
           <h2 class="text-lg font-bold text-blue-900">סטטיסטיקות קבוצתיות (<span id="teamsCount">0</span>)</h2>
@@ -164,43 +164,43 @@
             <thead>
               <tr>
                 <th class="col-team sortable" onclick="sortTeams('name')">
-                  קבוצה <span id="sort-name" class="sort-indicator"></span>
+                  קבוצה <span id="sort-team-name" class="sort-indicator"></span>
                 </th>
                 <th class="num sortable" onclick="sortTeams('gamesPlayed')">
-                  מש' <span id="sort-gamesPlayed" class="sort-indicator"></span>
+                  מש' <span id="sort-team-gamesPlayed" class="sort-indicator"></span>
                 </th>
                 <th class="num sortable" onclick="sortTeams('ppg')">
-                  <span id="pointsHeader">נק'</span> <span id="sort-ppg" class="sort-indicator"></span>
+                  <span id="pointsHeader">נק'</span> <span id="sort-team-ppg" class="sort-indicator"></span>
                 </th>
                 <th class="num sortable" onclick="sortTeams('rpg')">
-                  <span id="reboundsHeader">ריב'</span> <span id="sort-rpg" class="sort-indicator"></span>
+                  <span id="reboundsHeader">ריב'</span> <span id="sort-team-rpg" class="sort-indicator"></span>
                 </th>
                 <th class="num sortable" onclick="sortTeams('apg')">
-                  <span id="assistsHeader">אס'</span> <span id="sort-apg" class="sort-indicator"></span>
+                  <span id="assistsHeader">אס'</span> <span id="sort-team-apg" class="sort-indicator"></span>
                 </th>
                 <th class="num sortable" onclick="sortTeams('spg')">
-                  <span id="stealsHeader">חט'</span> <span id="sort-spg" class="sort-indicator"></span>
+                  <span id="stealsHeader">חט'</span> <span id="sort-team-spg" class="sort-indicator"></span>
                 </th>
                 <th class="num sortable" onclick="sortTeams('bpg')">
-                  <span id="blocksHeader">חס'</span> <span id="sort-bpg" class="sort-indicator"></span>
+                  <span id="blocksHeader">חס'</span> <span id="sort-team-bpg" class="sort-indicator"></span>
                 </th>
                 <th class="num sortable" onclick="sortTeams('tpg')">
-                  <span id="turnoversHeader">איב'</span> <span id="sort-tpg" class="sort-indicator"></span>
+                  <span id="turnoversHeader">איב'</span> <span id="sort-team-tpg" class="sort-indicator"></span>
                 </th>
                 <th class="num sortable" onclick="sortTeams('fpg')">
-                  <span id="foulsHeader">עב'</span> <span id="sort-fpg" class="sort-indicator"></span>
+                  <span id="foulsHeader">עב'</span> <span id="sort-team-fpg" class="sort-indicator"></span>
                 </th>
                 <th class="pct sortable" onclick="sortTeams('fgPct')">
-                  FG% <span id="sort-fgPct" class="sort-indicator"></span>
+                  FG% <span id="sort-team-fgPct" class="sort-indicator"></span>
                 </th>
                 <th class="pct sortable" onclick="sortTeams('threePtPct')">
-                  3PT% <span id="sort-threePtPct" class="sort-indicator"></span>
+                  3PT% <span id="sort-team-threePtPct" class="sort-indicator"></span>
                 </th>
                 <th class="pct sortable" onclick="sortTeams('ftPct')">
-                  FT% <span id="sort-ftPct" class="sort-indicator"></span>
+                  FT% <span id="sort-team-ftPct" class="sort-indicator"></span>
                 </th>
                 <th class="num sortable" onclick="sortTeams('efficiency')">
-                  <span id="efficiencyHeader">יעילות</span> <span id="sort-efficiency" class="sort-indicator"></span>
+                  <span id="efficiencyHeader">יעילות</span> <span id="sort-team-efficiency" class="sort-indicator"></span>
                 </th>
               </tr>
             </thead>
@@ -215,7 +215,7 @@
     </section>
     
     <!-- ========== Player Statistics Section ========== -->
-    <section id="view-players" class="hidden">
+    <section id="view-players" role="tabpanel" aria-labelledby="tab-players" class="hidden">
       <div class="card p-4">
         <div class="mb-3">
           <div class="flex items-center justify-between mb-2">
@@ -263,52 +263,52 @@
             <thead>
               <tr>
                 <th class="col-name" data-sort-field="name" onclick="sortPlayers('name')" style="cursor: pointer;">
-                  <div class="th-inner">שחקן <span id="sort-name" class="sort-indicator"></span></div>
+                  <div class="th-inner">שחקן <span id="sort-player-name" class="sort-indicator"></span></div>
                 </th>
                 <th class="col-jersey" data-sort-field="jersey" onclick="sortPlayers('jersey')" style="cursor: pointer;">
-                  <div class="th-inner">מס' <span id="sort-jersey" class="sort-indicator"></span></div>
+                  <div class="th-inner">מס' <span id="sort-player-jersey" class="sort-indicator"></span></div>
                 </th>
                 <th class="col-team" data-sort-field="teamName" onclick="sortPlayers('teamName')" style="cursor: pointer;">
-                  <div class="th-inner">קבוצה <span id="sort-teamName" class="sort-indicator"></span></div>
+                  <div class="th-inner">קבוצה <span id="sort-player-teamName" class="sort-indicator"></span></div>
                 </th>
                 <th class="col-games" data-sort-field="gamesPlayed" onclick="sortPlayers('gamesPlayed')" style="cursor: pointer;">
-                  <div class="th-inner">מש' <span id="sort-gamesPlayed" class="sort-indicator"></span></div>
+                  <div class="th-inner">מש' <span id="sort-player-gamesPlayed" class="sort-indicator"></span></div>
                 </th>
                 <th class="num points" data-sort-field="ppg" onclick="sortPlayers('ppg')" style="cursor: pointer;">
-                  <div class="th-inner"><span id="pointsHeaderPlayer">נק'</span> <span id="sort-ppg" class="sort-indicator"></span></div>
+                  <div class="th-inner"><span id="pointsHeaderPlayer">נק'</span> <span id="sort-player-ppg" class="sort-indicator"></span></div>
                 </th>
                 <th class="num rebounds" data-sort-field="rpg" onclick="sortPlayers('rpg')" style="cursor: pointer;">
-                  <div class="th-inner"><span id="reboundsHeaderPlayer">ריב'</span> <span id="sort-rpg" class="sort-indicator"></span></div>
+                  <div class="th-inner"><span id="reboundsHeaderPlayer">ריב'</span> <span id="sort-player-rpg" class="sort-indicator"></span></div>
                 </th>
                 <th class="num assists" data-sort-field="apg" onclick="sortPlayers('apg')" style="cursor: pointer;">
-                  <div class="th-inner"><span id="assistsHeaderPlayer">אס'</span> <span id="sort-apg" class="sort-indicator"></span></div>
+                  <div class="th-inner"><span id="assistsHeaderPlayer">אס'</span> <span id="sort-player-apg" class="sort-indicator"></span></div>
                 </th>
                 <th class="num" data-sort-field="spg" onclick="sortPlayers('spg')" style="cursor: pointer;">
-                  <div class="th-inner"><span id="stealsHeaderPlayer">חט'</span> <span id="sort-spg" class="sort-indicator"></span></div>
+                  <div class="th-inner"><span id="stealsHeaderPlayer">חט'</span> <span id="sort-player-spg" class="sort-indicator"></span></div>
                 </th>
                 <th class="num" data-sort-field="bpg" onclick="sortPlayers('bpg')" style="cursor: pointer;">
-                  <div class="th-inner"><span id="blocksHeaderPlayer">חס'</span> <span id="sort-bpg" class="sort-indicator"></span></div>
+                  <div class="th-inner"><span id="blocksHeaderPlayer">חס'</span> <span id="sort-player-bpg" class="sort-indicator"></span></div>
                 </th>
                 <th class="num" data-sort-field="tpg" onclick="sortPlayers('tpg')" style="cursor: pointer;">
-                  <div class="th-inner"><span id="turnoversHeaderPlayer">איב'</span> <span id="sort-tpg" class="sort-indicator"></span></div>
+                  <div class="th-inner"><span id="turnoversHeaderPlayer">איב'</span> <span id="sort-player-tpg" class="sort-indicator"></span></div>
                 </th>
                 <th class="num" data-sort-field="fpg" onclick="sortPlayers('fpg')" style="cursor: pointer;">
-                  <div class="th-inner"><span id="foulsHeaderPlayer">עב'</span> <span id="sort-fpg" class="sort-indicator"></span></div>
+                  <div class="th-inner"><span id="foulsHeaderPlayer">עב'</span> <span id="sort-player-fpg" class="sort-indicator"></span></div>
                 </th>
                 <th class="num" data-sort-field="foulsDrawnPg" onclick="sortPlayers('foulsDrawnPg')" style="cursor: pointer;">
-                  <div class="th-inner"><span id="foulsDrawnHeaderPlayer">סחט'</span> <span id="sort-foulsDrawnPg" class="sort-indicator"></span></div>
+                  <div class="th-inner"><span id="foulsDrawnHeaderPlayer">סחט'</span> <span id="sort-player-foulsDrawnPg" class="sort-indicator"></span></div>
                 </th>
                 <th class="num pct" data-sort-field="fgPct" onclick="sortPlayers('fgPct')" style="cursor: pointer;">
-                  <div class="th-inner">FG% <span id="sort-fgPct" class="sort-indicator"></span></div>
+                  <div class="th-inner">FG% <span id="sort-player-fgPct" class="sort-indicator"></span></div>
                 </th>
                 <th class="num pct" data-sort-field="threePtPct" onclick="sortPlayers('threePtPct')" style="cursor: pointer;">
-                  <div class="th-inner">3PT% <span id="sort-threePtPct" class="sort-indicator"></span></div>
+                  <div class="th-inner">3PT% <span id="sort-player-threePtPct" class="sort-indicator"></span></div>
                 </th>
                 <th class="num pct" data-sort-field="ftPct" onclick="sortPlayers('ftPct')" style="cursor: pointer;">
-                  <div class="th-inner">FT% <span id="sort-ftPct" class="sort-indicator"></span></div>
+                  <div class="th-inner">FT% <span id="sort-player-ftPct" class="sort-indicator"></span></div>
                 </th>
                 <th class="num efficiency" data-sort-field="efficiencyAvg" onclick="sortPlayers('efficiencyAvg')" style="cursor: pointer;">
-                  <div class="th-inner"><span id="efficiencyHeaderPlayer">יעילות</span> <span id="sort-efficiencyAvg" class="sort-indicator"></span></div>
+                  <div class="th-inner"><span id="efficiencyHeaderPlayer">יעילות</span> <span id="sort-player-efficiencyAvg" class="sort-indicator"></span></div>
                 </th>
               </tr>
             </thead>
@@ -323,7 +323,7 @@
     </section>
     
     <!-- ========== League Leaders Section ========== -->
-    <section id="view-leaders" class="hidden">
+    <section id="view-leaders" role="tabpanel" aria-labelledby="tab-leaders" class="hidden">
       <div class="card p-4">
         <h2 class="text-lg font-bold mb-4 text-blue-900">מובילי הליגה</h2>
         
@@ -565,7 +565,7 @@
     </section>
 
     <!-- Game Preparation Section -->
-    <section id="view-gamePrep" class="hidden">
+    <section id="view-gamePrep" role="tabpanel" aria-labelledby="tab-gamePrep" class="hidden">
       <div class="card p-4">
         <h2 class="text-lg font-bold mb-4 text-blue-900">הכנה למשחק הבא</h2>
         
@@ -583,7 +583,7 @@
           
           <!-- Round Selector -->
           <div class="mb-3">
-            <label class="block text-sm font-medium text-gray-700 mb-2">בחר מחזור:</label>
+            <label for="roundSelector" class="block text-sm font-medium text-gray-700 mb-2">בחר מחזור:</label>
             <select id="roundSelector" class="w-full md:w-64 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500">
               <option value="">טוען מחזורים...</option>
             </select>
@@ -603,13 +603,13 @@
           <h3 class="font-semibold text-blue-800 mb-3">בחירת קבוצות</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">קבוצת בית</label>
+              <label for="homeTeamSelect" class="block text-sm font-medium text-gray-700 mb-2">קבוצת בית</label>
               <select id="homeTeamSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="">בחר קבוצת בית...</option>
               </select>
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">קבוצת חוץ</label>
+              <label for="awayTeamSelect" class="block text-sm font-medium text-gray-700 mb-2">קבוצת חוץ</label>
               <select id="awayTeamSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="">בחר קבוצת חוץ...</option>
               </select>
@@ -628,7 +628,7 @@
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <!-- Player 1 Selection -->
               <div class="space-y-3">
-                <label class="block text-sm font-medium text-gray-700">שחקן ראשון</label>
+                <label for="player1Select" class="block text-sm font-medium text-gray-700">שחקן ראשון</label>
                 <select id="player1Select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" disabled>
                   <option value="">בחר שחקן ראשון...</option>
                 </select>
@@ -639,7 +639,7 @@
 
               <!-- Player 2 Selection -->
               <div class="space-y-3">
-                <label class="block text-sm font-medium text-gray-700">שחקן שני</label>
+                <label for="player2Select" class="block text-sm font-medium text-gray-700">שחקן שני</label>
                 <select id="player2Select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" disabled>
                   <option value="">בחר שחקן שני...</option>
                 </select>
@@ -807,19 +807,19 @@
   </div>
   
   <!-- Scripts -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.111.0"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-  <script src="js/config.js"></script>
-  <script src="js/ibba/ibba_adapter.js?v=8"></script>
+  <script src="js/config.js?v=3"></script>
+  <script src="js/ibba/ibba_adapter.js?v=9"></script>
   <script src="js/ibba/ibba_analytics.js?v=7"></script>
-  <script src="js/ibba/ibba_player_names.js?v=8" defer></script>
-  <script src="js/app_upcoming_games_pure.js?v=2" defer></script>
+  <script src="js/ibba/ibba_player_names.js?v=9" defer></script>
+  <script src="js/app_upcoming_games_pure.js?v=3" defer></script>
   
   <!-- Insights V2 System -->
   <script src="js/ibba/ibba_insights_templates.js"></script>
   <script src="js/ibba/ibba_insights_v2.js"></script>
-  <script src="js/ibba/ibba_advanced.js"></script>
+  <script src="js/ibba/ibba_advanced.js?v=2"></script>
 
   <script>
     // ========================================
@@ -866,6 +866,15 @@
       },
       headToHeadData: []
     };
+
+    function safeText(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
     
     // ========================================
     // TAB SWITCHING
@@ -894,12 +903,14 @@
       document.querySelectorAll('.tab').forEach(btn => {
         btn.classList.remove('bg-blue-600', 'text-white');
         btn.classList.add('bg-gray-200', 'text-gray-700');
+        btn.setAttribute('aria-selected', 'false');
       });
       
       const activeTab = document.getElementById(`tab-${tabName}`);
       if (activeTab) {
         activeTab.classList.remove('bg-gray-200', 'text-gray-700');
         activeTab.classList.add('bg-blue-600', 'text-white');
+        activeTab.setAttribute('aria-selected', 'true');
       }
       
       // Hide all sections
@@ -1108,14 +1119,16 @@
      */
     function updateTeamSortIndicators() {
       // Clear all
-      document.querySelectorAll('.sort-indicator').forEach(span => {
+      document.querySelectorAll('#view-teams .sort-indicator').forEach(span => {
         span.textContent = '';
+        span.closest('th')?.setAttribute('aria-sort', 'none');
       });
       
       // Set current
-      const indicator = document.getElementById(`sort-${currentTeamSort.field}`);
+      const indicator = document.getElementById(`sort-team-${currentTeamSort.field}`);
       if (indicator) {
         indicator.textContent = currentTeamSort.direction === 'asc' ? '▲' : '▼';
+        indicator.closest('th')?.setAttribute('aria-sort', currentTeamSort.direction === 'asc' ? 'ascending' : 'descending');
       }
     }
     
@@ -1136,7 +1149,7 @@
         const teamName = team.teamName || team.name;
         return `
           <tr class="hover:bg-blue-50 transition">
-            <td class="col-team font-semibold text-blue-900">${teamName}</td>
+            <td class="col-team font-semibold text-blue-900">${safeText(teamName)}</td>
             <td class="num">${team.gamesPlayed}</td>
             <td class="num">${formatNumber(team.ppg || team.points)}</td>
             <td class="num">${formatNumber(team.rpg || team.rebounds)}</td>
@@ -1248,8 +1261,8 @@
       const teams = [...new Set(allPlayerStats.map(p => p.teamName))].sort((a, b) => a.localeCompare(b, 'he'));
       
       // Keep "כל הקבוצות" option, add teams
-      select.innerHTML = '<option value="">כל הקבוצות</option>' +
-        teams.map(team => `<option value="${team}">${team}</option>`).join('');
+      select.replaceChildren(new Option('כל הקבוצות', ''));
+      teams.forEach(team => select.add(new Option(team, team)));
     }
     
     /**
@@ -1461,12 +1474,14 @@
       // Clear all
       document.querySelectorAll('#view-players .sort-indicator').forEach(span => {
         span.textContent = '';
+        span.closest('th')?.setAttribute('aria-sort', 'none');
       });
       
       // Set current
-      const indicator = document.getElementById(`sort-${currentPlayerSort.field}`);
+      const indicator = document.getElementById(`sort-player-${currentPlayerSort.field}`);
       if (indicator) {
         indicator.textContent = currentPlayerSort.direction === 'asc' ? '▲' : '▼';
+        indicator.closest('th')?.setAttribute('aria-sort', currentPlayerSort.direction === 'asc' ? 'ascending' : 'descending');
       }
     }
     
@@ -1487,9 +1502,9 @@
         // All fields are now consistently named (ppg, rpg, etc.) regardless of view
         return `
           <tr class="hover:bg-blue-50 transition">
-            <td class="col-name font-semibold text-blue-900">${player.name}</td>
-            <td class="col-jersey">${player.jersey}</td>
-            <td class="col-team">${player.teamName}</td>
+            <td class="col-name font-semibold text-blue-900">${safeText(player.name)}</td>
+            <td class="col-jersey">${safeText(player.jersey)}</td>
+            <td class="col-team">${safeText(player.teamName)}</td>
             <td class="col-games">${player.gamesPlayed}</td>
             <td class="num">${formatPlayerNumber(player.ppg)}</td>
             <td class="num">${formatPlayerNumber(player.rpg)}</td>
@@ -1551,14 +1566,8 @@
           updateProgress(95, '👥 טוען שמות שחקנים...', 'מסיים טעינה...');
           
           // Initialize Supabase if configured
-          let supabase = null;
-          const supabaseUrl = window.appConfig?.supabaseUrl || window.CONFIG?.SUPABASE_URL;
-          const supabaseKey = window.appConfig?.supabaseKey || window.CONFIG?.SUPABASE_ANON_KEY;
-          
-          if (supabaseUrl && supabaseKey) {
-            supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-            console.log('✅ Supabase client initialized');
-          }
+          let supabase = window.supabaseClient || null;
+          if (!supabase) console.warn('Supabase client is unavailable; player-name persistence is disabled');
           
           window.playerNamesLoader = new window.IBBAPlayerNames(supabase);
           
@@ -1589,7 +1598,8 @@
                   } else if (progress.stage === 'fetching') {
                     const statusDiv = document.getElementById('playerNamesStatus');
                     if (statusDiv) {
-                      statusDiv.innerHTML = `<span class="animate-pulse">⏳ ${progress.message || 'טוען מ-API...'}</span>`;
+                      statusDiv.textContent = `⏳ ${progress.message || 'טוען מ-API...'}`;
+                      statusDiv.classList.add('animate-pulse');
                       statusDiv.style.display = 'block';
                     }
                   }
@@ -1654,6 +1664,8 @@
       processGames();
       populateFilters();
       applyFilters();
+      document.getElementById('view-games').classList.remove('hidden');
+      enableTabs();
       
       updateProgress(40, `✅ נטענו ${games50.length} משחקים`, 'טוען משחקים נוספים ברקע...');
       
@@ -1830,14 +1842,16 @@
     
     function updateSortIndicators() {
       // Clear all indicators
-      document.querySelectorAll('.sort-indicator').forEach(el => {
+      document.querySelectorAll('#view-games .sort-indicator').forEach(el => {
         el.textContent = '';
+        el.closest('th')?.setAttribute('aria-sort', 'none');
       });
       
       // Set current indicator
       const indicator = document.getElementById(`sort-${currentSort.field}`);
       if (indicator) {
         indicator.textContent = currentSort.direction === 'asc' ? '▲' : '▼';
+        indicator.closest('th')?.setAttribute('aria-sort', currentSort.direction === 'asc' ? 'ascending' : 'descending');
       }
     }
     
@@ -1868,12 +1882,12 @@
         
         return `
           <tr class="hover:bg-gray-50 transition-colors">
-            <td class="col-team">${game.gameId}</td>
-            <td class="num">${cycleStr}</td>
+            <td class="col-team">${safeText(game.gameId)}</td>
+            <td class="num">${safeText(cycleStr)}</td>
             <td class="num">${dateStr}</td>
-            <td class="col-team font-semibold">${game.homeTeam} - ${game.awayTeam}</td>
+            <td class="col-team font-semibold">${safeText(game.homeTeam)} - ${safeText(game.awayTeam)}</td>
             <td class="col-team text-center font-bold">
-              ${game.awayScore}-${game.homeScore}
+              ${safeText(game.awayScore)}-${safeText(game.homeScore)}
             </td>
           </tr>
         `;
@@ -1892,16 +1906,19 @@
     // ========================================
     
     function updateProgress(percent, status, details) {
-      document.getElementById('loadingBar').style.width = `${percent}%`;
+      const loadingBar = document.getElementById('loadingBar');
+      loadingBar.style.width = `${percent}%`;
+      loadingBar.setAttribute('aria-valuenow', String(percent));
       document.getElementById('loadingStatus').textContent = status;
       document.getElementById('loadingDetails').textContent = details;
     }
     
     function showError(message) {
       const loadingDiv = document.getElementById('loadingProgress');
+      const safeMessage = safeText(message);
       loadingDiv.innerHTML = `
         <div class="text-center">
-          <div class="text-red-600 text-lg font-semibold mb-2">❌ ${message}</div>
+          <div class="text-red-600 text-lg font-semibold mb-2">❌ ${safeMessage}</div>
           <button onclick="location.reload()" class="btn bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors">
             🔄 נסה שוב
           </button>
@@ -1909,7 +1926,7 @@
             <p class="text-xs text-amber-800 mb-2"><strong>💡 פתרונות אפשריים:</strong></p>
             <div class="text-xs text-amber-700 space-y-1">
               <div>• <strong>HTTP Server:</strong> הרץ את האתר דרך HTTP server (לא file://)</div>
-              <div>• <strong>פקודה:</strong> <code class="bg-amber-100 px-1 rounded">python -m http.server 8000</code></div>
+              <div>• <strong>פקודה:</strong> <code class="bg-amber-100 px-1 rounded">npm run dev</code></div>
               <div>• <strong>גש:</strong> http://localhost:8000/ibba_dashboard_v1.html</div>
             </div>
           </div>
@@ -1944,6 +1961,17 @@
         header.addEventListener('click', () => {
           const field = header.dataset.sort;
           sortGames(field);
+        });
+      });
+
+      document.querySelectorAll('th.sortable').forEach(header => {
+        header.setAttribute('role', 'button');
+        header.setAttribute('tabindex', '0');
+        header.addEventListener('keydown', event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            header.click();
+          }
         });
       });
       
@@ -2216,8 +2244,8 @@
           
           tr.innerHTML = `
             <td class="py-2 px-2 font-semibold text-gray-700">${index + 1}</td>
-            <td class="py-2 px-2 text-right font-medium">${playerName}</td>
-            <td class="py-2 px-2 text-right text-sm text-gray-600">${teamName}</td>
+            <td class="py-2 px-2 text-right font-medium">${safeText(playerName)}</td>
+            <td class="py-2 px-2 text-right text-sm text-gray-600">${safeText(teamName)}</td>
             <td class="py-2 px-2 text-center text-sm text-gray-500">${games}</td>
             <td class="py-2 px-2 text-center font-bold">${statValue}${suffix}</td>
           `;
@@ -2653,8 +2681,8 @@
       
       container.innerHTML = `
         <div class="text-center mb-3 grid grid-cols-2 gap-3">
-          <div class="font-bold text-blue-800">${homeStats.name}</div>
-          <div class="font-bold text-purple-800">${awayStats.name}</div>
+          <div class="font-bold text-blue-800">${safeText(homeStats.name)}</div>
+          <div class="font-bold text-purple-800">${safeText(awayStats.name)}</div>
         </div>
         ${createRow('נקודות למשחק', homeStats.ppg, homeStats.rankPpg, awayStats.ppg, awayStats.rankPpg)}
         ${createRow('ריבאונדים למשחק', homeStats.rpg, homeStats.rankRpg, awayStats.rpg, awayStats.rankRpg)}
@@ -2724,7 +2752,7 @@
           
           return `
             <div class="bg-white border border-gray-200 rounded p-4 flex items-center justify-start gap-6" dir="rtl">
-              <span class="font-medium text-sm">${date} | ${teamName} ${teamScore} - ${oppScore} ${opponent}</span>
+              <span class="font-medium text-sm">${safeText(date)} | ${safeText(teamName)} ${safeText(teamScore)} - ${safeText(oppScore)} ${safeText(opponent)}</span>
               <span class="text-3xl flex-shrink-0">${locationIcon}</span>
               <span class="${resultClass} px-3 py-1 rounded font-semibold text-sm flex-shrink-0 w-20 text-center">${resultText}</span>
             </div>
@@ -2734,11 +2762,11 @@
       
       container.innerHTML = `
         <div>
-          <h4 class="font-semibold text-gray-700 mb-3">${homeTeamName}</h4>
+          <h4 class="font-semibold text-gray-700 mb-3">${safeText(homeTeamName)}</h4>
           <div class="space-y-3">${renderGamesList(homeTeamName, homeGames)}</div>
         </div>
         <div>
-          <h4 class="font-semibold text-gray-700 mb-3">${awayTeamName}</h4>
+          <h4 class="font-semibold text-gray-700 mb-3">${safeText(awayTeamName)}</h4>
           <div class="space-y-3">${renderGamesList(awayTeamName, awayGames)}</div>
         </div>
       `;
@@ -2788,9 +2816,9 @@
       
       container.innerHTML = `
         <div class="mb-4 text-center">
-          <span class="font-bold">${homeTeamName}</span>
+          <span class="font-bold">${safeText(homeTeamName)}</span>
           <span class="mx-3 text-2xl font-bold">${homeWins} - ${awayWins}</span>
-          <span class="font-bold">${awayTeamName}</span>
+          <span class="font-bold">${safeText(awayTeamName)}</span>
         </div>
         <table class="w-full text-sm border-collapse bg-white">
           <thead class="bg-gray-100">
@@ -2811,11 +2839,11 @@
               
               return `
                 <tr class="${winnerClass} border-b hover:bg-opacity-70">
-                  <td class="py-2 px-3">${date}</td>
-                  <td class="py-2 px-3 font-medium">${game.homeTeam}</td>
-                  <td class="py-2 px-3 text-center font-bold">${game.homeScore} - ${game.awayScore}</td>
-                  <td class="py-2 px-3 font-medium">${game.awayTeam}</td>
-                  <td class="py-2 px-3 text-center">${cycle}</td>
+                  <td class="py-2 px-3">${safeText(date)}</td>
+                  <td class="py-2 px-3 font-medium">${safeText(game.homeTeam)}</td>
+                  <td class="py-2 px-3 text-center font-bold">${safeText(game.homeScore)} - ${safeText(game.awayScore)}</td>
+                  <td class="py-2 px-3 font-medium">${safeText(game.awayTeam)}</td>
+                  <td class="py-2 px-3 text-center">${safeText(cycle)}</td>
                 </tr>
               `;
             }).join('')}
@@ -2945,16 +2973,16 @@
           // First category header with player names
           return `
             <tr class="bg-blue-50">
-              <td class="px-4 py-3 text-sm font-bold text-blue-800 text-right">${categoryName}</td>
-              <td class="px-4 py-3 text-sm font-bold text-blue-800 text-center">${player1Name}</td>
-              <td class="px-4 py-3 text-sm font-bold text-blue-800 text-center">${player2Name}</td>
+              <td class="px-4 py-3 text-sm font-bold text-blue-800 text-right">${safeText(categoryName)}</td>
+              <td class="px-4 py-3 text-sm font-bold text-blue-800 text-center">${safeText(player1Name)}</td>
+              <td class="px-4 py-3 text-sm font-bold text-blue-800 text-center">${safeText(player2Name)}</td>
             </tr>
           `;
         } else {
           // Other category headers without player names
           return `
             <tr class="bg-blue-50">
-              <td colspan="3" class="px-4 py-3 text-sm font-bold text-blue-800 text-right">${categoryName}</td>
+              <td colspan="3" class="px-4 py-3 text-sm font-bold text-blue-800 text-right">${safeText(categoryName)}</td>
             </tr>
           `;
         }
@@ -3028,10 +3056,7 @@
       console.log('✅ Player comparison rendered');
     }
     
-    // Run debug function automatically
     setTimeout(() => {
-      debugMissingPlayers();
-      
       // Show refresh button after initial load
       const refreshBtn = document.getElementById('refreshPlayerNamesBtn');
       if (refreshBtn && window.playerNamesLoader) {
@@ -3075,7 +3100,7 @@
           }
           
           if (statusDiv) {
-            statusDiv.innerHTML = `✅ רוענן! נטענו ${count} שחקנים`;
+            statusDiv.textContent = `✅ רוענן! נטענו ${Number(count) || 0} שחקנים`;
             setTimeout(() => statusDiv.style.display = 'none', 3000);
           }
         } else {
@@ -3178,7 +3203,7 @@
             <div class="text-red-600">
               <div class="text-4xl mb-3">⚠️</div>
               <p class="font-semibold">שגיאה בניתוח מתקדם</p>
-              <p class="text-sm mt-2">${error.message}</p>
+              <p class="text-sm mt-2">${safeText(error.message)}</p>
             </div>
           `;
         }
@@ -3221,7 +3246,7 @@
       container.innerHTML = tldrItems.map(item => `
         <div class="flex items-start gap-3 bg-white/60 rounded-lg p-3 border border-purple-200">
           <span class="text-purple-600 text-lg">▪</span>
-          <span class="text-gray-800 leading-relaxed">${item}</span>
+          <span class="text-gray-800 leading-relaxed">${safeText(item)}</span>
         </div>
       `).join('');
     }
@@ -3241,7 +3266,7 @@
       
       // Update header with rank
       header.innerHTML = `
-        🏀 ${team}
+        🏀 ${safeText(team)}
         <span class="text-sm font-normal">מקום ${rank} (${record})</span>
       `;
       
@@ -3289,9 +3314,6 @@
      * Display Insights V2
      */
     function displayInsightsV2(insightsV2) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ce49948a-072e-434e-b168-78e26c50a8d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:displayInsightsV2:entry',message:'displayInsightsV2 called',data:{hasInsights:!!insightsV2,categoriesReceived:Object.keys(insightsV2||{})},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2-H4'})}).catch(()=>{});
-      // #endregion
       if (!insightsV2) {
         console.warn('⚠️ No insights V2 data');
         return;
@@ -3321,9 +3343,6 @@
       
       // Show all insights initially
       showInsightCategory('all');
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ce49948a-072e-434e-b168-78e26c50a8d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:displayInsightsV2:end',message:'displayInsightsV2 finished, called showInsightCategory',data:{totalCount:totalCount},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
-      // #endregion
     }
     
     /**
@@ -3403,9 +3422,6 @@
         return;
       }
       
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ce49948a-072e-434e-b168-78e26c50a8d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:showInsightCategory:render',message:'About to render insights',data:{count:insightsToShow.length,firstInsightText:insightsToShow[0]?.text?.substring(0,80),containerId:'insightsDisplay',containerFound:!!container},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3-H4-H5'})}).catch(()=>{});
-      // #endregion
       container.innerHTML = insightsToShow.map(insight => {
         const importanceColors = {
           'high': 'bg-red-50 border-red-300 text-red-900',
@@ -3417,12 +3433,12 @@
         return `
           <div class="insight-item ${colorClass} border rounded-lg p-3 hover:shadow-md transition-shadow">
             <div class="flex items-start gap-3">
-              <span class="text-2xl">${insight.icon || '💡'}</span>
+              <span class="text-2xl">${safeText(insight.icon || '💡')}</span>
               <div class="flex-1">
-                <div class="text-sm font-medium leading-relaxed">${insight.text}</div>
+                <div class="text-sm font-medium leading-relaxed">${safeText(insight.text || '')}</div>
               </div>
               <span class="text-xs px-2 py-1 bg-white/60 rounded-full whitespace-nowrap">
-                ${getCategoryIcon(insight.category)} ${getCategoryName(insight.category)}
+                ${safeText(getCategoryIcon(insight.category))} ${safeText(getCategoryName(insight.category))}
               </span>
             </div>
           </div>
@@ -3512,9 +3528,6 @@
      * Regenerate insights with new variations
      */
     function regenerateInsights() {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ce49948a-072e-434e-b168-78e26c50a8d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:regenerateInsights:entry',message:'regenerateInsights called',data:{hasReport:!!currentAdvancedReport,hasInsightsV2:!!(currentAdvancedReport?.insightsV2)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1-H2'})}).catch(()=>{});
-      // #endregion
       if (!currentAdvancedReport) {
         console.warn('⚠️ No report to regenerate');
         return;
@@ -3522,25 +3535,11 @@
       
       console.log('🎲 Regenerating insights with new variations...');
       
-      // #region agent log
-      const sampleInsightBefore = currentAdvancedReport.insightsV2?.STREAKS?.[0] || currentAdvancedReport.insightsV2?.OFFENSE?.[0] || Object.values(currentAdvancedReport.insightsV2 || {})[0]?.[0];
-      fetch('http://127.0.0.1:7242/ingest/ce49948a-072e-434e-b168-78e26c50a8d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:regenerateInsights:before-regen',message:'BEFORE regenerateInsightTexts',data:{sampleTextBefore:sampleInsightBefore?.text?.substring(0,80)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FIX-VERIFY'})}).catch(()=>{});
-      // #endregion
-      
       // Regenerate texts with new random template variations
       regenerateInsightTexts(currentAdvancedReport.insightsV2);
       
-      // #region agent log
-      const sampleInsightAfter = currentAdvancedReport.insightsV2?.STREAKS?.[0] || currentAdvancedReport.insightsV2?.OFFENSE?.[0] || Object.values(currentAdvancedReport.insightsV2 || {})[0]?.[0];
-      fetch('http://127.0.0.1:7242/ingest/ce49948a-072e-434e-b168-78e26c50a8d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:regenerateInsights:after-regen',message:'AFTER regenerateInsightTexts',data:{sampleTextAfter:sampleInsightAfter?.text?.substring(0,80),textChanged:sampleInsightBefore?.text !== sampleInsightAfter?.text},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FIX-VERIFY'})}).catch(()=>{});
-      // #endregion
-      
       // Display the updated insights
       displayInsightsV2(currentAdvancedReport.insightsV2);
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ce49948a-072e-434e-b168-78e26c50a8d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:regenerateInsights:after-display',message:'displayInsightsV2 completed',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H4'})}).catch(()=>{});
-      // #endregion
     }
     
     /**
@@ -3854,7 +3853,7 @@
             <div class="text-sm text-gray-600">מאזן ניצחונות</div>
           </div>
           <div class="bg-white rounded-lg p-4 text-center">
-            <div class="text-3xl font-bold text-orange-600">${h2h.avgMargin}</div>
+            <div class="text-3xl font-bold text-orange-600">${safeText(h2h.avgMargin)}</div>
             <div class="text-sm text-gray-600">פער ממוצע</div>
           </div>
         </div>
@@ -3863,9 +3862,9 @@
           <div class="bg-white rounded-lg p-4">
             <h4 class="font-semibold text-indigo-800 mb-2">מפגש אחרון</h4>
             <p class="text-gray-800">
-              <span class="font-bold">${h2h.lastMeeting.winner}</span> ניצחה 
-              ${h2h.lastMeeting.teamAScore}-${h2h.lastMeeting.teamBScore}
-              (פער: ${h2h.lastMeeting.margin} נקודות)
+              <span class="font-bold">${safeText(h2h.lastMeeting.winner)}</span> ניצחה
+              ${safeText(h2h.lastMeeting.teamAScore)}-${safeText(h2h.lastMeeting.teamBScore)}
+              (פער: ${safeText(h2h.lastMeeting.margin)} נקודות)
             </p>
           </div>
         ` : ''}

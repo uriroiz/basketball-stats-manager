@@ -4,6 +4,7 @@
   const loginPanel = document.getElementById('loginPanel');
   const responsesPanel = document.getElementById('responsesPanel');
   const loginForm = document.getElementById('adminLoginForm');
+  const emailInput = document.getElementById('adminEmail');
   const passwordInput = document.getElementById('adminPassword');
   const loginMessage = document.getElementById('loginMessage');
   const adminMessage = document.getElementById('adminMessage');
@@ -11,9 +12,9 @@
   const searchInput = document.getElementById('searchResponses');
   const refreshBtn = document.getElementById('refreshResponsesBtn');
   const exportBtn = document.getElementById('exportCsvBtn');
+  const logoutBtn = document.getElementById('logoutAdminBtn');
   const totalResponses = document.getElementById('totalResponses');
 
-  let adminPassword = localStorage.getItem('feedbackAdminPassword') || '';
   let responses = [];
   let filteredResponses = [];
 
@@ -56,16 +57,14 @@
       throw new Error('החיבור ל-Supabase לא נטען. נסה לרענן את העמוד.');
     }
 
-    const { data, error } = await window.supabaseClient.rpc('get_broadcaster_feedback', {
-      p_admin_password: adminPassword,
-      p_limit: 500
-    });
+    const { data, error } = await window.supabaseClient
+      .from('broadcaster_feedback')
+      .select('*')
+      .order('submitted_at', { ascending: false })
+      .limit(500);
 
     if (error) {
       console.error('Feedback RPC error:', error);
-      if (error.code === 'PGRST202' || String(error.message || '').includes('get_broadcaster_feedback')) {
-        throw new Error('חסרה פונקציית צפייה בתשובות. צריך להריץ מחדש את feedback_schema.sql ב-Supabase SQL Editor.');
-      }
       throw new Error(error.message || 'טעינת התשובות נכשלה');
     }
 
@@ -112,7 +111,9 @@
   }
 
   function csvEscape(value) {
-    return `"${String(value || '').replace(/"/g, '""')}"`;
+    const cell = String(value || '');
+    const safeCell = /^[=+\-@]/.test(cell.trimStart()) ? `'${cell}` : cell;
+    return `"${safeCell.replace(/"/g, '""')}"`;
   }
 
   function exportCsv() {
@@ -154,15 +155,20 @@
     event.preventDefault();
     hideMessage(loginMessage);
 
-    adminPassword = passwordInput.value.trim();
-    if (!adminPassword) {
-      showMessage(loginMessage, 'error', 'נא להזין סיסמת מנהל.');
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+    if (!email || !password) {
+      showMessage(loginMessage, 'error', 'נא להזין דוא״ל וסיסמה.');
       return;
     }
 
     try {
+      const { data, error } = await window.supabaseClient.auth.signInWithPassword({ email, password });
+      if (error || data?.user?.app_metadata?.role !== 'admin') {
+        if (data?.session) await window.supabaseClient.auth.signOut();
+        throw new Error('ההתחברות נכשלה או שלמשתמש אין הרשאת מנהל');
+      }
       await loadResponses();
-      localStorage.setItem('feedbackAdminPassword', adminPassword);
       loginPanel.classList.add('hidden');
       responsesPanel.classList.remove('hidden');
     } catch (error) {
@@ -183,8 +189,28 @@
 
   searchInput.addEventListener('input', applyFilter);
   exportBtn.addEventListener('click', exportCsv);
+  logoutBtn.addEventListener('click', async () => {
+    await window.supabaseClient?.auth.signOut();
+    responsesPanel.classList.add('hidden');
+    loginPanel.classList.remove('hidden');
+    passwordInput.value = '';
+  });
 
-  if (adminPassword) {
-    passwordInput.value = adminPassword;
+  async function restoreAdminSession() {
+    if (!window.supabaseClient) return;
+    const { data, error } = await window.supabaseClient.auth.getUser();
+    if (!error && data?.user?.app_metadata?.role === 'admin') {
+      await loadResponses();
+      loginPanel.classList.add('hidden');
+      responsesPanel.classList.remove('hidden');
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      restoreAdminSession().catch(error => console.error('Session restore failed:', error));
+    });
+  } else {
+    restoreAdminSession().catch(error => console.error('Session restore failed:', error));
   }
 })();

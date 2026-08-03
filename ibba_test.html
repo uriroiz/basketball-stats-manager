@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🧪 IBBA API Test - מערכת בדיקות</title>
     <style>
+        .hidden { display: none !important; }
+        .flex { display: flex !important; }
         * {
             margin: 0;
             padding: 0;
@@ -234,10 +236,10 @@
             <br>
             לתוצאות הטובות ביותר, הרץ את העמוד דרך שרת מקומי:
             <br>
-            <code style="background: #1e293b; color: #e2e8f0; padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 8px;">python -m http.server 8000</code>
+            <code style="background: #1e293b; color: #e2e8f0; padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 8px;">npm run dev</code>
             <br>
             <small style="color: #1e40af; display: block; margin-top: 8px;">
-                (אם פתחת מה-filesystem ישירות, המערכת תשתמש אוטומטית ב-CORS proxy - עלול להיות יותר איטי)
+                (אין לפתוח ישירות מה-filesystem; שרת הפיתוח מספק proxy מוגבל ל-IBBA)
             </small>
         </div>
 
@@ -318,18 +320,41 @@
         </div>
     </div>
 
+    <div style="position: fixed; top: 12px; left: 12px; z-index: 50; display: flex; gap: 8px;">
+        <button id="loginBtn" type="button">התחברות מנהל</button>
+        <button id="logoutBtn" type="button" style="display: none;">התנתקות</button>
+        <span id="authIndicator" style="display: none;">מחובר כמנהל</span>
+    </div>
+
+    <div id="authModal" class="hidden" style="position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.55); align-items: center; justify-content: center;">
+        <form id="authLoginForm" style="background: white; padding: 24px; border-radius: 10px; width: min(420px, 90vw);">
+            <h2>התחברות מנהל</h2>
+            <label for="authEmail">דוא״ל</label>
+            <input id="authEmail" type="email" autocomplete="username" required style="width: 100%; margin-bottom: 12px;">
+            <label for="authPassword">סיסמה</label>
+            <input id="authPassword" type="password" autocomplete="current-password" required style="width: 100%; margin-bottom: 12px;">
+            <p id="authError" class="hidden" style="color: #b91c1c;"></p>
+            <div style="display: flex; gap: 8px;">
+                <button id="authSubmitBtn" type="submit">התחבר</button>
+                <button id="closeAuthModal" type="button">ביטול</button>
+            </div>
+        </form>
+    </div>
+
     <!-- Load Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.111.0"></script>
+    <script src="js/config.js?v=3"></script>
+    <script src="js/auth.js?v=2"></script>
     <!-- Phase 1: Basic functionality -->
-    <script src="js/ibba/ibba_adapter.js"></script>
+    <script src="js/ibba/ibba_adapter.js?v=9"></script>
     
     <!-- Phase 2: Advanced functionality -->
     <script src="js/db_adapter.js"></script>
     <script src="js/ibba/ibba_db_wrapper.js"></script>
-    <script src="js/ibba/ibba_player_sync.js"></script>
+    <script src="js/ibba/ibba_player_sync.js?v=2"></script>
     <script src="js/ibba/ibba_game_loader.js"></script>
     
     <!-- UI Controller (must be last) -->
     <script src="js/ibba/ibba_test_ui.js"></script>
 </body>
 </html>
-

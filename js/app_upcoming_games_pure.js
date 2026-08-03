@@ -10,8 +10,8 @@ console.log('📅 Upcoming Games module loading (PURE API version)...');
 // ========================================
 
 const IBBA_API_URL = 'https://ibasketball.co.il/wp-json/sportspress/v2/events';
-const LEAGUE_ID = 119474;  // ליגה לאומית 2025-2
-const SEASON_ID = 119472;  // עונת 2025
+const LEAGUE_ID = window.appConfig?.leagueId || 119474;
+const SEASON_ID = window.appConfig?.seasonId || 119472;
 
 // מטמון נתונים
 let cachedGames = null;
@@ -59,8 +59,13 @@ async function loadUpcomingGames() {
       console.log(`✅ Successfully loaded ${data.length} games from API`);
       
     } catch (fetchError) {
-      console.error('❌ Direct fetch failed:', fetchError);
-      throw new Error(`לא הצלחנו לטעון את המשחקים מה-API.\nודא שהאתר רץ על localhost:8000 ושהאינטרנט פעיל.\n\nשגיאה: ${fetchError.message}`);
+      console.warn('⚠️ Direct fetch failed, trying the first-party proxy:', fetchError.message);
+      const proxyBaseUrl = window.appConfig?.ibbaProxyUrl || '/api/ibba';
+      const response = await fetch(`${proxyBaseUrl}?url=${encodeURIComponent(apiUrl)}`);
+      if (!response.ok) throw new Error(`לא הצלחנו לטעון את המשחקים (${response.status})`);
+      const data = await response.json();
+      if (!Array.isArray(data)) throw new Error('התשובה מה-API אינה מערך תקין');
+      allGames = data;
     }
     
     if (!allGames) {
@@ -685,7 +690,7 @@ function showErrorMessage(message) {
           <p class="text-xs text-amber-800 mb-2"><strong>💡 פתרונות אפשריים:</strong></p>
           <div class="text-xs text-amber-700 space-y-1">
             <div>• <strong>HTTP Server:</strong> הרץ את האתר דרך HTTP server (לא file://)</div>
-            <div>• <strong>הרחבה:</strong> התקן "CORS Unblock" או "CORS Everywhere"</div>
+            <div>• <strong>חיבור:</strong> ודא שהרשת זמינה ונסה לרענן</div>
             <div>• <strong>פתיחה ידנית:</strong> לחץ על הכפתור למטה</div>
           </div>
           <button 

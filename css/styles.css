@@ -264,14 +264,14 @@ body {
     /* Extra small screens */
     @media (max-width: 480px) {
       #view-players .stats-table {
-        font-size: 0.7rem;
+        font-size: 0.75rem;
       }
 
       #view-players .stats-table thead th {
         height: 32px;
         line-height: 32px;
         padding: 0 4px;
-        font-size: 0.65rem;
+        font-size: 0.75rem;
       }
 
       #view-players .stats-table tbody td {
@@ -528,14 +528,14 @@ body {
 
     @media (max-width: 480px) {
       #view-teams .stats-table {
-        font-size: 0.7rem;
+        font-size: 0.75rem;
       }
 
       #view-teams .stats-table thead th {
         height: 32px;
         line-height: 32px;
         padding: 0 4px;
-        font-size: 0.65rem;
+        font-size: 0.75rem;
       }
 
       #view-teams .stats-table tbody td {
@@ -589,6 +589,9 @@ body {
       text-transform: uppercase;
       letter-spacing: 0.025em;
       box-shadow: 0 1px 0 0 #e5e7eb;
+      position: sticky;
+      top: 0;
+      z-index: 2;
     }
 
     /* Header content styling */
@@ -699,19 +702,28 @@ body {
 
     @media (max-width: 480px) {
       .stats-table {
-        font-size: 0.7rem;
+        font-size: 0.75rem;
       }
 
       .stats-table thead th {
         height: 32px;
         line-height: 32px;
         padding: 0 4px;
-        font-size: 0.65rem;
+        font-size: 0.75rem;
       }
 
       .stats-table tbody td {
         padding: 4px 4px;
         height: 28px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
       }
     }
 
@@ -835,4 +847,3 @@ body {
       text-align: center !important;
       font-variant-numeric: tabular-nums;
     }
-

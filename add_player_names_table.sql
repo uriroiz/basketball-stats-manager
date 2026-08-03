@@ -29,14 +29,22 @@ DROP POLICY IF EXISTS "Anyone can view player names" ON public.player_names;
 CREATE POLICY "Anyone can view player names" ON public.player_names
     FOR SELECT USING (true);
 
--- Policy: Authenticated users can insert/update
+-- Policy: only authenticated administrators can insert/update/delete.
 DROP POLICY IF EXISTS "Authenticated users can insert player names" ON public.player_names;
 CREATE POLICY "Authenticated users can insert player names" ON public.player_names
-    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+    FOR INSERT TO authenticated
+    WITH CHECK ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
 
 DROP POLICY IF EXISTS "Authenticated users can update player names" ON public.player_names;
 CREATE POLICY "Authenticated users can update player names" ON public.player_names
-    FOR UPDATE USING (auth.role() = 'authenticated');
+    FOR UPDATE TO authenticated
+    USING ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+    WITH CHECK ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+
+DROP POLICY IF EXISTS "Authenticated users can delete player names" ON public.player_names;
+CREATE POLICY "Authenticated users can delete player names" ON public.player_names
+    FOR DELETE TO authenticated
+    USING ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
 
 -- Trigger for updated_at
 CREATE TRIGGER update_player_names_updated_at 

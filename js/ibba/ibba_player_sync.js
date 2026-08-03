@@ -13,8 +13,9 @@
 
 class IBBAPlayerSync {
   constructor() {
-    this.leaguePageUrl = 'https://ibasketball.co.il/leagues/119474/'; // ליגה לאומית
-    this.leagueId = 119474;
+    const config = window.appConfig || {};
+    this.leaguePageUrl = config.playersPageUrl || 'https://ibasketball.co.il/league/2025-2/';
+    this.leagueId = config.leagueId || 119474;
   }
 
   /**
@@ -84,19 +85,17 @@ class IBBAPlayerSync {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return await response.text();
     } catch (directError) {
-      console.warn('⚠️ Direct fetch failed, trying via CORS proxy...');
+      console.warn('⚠️ Direct fetch failed, trying the first-party proxy...');
       return await this.fetchViaProxy(this.leaguePageUrl);
     }
   }
 
   /**
-   * קריאה דרך CORS proxy
+   * קריאה דרך ה-proxy המוגבל של האפליקציה
    */
   async fetchViaProxy(targetUrl) {
-    const proxies = [
-      `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
-      `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
-    ];
+    const proxyBaseUrl = window.appConfig?.ibbaProxyUrl || '/api/ibba';
+    const proxies = [`${proxyBaseUrl}?url=${encodeURIComponent(targetUrl)}`];
     
     for (let i = 0; i < proxies.length; i++) {
       try {
@@ -488,4 +487,3 @@ class IBBAPlayerSync {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = IBBAPlayerSync;
 }
-

@@ -1,109 +1,96 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-admin-password',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
+import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
+import {
+  authorizeAdmin,
+  errorResponse,
+  HttpError,
+  jsonResponse,
+  preflight,
+  pickFields,
+  readJson,
+  requireRecord,
+} from '../_shared/http.ts'
+import { calculatePlayerStats } from '../_shared/player-stats.ts'
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  const options = preflight(req)
+  if (options) return options
 
   try {
-    // Get admin password from header
-    const authPassword = req.headers.get('x-admin-password')
-    const expectedPassword = Deno.env.get('ADMIN_PASSWORD')
-    
-    console.log('🔐 Checking authentication...')
-    
-    if (!authPassword || authPassword !== expectedPassword) {
-      console.log('❌ Authentication failed')
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized - Invalid admin password' }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      )
+    const body = await readJson(req)
+    const gameData = requireRecord(body.gameData, 'gameData')
+    const playersData = body.playersData ?? []
+    if (!Number.isInteger(Number(gameData.gameSerial))) {
+      throw new HttpError(400, 'gameData.gameSerial must be an integer')
     }
-    
-    console.log('✅ Authentication successful')
+    if (!Array.isArray(playersData)) throw new HttpError(400, 'playersData must be an array')
+    if (playersData.length > 500) throw new HttpError(400, 'playersData exceeds the 500-player limit')
 
-    // Create Supabase client with SERVICE_ROLE_KEY (bypasses RLS)
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
-
-    // Get data from request
-    const { gameData, playersData } = await req.json()
-    
-    console.log('📦 Received data:', {
-      gameSerial: gameData?.gameSerial,
-      playersCount: playersData?.length || 0
+    const playerDefaults = {
+      games: [],
+      totalPoints: 0,
+      totalRebounds: 0,
+      totalAssists: 0,
+      totalSteals: 0,
+      totalBlocks: 0,
+      totalTurnovers: 0,
+      totalFouls: 0,
+      totalFoulsDrawn: 0,
+      totalEfficiency: 0,
+      totalFieldGoalsMade: 0,
+      totalFieldGoalsAttempted: 0,
+      totalThreePointsMade: 0,
+      totalThreePointsAttempted: 0,
+      totalFreeThrowsMade: 0,
+      totalFreeThrowsAttempted: 0,
+      fgPercentage: 0,
+      threePointPercentage: 0,
+      ftPercentage: 0,
+      avgEfficiency: 0,
+      avgPoints: 0,
+      avgRebounds: 0,
+      avgAssists: 0,
+      avgSteals: 0,
+      avgBlocks: 0,
+      avgTurnovers: 0,
+      canonicalNameKeys: [],
+      scoreboardAliases: [],
+    }
+    const playerFields = [
+      'id', 'name', 'team', 'jersey', 'games',
+      'totalPoints', 'totalRebounds', 'totalAssists', 'totalSteals', 'totalBlocks',
+      'totalTurnovers', 'totalFouls', 'totalFoulsDrawn', 'totalEfficiency',
+      'totalFieldGoalsMade', 'totalFieldGoalsAttempted', 'totalThreePointsMade',
+      'totalThreePointsAttempted', 'totalFreeThrowsMade', 'totalFreeThrowsAttempted',
+      'fgPercentage', 'threePointPercentage', 'ftPercentage', 'avgEfficiency',
+      'avgPoints', 'avgRebounds', 'avgAssists', 'avgSteals', 'avgBlocks',
+      'avgTurnovers', 'canonicalNameKeys', 'scoreboardAliases',
+    ] as const
+    const safePlayers = playersData.map((value, index) => {
+      const player = requireRecord(value, `playersData[${index}]`)
+      if (typeof player.id !== 'string' || !player.id.trim() || player.id.length > 128) {
+        throw new HttpError(400, `playersData[${index}].id is required`)
+      }
+      if (!Array.isArray(player.games) || player.games.length === 0) {
+        throw new HttpError(400, `playersData[${index}].games must be a non-empty array`)
+      }
+      const calculatedStats = calculatePlayerStats(player.games)
+      return pickFields({ ...playerDefaults, ...player, ...calculatedStats }, playerFields)
     })
+    const safeGame = pickFields(gameData, [
+      'gameSerial', 'date', 'cycle', 'teams', 'totals', 'originalJson',
+    ])
 
-    // Save game
-    console.log('💾 Saving game...')
-    const { data: game, error: gameError } = await supabaseAdmin
-      .from('games')
-      .upsert(gameData, { onConflict: 'gameSerial' })
-      .select()
-      .single()
-
-    if (gameError) {
-      console.error('❌ Game save error:', gameError)
-      throw gameError
+    const { userClient } = await authorizeAdmin(req)
+    const { data, error } = await userClient.rpc('import_game_with_players', {
+      p_game: safeGame,
+      p_players: safePlayers,
+    })
+    if (error) {
+      console.error('Atomic game import failed:', error.code)
+      throw new Error('Atomic game import failed')
     }
-    
-    console.log('✅ Game saved:', game.gameSerial)
-
-    // Save players
-    let playersSaved = 0
-    if (playersData && playersData.length > 0) {
-      console.log('💾 Saving players...')
-      for (const player of playersData) {
-        const { error: playerError } = await supabaseAdmin
-          .from('players')
-          .upsert(player, { onConflict: 'id' })
-        
-        if (playerError) {
-          console.error('⚠️ Player save error:', playerError)
-          // Continue with other players even if one fails
-        } else {
-          playersSaved++
-        }
-      }
-      console.log(`✅ Players saved: ${playersSaved}/${playersData.length}`)
-    }
-
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        gameId: game.gameSerial,
-        playersSaved: playersSaved
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    )
-
+    return jsonResponse(req, data || { success: true })
   } catch (error) {
-    console.error('❌ Error:', error)
-    return new Response(
-      JSON.stringify({ 
-        error: error.message || 'Internal server error',
-        details: error.toString()
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    )
+    return errorResponse(req, error)
   }
 })
-

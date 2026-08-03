@@ -1,406 +1,192 @@
-// Authentication Module
-// Simple password-based authentication for admin access
-
+// Supabase Auth module for administrator access.
 (function() {
   'use strict';
 
-  // Constants
-  const AUTH_STORAGE_KEY = 'basketballStatsAuth';
-  const AUTH_EXPIRY_HOURS = 24; // Session expires after 24 hours
-  
-  // State
   let isAuthenticatedState = false;
-  let authCheckCallbacks = [];
-  let currentPassword = null; // Store password in memory for Edge Function calls
+  const authCheckCallbacks = [];
 
-  /**
-   * Check if user is currently authenticated
-   */
-  function isAuthenticated() {
-    const authData = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (!authData) {
-      isAuthenticatedState = false;
-      currentPassword = null;
-      return false;
-    }
-
-    try {
-      const { timestamp, authenticated, password } = JSON.parse(authData);
-      const now = Date.now();
-      const expiryMs = AUTH_EXPIRY_HOURS * 60 * 60 * 1000;
-
-      // Check if session expired
-      if (now - timestamp > expiryMs) {
-        logout();
-        return false;
-      }
-
-      isAuthenticatedState = authenticated === true;
-      
-      // Restore password to memory if available
-      if (password && !currentPassword) {
-        currentPassword = password;
-      }
-      
-      return isAuthenticatedState;
-    } catch (e) {
-      console.error('Error reading auth state:', e);
-      logout();
-      return false;
-    }
+  function getClient() {
+    return window.supabaseClient || null;
   }
 
-  /**
-   * Attempt to login with password
-   * @param {string} password - The password to check
-   * @returns {Promise<boolean>} - True if login successful
-   */
-  async function login(password) {
-    if (!password) {
-      return false;
-    }
-
-    try {
-      // Simple password check
-      // In production, this should call Supabase auth or check against environment variable
-      const correctPassword = window.ADMIN_PASSWORD || 'admin123'; // Default fallback
-      
-      if (password === correctPassword) {
-        const authData = {
-          authenticated: true,
-          timestamp: Date.now(),
-          password: password  // Store password for Edge Function calls
-        };
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
-        isAuthenticatedState = true;
-        
-        // Store password in memory for Edge Function authentication
-        currentPassword = password;
-        
-        // Notify listeners
-        notifyAuthChange(true);
-        
-        return true;
-      }
-      
-      return false;
-    } catch (e) {
-      console.error('Login error:', e);
-      return false;
-    }
+  function isAdminUser(user) {
+    return user?.app_metadata?.role === 'admin';
   }
 
-  /**
-   * Logout current user
-   */
-  function logout() {
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    isAuthenticatedState = false;
-    currentPassword = null; // Clear password from memory
-    
-    // Notify listeners
-    notifyAuthChange(false);
-  }
-
-  /**
-   * Register callback for auth state changes
-   * @param {Function} callback - Function to call when auth state changes
-   */
-  function onAuthChange(callback) {
-    if (typeof callback === 'function') {
-      authCheckCallbacks.push(callback);
-    }
-  }
-
-  /**
-   * Notify all registered callbacks of auth state change
-   * @param {boolean} isAuth - Current auth state
-   */
-  function notifyAuthChange(isAuth) {
+  function notifyAuthChange(isAuthenticated) {
     authCheckCallbacks.forEach(callback => {
       try {
-        callback(isAuth);
-      } catch (e) {
-        console.error('Error in auth callback:', e);
+        callback(isAuthenticated);
+      } catch (error) {
+        console.error('Error in auth callback:', error);
       }
     });
   }
 
-  /**
-   * Show login modal
-   */
+  function isAuthenticated() {
+    return isAuthenticatedState;
+  }
+
+  async function refreshAuthState() {
+    const client = getClient();
+    if (!client) {
+      isAuthenticatedState = false;
+      return false;
+    }
+
+    const { data, error } = await client.auth.getUser();
+    isAuthenticatedState = !error && isAdminUser(data?.user);
+    notifyAuthChange(isAuthenticatedState);
+    return isAuthenticatedState;
+  }
+
+  async function login(email, password) {
+    const client = getClient();
+    if (!client || !email || !password) return false;
+
+    const { data, error } = await client.auth.signInWithPassword({ email, password });
+    if (error || !isAdminUser(data?.user)) {
+      if (data?.session) await client.auth.signOut();
+      isAuthenticatedState = false;
+      return false;
+    }
+
+    isAuthenticatedState = true;
+    notifyAuthChange(true);
+    return true;
+  }
+
+  async function logout() {
+    const client = getClient();
+    if (client) await client.auth.signOut();
+    isAuthenticatedState = false;
+    notifyAuthChange(false);
+  }
+
+  async function getAccessToken() {
+    const client = getClient();
+    if (!client || !isAuthenticatedState) return null;
+    const { data, error } = await client.auth.getSession();
+    return error ? null : data?.session?.access_token || null;
+  }
+
+  function onAuthChange(callback) {
+    if (typeof callback === 'function') authCheckCallbacks.push(callback);
+  }
+
   function showLoginModal() {
     const modal = document.getElementById('authModal');
-    if (modal) {
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-      
-      // Focus on password input
-      const passwordInput = document.getElementById('authPassword');
-      if (passwordInput) {
-        setTimeout(() => passwordInput.focus(), 100);
-      }
-    }
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    setTimeout(() => document.getElementById('authEmail')?.focus(), 100);
   }
 
-  /**
-   * Hide login modal
-   */
   function hideLoginModal() {
     const modal = document.getElementById('authModal');
-    if (modal) {
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
-      
-      // Clear password input
-      const passwordInput = document.getElementById('authPassword');
-      if (passwordInput) {
-        passwordInput.value = '';
-      }
-      
-      // Clear error message
-      const errorMsg = document.getElementById('authError');
-      if (errorMsg) {
-        errorMsg.textContent = '';
-        errorMsg.classList.add('hidden');
-      }
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    const passwordInput = document.getElementById('authPassword');
+    if (passwordInput) passwordInput.value = '';
+    const errorElement = document.getElementById('authError');
+    if (errorElement) {
+      errorElement.textContent = '';
+      errorElement.classList.add('hidden');
     }
   }
 
-  /**
-   * Handle login form submission
-   */
-  async function handleLoginSubmit(e) {
-    if (e) e.preventDefault();
-    
+  function updateUIForAuthState() {
+    const isAdmin = isAuthenticatedState;
+    const loginButton = document.getElementById('loginBtn');
+    const logoutButton = document.getElementById('logoutBtn');
+    if (loginButton) loginButton.style.display = isAdmin ? 'none' : 'inline-flex';
+    if (logoutButton) logoutButton.style.display = isAdmin ? 'inline-flex' : 'none';
+
+    ['ingest', 'manageTeams', 'managePlayers', 'transfers', 'tools'].forEach(tabName => {
+      const tabButton = document.querySelector(`[data-tab="${tabName}"]`);
+      if (tabButton) tabButton.style.display = isAdmin ? 'inline-flex' : 'none';
+    });
+
+    const indicator = document.getElementById('authIndicator');
+    if (indicator) indicator.style.display = isAdmin ? 'inline-flex' : 'none';
+    window.dispatchEvent(new CustomEvent('authStateChanged', {
+      detail: { isAuthenticated: isAdmin }
+    }));
+  }
+
+  async function handleLoginSubmit(event) {
+    event?.preventDefault();
+    const emailInput = document.getElementById('authEmail');
     const passwordInput = document.getElementById('authPassword');
-    const errorMsg = document.getElementById('authError');
-    const submitBtn = document.getElementById('authSubmitBtn');
-    
-    if (!passwordInput) return;
-    
-    const password = passwordInput.value.trim();
-    
-    if (!password) {
-      if (errorMsg) {
-        errorMsg.textContent = 'נא להזין סיסמה';
-        errorMsg.classList.remove('hidden');
+    const errorElement = document.getElementById('authError');
+    const submitButton = document.getElementById('authSubmitBtn');
+    const email = emailInput?.value.trim() || '';
+    const password = passwordInput?.value || '';
+
+    if (!email || !password) {
+      if (errorElement) {
+        errorElement.textContent = 'נא להזין דוא״ל וסיסמה';
+        errorElement.classList.remove('hidden');
       }
       return;
     }
 
-    // Disable submit button during login
-    if (submitBtn) {
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'מתחבר...';
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = 'מתחבר...';
     }
 
-    const success = await login(password);
-    
+    const success = await login(email, password);
     if (success) {
       hideLoginModal();
       updateUIForAuthState();
-      
-      // Show success message
-      if (typeof showOk === 'function') {
-        showOk('התחברת בהצלחה! כעת יש לך גישה לכל הכלים.');
-      }
-    } else {
-      if (errorMsg) {
-        errorMsg.textContent = 'סיסמה שגויה';
-        errorMsg.classList.remove('hidden');
-      }
-      passwordInput.value = '';
-      passwordInput.focus();
+      if (typeof window.showOk === 'function') window.showOk('התחברת בהצלחה');
+    } else if (errorElement) {
+      errorElement.textContent = 'ההתחברות נכשלה או שלמשתמש אין הרשאת מנהל';
+      errorElement.classList.remove('hidden');
     }
 
-    // Re-enable submit button
-    if (submitBtn) {
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'התחבר';
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = 'התחבר';
     }
   }
 
-  /**
-   * Handle logout
-   */
-  function handleLogout() {
-    if (confirm('האם אתה בטוח שברצונך להתנתק?')) {
-      logout();
-      updateUIForAuthState();
-      
-      // Redirect to public tab if on private tab
-      const currentTab = document.querySelector('#tabs .tab.active');
-      if (currentTab) {
-        const tabName = currentTab.dataset.tab;
-        const privateTabs = ['ingest', 'manageTeams', 'managePlayers', 'transfers', 'tools'];
-        if (privateTabs.includes(tabName)) {
-          // Switch to games tab
-          const gamesTab = document.querySelector('[data-tab="games"]');
-          if (gamesTab) gamesTab.click();
-        }
-      }
-      
-      if (typeof showOk === 'function') {
-        showOk('התנתקת בהצלחה');
-      }
-    }
-  }
-
-  /**
-   * Update UI based on current auth state
-   */
-  function updateUIForAuthState() {
-    const isAuth = isAuthenticated();
-    console.log('🔐 [auth] updateUIForAuthState, isAuth =', isAuth);
-    
-    // Update login/logout buttons
-    const loginBtn = document.getElementById('loginBtn');
-    const logoutBtn = document.getElementById('logoutBtn');
-    
-    if (loginBtn) {
-      loginBtn.style.display = isAuth ? 'none' : 'inline-flex';
-    }
-    
-    if (logoutBtn) {
-      logoutBtn.style.display = isAuth ? 'inline-flex' : 'none';
-    }
-
-    // Show/hide admin tabs
-    const privateTabs = ['ingest', 'manageTeams', 'managePlayers', 'transfers', 'tools'];
-    privateTabs.forEach(tabName => {
-      const tabBtn = document.querySelector(`[data-tab="${tabName}"]`);
-      if (tabBtn) {
-        tabBtn.style.display = isAuth ? 'inline-flex' : 'none';
-      }
-    });
-
-    // Show auth indicator
-    const authIndicator = document.getElementById('authIndicator');
-    if (authIndicator) {
-      authIndicator.style.display = isAuth ? 'inline-flex' : 'none';
-    }
-    
-    // Dispatch custom event
-    const event = new CustomEvent('authStateChanged', { 
-      detail: { isAuthenticated: isAuth } 
-    });
-    console.log('🔐 [auth] dispatching authStateChanged', event.detail);
-    window.dispatchEvent(event);
-    
-    // Fallback: Try direct call after a microtask
-    // (ensures all defer scripts have executed)
-    setTimeout(() => {
-      if (typeof window.App?.renderGamesTable === 'function') {
-        console.log('🔐 [auth] calling App.renderGamesTable directly (fallback)');
-        window.App.renderGamesTable();
-      } else {
-        console.log('⚠️ [auth] App.renderGamesTable not available yet');
-      }
-    }, 0);
-  }
-
-  /**
-   * Initialize authentication UI
-   */
-  function initAuthUI() {
-    // Check initial auth state
+  async function initAuthUI() {
+    await refreshAuthState();
     updateUIForAuthState();
 
-    // Wire up login button
-    const loginBtn = document.getElementById('loginBtn');
-    if (loginBtn) {
-      loginBtn.addEventListener('click', showLoginModal);
-    }
+    getClient()?.auth.onAuthStateChange((_event, session) => {
+      isAuthenticatedState = isAdminUser(session?.user);
+      notifyAuthChange(isAuthenticatedState);
+      updateUIForAuthState();
+    });
 
-    // Wire up logout button
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-      logoutBtn.addEventListener('click', handleLogout);
-    }
-
-    // Wire up modal close button
-    const closeModalBtn = document.getElementById('closeAuthModal');
-    if (closeModalBtn) {
-      closeModalBtn.addEventListener('click', hideLoginModal);
-    }
-
-    // Wire up form submission
-    const loginForm = document.getElementById('authLoginForm');
-    if (loginForm) {
-      loginForm.addEventListener('submit', handleLoginSubmit);
-    }
-
-    // Close modal on background click
-    const modal = document.getElementById('authModal');
-    if (modal) {
-      modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-          hideLoginModal();
-        }
-      });
-    }
-
-    // Handle Enter key in password field
-    const passwordInput = document.getElementById('authPassword');
-    if (passwordInput) {
-      passwordInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-          handleLoginSubmit(e);
-        }
-      });
-    }
+    document.getElementById('loginBtn')?.addEventListener('click', showLoginModal);
+    document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+      await logout();
+      updateUIForAuthState();
+    });
+    document.getElementById('closeAuthModal')?.addEventListener('click', hideLoginModal);
+    document.getElementById('authLoginForm')?.addEventListener('submit', handleLoginSubmit);
   }
 
-  /**
-   * Get current admin password (for Edge Function authentication)
-   * Only available if user is authenticated
-   * @returns {string|null} - The password or null if not authenticated
-   */
-  function getPassword() {
-    if (!isAuthenticated()) {
-      return null;
-    }
-    
-    // If password is in memory, return it
-    if (currentPassword) {
-      return currentPassword;
-    }
-    
-    // Try to restore from localStorage
-    try {
-      const authData = localStorage.getItem(AUTH_STORAGE_KEY);
-      if (authData) {
-        const { password } = JSON.parse(authData);
-        if (password) {
-          currentPassword = password;  // Cache in memory
-          return password;
-        }
-      }
-    } catch (e) {
-      console.error('Error restoring password:', e);
-    }
-    
-    return null;
-  }
-
-  // Export functions to global scope
   window.authModule = {
     isAuthenticated,
+    isAdminUser,
+    refreshAuthState,
     login,
     logout,
     onAuthChange,
     updateUIForAuthState,
     initAuthUI,
-    getPassword
+    getAccessToken
   };
 
-  // Auto-initialize when DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initAuthUI);
   } else {
     initAuthUI();
   }
-
 })();
-

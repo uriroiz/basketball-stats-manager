@@ -7,11 +7,12 @@
 
 class IBBAAdvanced {
   constructor(analytics) {
+    const config = window.appConfig || {};
     this.analytics = analytics;
     this.standingsFromHTML = new Map(); // Cache for standings loaded from HTML
     this.standingsLoaded = false;
-    this.leagueUrl = 'https://ibasketball.co.il/league/2025-2/';
-    this.standingsCacheKey = 'ibba_standings_html_2025-2_v1';
+    this.leagueUrl = config.playersPageUrl || 'https://ibasketball.co.il/league/2025-2/';
+    this.standingsCacheKey = `ibba_standings_html_${config.seasonId || 119472}_v2`;
     this.standingsCacheExpiry = 10 * 60 * 1000; // 10 minutes
     this.playerNamesLoader = null; // Player names loader instance
     
@@ -94,21 +95,9 @@ class IBBAAdvanced {
       
       let html = null;
       
-      // Use CORS proxies (direct fetch will fail due to CORS policy)
       const proxies = [
-        { 
-          url: 'https://api.allorigins.win/raw?url=',
-          parseResponse: (response) => response.text() // Returns raw HTML
-        },
-        { 
-          url: 'https://api.allorigins.win/get?url=',
-          parseResponse: async (response) => {
-            const data = await response.json();
-            return data.contents;
-          }
-        },
-        { 
-          url: 'https://corsproxy.io/?',
+        {
+          url: `${window.appConfig?.ibbaProxyUrl || '/api/ibba'}?url=`,
           parseResponse: (response) => response.text()
         }
       ];
@@ -1223,4 +1212,3 @@ class IBBAAdvanced {
 window.IBBAAdvanced = IBBAAdvanced;
 
 console.log('🔥 IBBAAdvanced loaded successfully!');
-

@@ -58,11 +58,22 @@ CREATE TABLE IF NOT EXISTS public.players (
   "totalFouls" INTEGER DEFAULT 0,
   "totalFoulsDrawn" INTEGER DEFAULT 0,
   "totalEfficiency" REAL DEFAULT 0,
+  "totalFieldGoalsMade" INTEGER DEFAULT 0,
+  "totalFieldGoalsAttempted" INTEGER DEFAULT 0,
+  "totalThreePointsMade" INTEGER DEFAULT 0,
+  "totalThreePointsAttempted" INTEGER DEFAULT 0,
+  "totalFreeThrowsMade" INTEGER DEFAULT 0,
+  "totalFreeThrowsAttempted" INTEGER DEFAULT 0,
   "fgPercentage" REAL DEFAULT 0,
   "threePointPercentage" REAL DEFAULT 0,
   "ftPercentage" REAL DEFAULT 0,
   "avgEfficiency" REAL DEFAULT 0,
   "avgPoints" REAL DEFAULT 0,
+  "avgRebounds" REAL DEFAULT 0,
+  "avgAssists" REAL DEFAULT 0,
+  "avgSteals" REAL DEFAULT 0,
+  "avgBlocks" REAL DEFAULT 0,
+  "avgTurnovers" REAL DEFAULT 0,
   "canonicalNameKeys" TEXT[], -- For fuzzy matching
   "scoreboardAliases" TEXT[], -- Alternative spellings
   "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -217,16 +228,35 @@ CREATE POLICY "Public read player_stats" ON public.player_stats FOR SELECT USING
 CREATE POLICY "Public read transfers" ON public.transfer_events FOR SELECT USING (true);
 CREATE POLICY "Public read team_aliases" ON public.team_aliases FOR SELECT USING (true);
 
--- Authenticated WRITE access (only logged-in admin can modify)
-CREATE POLICY "Authenticated write games" ON public.games FOR ALL USING (auth.role() = 'authenticated');
-CREATE POLICY "Authenticated write teams" ON public.teams FOR ALL USING (auth.role() = 'authenticated');
-CREATE POLICY "Authenticated write players" ON public.players FOR ALL USING (auth.role() = 'authenticated');
-CREATE POLICY "Authenticated write player_mappings" ON public.player_mappings FOR ALL USING (auth.role() = 'authenticated');
-CREATE POLICY "Authenticated write player_aliases" ON public.player_aliases FOR ALL USING (auth.role() = 'authenticated');
-CREATE POLICY "Authenticated write appearances" ON public.appearances FOR ALL USING (auth.role() = 'authenticated');
-CREATE POLICY "Authenticated write player_stats" ON public.player_stats FOR ALL USING (auth.role() = 'authenticated');
-CREATE POLICY "Authenticated write transfers" ON public.transfer_events FOR ALL USING (auth.role() = 'authenticated');
-CREATE POLICY "Authenticated write team_aliases" ON public.team_aliases FOR ALL USING (auth.role() = 'authenticated');
+-- WRITE access is limited to authenticated users carrying an immutable admin
+-- role in app_metadata. user_metadata must never be used for authorization.
+CREATE POLICY "Admin write games" ON public.games FOR ALL TO authenticated
+  USING ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+  WITH CHECK ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+CREATE POLICY "Admin write teams" ON public.teams FOR ALL TO authenticated
+  USING ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+  WITH CHECK ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+CREATE POLICY "Admin write players" ON public.players FOR ALL TO authenticated
+  USING ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+  WITH CHECK ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+CREATE POLICY "Admin write player_mappings" ON public.player_mappings FOR ALL TO authenticated
+  USING ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+  WITH CHECK ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+CREATE POLICY "Admin write player_aliases" ON public.player_aliases FOR ALL TO authenticated
+  USING ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+  WITH CHECK ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+CREATE POLICY "Admin write appearances" ON public.appearances FOR ALL TO authenticated
+  USING ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+  WITH CHECK ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+CREATE POLICY "Admin write player_stats" ON public.player_stats FOR ALL TO authenticated
+  USING ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+  WITH CHECK ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+CREATE POLICY "Admin write transfers" ON public.transfer_events FOR ALL TO authenticated
+  USING ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+  WITH CHECK ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+CREATE POLICY "Admin write team_aliases" ON public.team_aliases FOR ALL TO authenticated
+  USING ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+  WITH CHECK ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
 
 -- ========================================
 -- FUNCTIONS (Optional but useful)
@@ -282,11 +312,19 @@ CREATE POLICY "Anyone can view player names" ON public.player_names
     FOR SELECT USING (true);
 
 -- Policy: Only authenticated users can insert/update
-CREATE POLICY "Authenticated users can insert player names" ON public.player_names
-    FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Admin users can manage player names" ON public.player_names
+    FOR ALL TO authenticated
+    USING ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+    WITH CHECK ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
 
-CREATE POLICY "Authenticated users can update player names" ON public.player_names
-    FOR UPDATE USING (auth.role() = 'authenticated');
+-- Explicit Data API grants (required as Supabase moves away from automatic exposure).
+GRANT SELECT ON public.games, public.teams, public.players, public.player_mappings,
+  public.player_aliases, public.appearances, public.player_stats,
+  public.transfer_events, public.team_aliases, public.player_names TO anon, authenticated;
+GRANT INSERT, UPDATE, DELETE ON public.games, public.teams, public.players,
+  public.player_mappings, public.player_aliases, public.appearances,
+  public.player_stats, public.transfer_events, public.team_aliases,
+  public.player_names TO authenticated;
 
 -- Trigger for updated_at
 CREATE TRIGGER update_player_names_updated_at BEFORE UPDATE ON public.player_names
@@ -301,4 +339,3 @@ BEGIN
     RAISE NOTICE 'All tables, indexes, and security policies are in place.';
     RAISE NOTICE 'You can now connect your application to Supabase.';
 END $$;
-

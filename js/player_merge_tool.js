@@ -1320,12 +1320,10 @@ async function executeManualPlayerMerge() {
     // Make sure we're authenticated for saving
     console.log(`🔐 Checking authentication...`);
     console.log(`🔐 window.authModule exists:`, !!window.authModule);
-    console.log(`🔐 window.authModule.getPassword exists:`, !!window.authModule?.getPassword);
-    const adminPassword = window.authModule?.getPassword?.();
-    console.log(`🔐 Admin password retrieved:`, adminPassword ? 'YES (length: ' + adminPassword.length + ')' : 'NO (null/undefined)');
-    
-    if (!adminPassword) {
-      console.error(`❌ No admin password - cannot save!`);
+    const isAdmin = window.authModule?.isAuthenticated?.() === true;
+
+    if (!isAdmin) {
+      console.error(`❌ No authenticated admin session - cannot save!`);
       showError('נדרשת הזדהות כמנהל לשמירת שחקנים');
       return;
     }

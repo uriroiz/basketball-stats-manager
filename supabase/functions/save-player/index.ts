@@ -1,73 +1,48 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
+import {
+  authorizeAdmin,
+  errorResponse,
+  HttpError,
+  jsonResponse,
+  preflight,
+  pickFields,
+  readJson,
+  requireRecord,
+} from '../_shared/http.ts'
 
 serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, x-admin-password, Authorization'
-      }
-    })
-  }
+  const options = preflight(req)
+  if (options) return options
 
   try {
-    // Check admin password
-    const adminPassword = req.headers.get('x-admin-password')
-    const expectedPassword = Deno.env.get('ADMIN_PASSWORD')
-    
-    if (!adminPassword || adminPassword !== expectedPassword) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized: Invalid admin password' }),
-        { status: 401, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
-      )
+    const body = await readJson(req)
+    const playerData = requireRecord(body.playerData, 'playerData')
+    if (typeof playerData.id !== 'string' || !playerData.id.trim()) {
+      throw new HttpError(400, 'playerData.id is required')
     }
 
-    // Parse request body
-    const { playerData } = await req.json()
-    
-    if (!playerData) {
-      return new Response(
-        JSON.stringify({ error: 'Missing playerData' }),
-        { status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
-      )
-    }
-
-    // Create Supabase client with Service Role key (bypasses RLS)
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
-    // Save player
-    const { data, error } = await supabase
+    const safePlayerData = pickFields(playerData, [
+      'id', 'name', 'team', 'jersey', 'games',
+      'totalPoints', 'totalRebounds', 'totalAssists', 'totalSteals', 'totalBlocks',
+      'totalTurnovers', 'totalFouls', 'totalFoulsDrawn', 'totalEfficiency',
+      'totalFieldGoalsMade', 'totalFieldGoalsAttempted', 'totalThreePointsMade',
+      'totalThreePointsAttempted', 'totalFreeThrowsMade', 'totalFreeThrowsAttempted',
+      'fgPercentage', 'threePointPercentage', 'ftPercentage', 'avgEfficiency',
+      'avgPoints', 'avgRebounds', 'avgAssists', 'avgSteals', 'avgBlocks',
+      'avgTurnovers', 'canonicalNameKeys', 'scoreboardAliases',
+    ])
+    const { adminClient } = await authorizeAdmin(req)
+    const { data, error } = await adminClient
       .from('players')
-      .upsert(playerData, { onConflict: 'id' })
+      .upsert(safePlayerData, { onConflict: 'id' })
       .select()
       .single()
-
     if (error) {
-      console.error('Error saving player:', error)
-      return new Response(
-        JSON.stringify({ error: error.message }),
-        { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
-      )
+      console.error('Player save failed:', error.code)
+      throw new Error('Player save failed')
     }
-
-    return new Response(
-      JSON.stringify(data),
-      { 
-        status: 200, 
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-      }
-    )
+    return jsonResponse(req, { success: true, player: data })
   } catch (error) {
-    console.error('Edge function error:', error)
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
-    )
+    return errorResponse(req, error)
   }
 })
-

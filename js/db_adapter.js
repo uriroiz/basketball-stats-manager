@@ -42,7 +42,8 @@
           
           if (url && key) {
             console.log('✅ Supabase credentials found, initializing Supabase client...');
-            supabase = window.supabase.createClient(url, key);
+            supabase = window.supabaseClient || null;
+            if (!supabase) throw new Error('Shared Supabase client is not initialized');
             useSupabase = true;
             
             // Test connection
@@ -90,6 +91,35 @@
       await dbInit();
     }
     return dbInitialized;
+  }
+
+  async function invokeAdminFunction(functionName, body) {
+    const accessToken = await window.authModule?.getAccessToken?.();
+    if (!accessToken) {
+      throw new Error('נדרשת התחברות מנהל תקפה');
+    }
+
+    const supabaseUrl = window.CONFIG?.SUPABASE_URL;
+    const anonKey = window.CONFIG?.SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !anonKey) {
+      throw new Error('Supabase configuration is missing');
+    }
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+        'apikey': anonKey
+      },
+      body: JSON.stringify(body)
+    });
+
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(result.error || `Edge Function failed (${response.status})`);
+    }
+    return result;
   }
 
   /**
@@ -210,57 +240,9 @@
    * Uses Edge Function if admin is authenticated, otherwise direct Supabase
    */
   async function dbSaveGame(gameData, playersData = []) {
-    // Check if admin password is available (for Edge Function)
-    const adminPassword = window.authModule?.getPassword?.();
-    
-    if (useSupabase && supabase && adminPassword) {
-      // Use Edge Function with admin authentication
-      console.log('💾 Saving via Edge Function (authenticated)...');
-      try {
-        const supabaseUrl = window.CONFIG?.SUPABASE_URL;
-        const anonKey = window.CONFIG?.SUPABASE_ANON_KEY;
-        const response = await fetch(`${supabaseUrl}/functions/v1/save-game`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${anonKey}`,
-            'apikey': anonKey,
-            'x-admin-password': adminPassword
-          },
-          body: JSON.stringify({ 
-            gameData, 
-            playersData 
-          })
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Edge Function call failed');
-        }
-        
-        const result = await response.json();
-        console.log('✅ Saved via Edge Function:', result);
-        return gameData; // Return original gameData for consistency
-      } catch (error) {
-        console.error('❌ Edge Function error:', error);
-        throw error;
-      }
-    }
-    
     if (useSupabase && supabase) {
-      // Fallback to direct Supabase (will fail if RLS is enabled)
-      console.log('💾 Saving via direct Supabase...');
-      const { data, error } = await supabase
-        .from('games')
-        .upsert(gameData, { onConflict: 'gameSerial' })
-        .select()
-        .single();
-      
-      if (error) {
-        console.error('Error saving game:', error);
-        throw error;
-      }
-      return data;
+      await invokeAdminFunction('save-game', { gameData, playersData });
+      return gameData;
     }
 
     // IndexedDB fallback
@@ -279,52 +261,7 @@
    */
   async function dbDeleteGame(gameSerial) {
     if (useSupabase && supabase) {
-      // Try Edge Function if admin password is available
-      const adminPassword = window.authModule?.getPassword?.();
-      
-      if (adminPassword) {
-        console.log('🗑️ Deleting game via Edge Function (authenticated)...');
-        try {
-          const supabaseUrl = window.SUPABASE_URL || window.CONFIG?.SUPABASE_URL;
-          const anonKey = window.SUPABASE_ANON_KEY || window.CONFIG?.SUPABASE_ANON_KEY;
-          
-          const response = await fetch(`${supabaseUrl}/functions/v1/delete-game`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-admin-password': adminPassword,
-              'Authorization': `Bearer ${anonKey}`,
-              'apikey': anonKey
-            },
-            body: JSON.stringify({ gameSerial })
-          });
-          
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error('❌ Edge Function error response:', errorText);
-            throw new Error(`Edge Function call failed: ${response.status} ${errorText}`);
-          }
-          
-          const result = await response.json();
-          console.log('✅ Game deleted via Edge Function:', result);
-          return true;
-        } catch (edgeFunctionError) {
-          console.error('❌ Edge Function error:', edgeFunctionError);
-          throw edgeFunctionError;
-        }
-      }
-      
-      // Fall back to direct Supabase API (will fail if RLS is enabled)
-      console.log('🗑️ Deleting via direct Supabase API (no admin password)...');
-      const { error } = await supabase
-        .from('games')
-        .delete()
-        .eq('gameSerial', gameSerial);
-      
-      if (error) {
-        console.error('Error deleting game:', error);
-        throw error;
-      }
+      await invokeAdminFunction('delete-game', { gameSerial });
       return true;
     }
 
@@ -433,50 +370,7 @@
    */
   async function dbSavePlayer(playerData) {
     if (useSupabase && supabase) {
-      // Try Edge Function if admin password is available
-      const adminPassword = window.authModule?.getPassword?.();
-      
-      if (adminPassword) {
-        console.log('💾 Saving player via Edge Function (authenticated)...');
-        try {
-          const response = await fetch(`${window.CONFIG.SUPABASE_URL}/functions/v1/save-player`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-admin-password': adminPassword,
-              'Authorization': `Bearer ${window.CONFIG.SUPABASE_ANON_KEY}`
-            },
-            body: JSON.stringify({ playerData })
-          });
-          
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error('❌ Edge Function error response:', errorText);
-            throw new Error(`Edge Function call failed: ${response.status} ${errorText}`);
-          }
-          
-          const result = await response.json();
-          console.log('✅ Player saved via Edge Function:', result);
-          return result;
-        } catch (edgeFunctionError) {
-          console.error('❌ Edge Function error:', edgeFunctionError);
-          throw edgeFunctionError;
-        }
-      }
-      
-      // Fall back to direct Supabase API (will fail if RLS is enabled)
-      console.log('💾 Saving via direct Supabase API (no admin password)...');
-      const { data, error } = await supabase
-        .from('players')
-        .upsert(playerData, { onConflict: 'id' })
-        .select()
-        .single();
-      
-      if (error) {
-        console.error('Error saving player:', error);
-        throw error;
-      }
-      return data;
+      return await invokeAdminFunction('save-player', { playerData });
     }
 
     // IndexedDB fallback
@@ -495,48 +389,7 @@
    */
   async function dbDeletePlayer(playerId) {
     if (useSupabase && supabase) {
-      // Try Edge Function if admin password is available
-      const adminPassword = window.authModule?.getPassword?.();
-      
-      if (adminPassword) {
-        console.log('🗑️ Deleting player via Edge Function (authenticated)...');
-        try {
-          const response = await fetch(`${window.CONFIG.SUPABASE_URL}/functions/v1/delete-player`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-admin-password': adminPassword,
-              'Authorization': `Bearer ${window.CONFIG.SUPABASE_ANON_KEY}`
-            },
-            body: JSON.stringify({ playerId })
-          });
-          
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error('❌ Edge Function error response:', errorText);
-            throw new Error(`Edge Function call failed: ${response.status} ${errorText}`);
-          }
-          
-          const result = await response.json();
-          console.log('✅ Player deleted via Edge Function:', result);
-          return true;
-        } catch (edgeFunctionError) {
-          console.error('❌ Edge Function error:', edgeFunctionError);
-          throw edgeFunctionError;
-        }
-      }
-      
-      // Fall back to direct Supabase API (will fail if RLS is enabled)
-      console.log('🗑️ Deleting via direct Supabase API (no admin password)...');
-      const { error } = await supabase
-        .from('players')
-        .delete()
-        .eq('id', playerId);
-      
-      if (error) {
-        console.error('Error deleting player:', error);
-        throw error;
-      }
+      await invokeAdminFunction('delete-player', { playerId });
       return true;
     }
 
@@ -921,4 +774,3 @@
   console.log('📦 DB Adapter loaded');
 
 })();
-
