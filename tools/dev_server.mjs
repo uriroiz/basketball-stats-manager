@@ -30,6 +30,7 @@ function allowedTarget(target) {
   const allowedPath = /^\/wp-json\/(?:sportspress|wp)\/v2\/(?:events|players)(?:\/\d+)?\/?$/.test(target.pathname)
     || /^\/league\/[a-z0-9_-]+\/?$/i.test(target.pathname)
     || target.pathname.toLowerCase() === '/league/2024-2-%d7%9c%d7%90%d7%95%d7%9e%d7%99%d7%aa/'
+    || target.pathname.toLowerCase() === '/league/2023-2-%d7%9c%d7%90%d7%95%d7%9e%d7%99%d7%aa/'
     || /^\/(?:game|event)\/[a-z0-9_-]+\/?$/i.test(target.pathname);
   return target.protocol === 'https:'
     && !target.username

@@ -29,6 +29,14 @@ async function run() {
   assert.notStrictEqual(a.convertToInternalFormat(deletedTeamGame).awayTeam,recovered.awayTeam,'historical fallback never leaks to another season');
   assert.ok(!a.convertToInternalFormat(deletedTeamGame).awayTeam.includes('Unknown'));
   assert.ok(historical.convertToInternalFormat({...deletedTeamGame,teams:[166934,999999]}).awayTeam.includes('999999'),'another missing team keeps its own identity');
+  const olderUrls=[];
+  const older=adapter(async url=>{olderUrls.push(url);return {ok:true,json:async()=>[{id:886018,teams:[596704,168902],format:'league',stage_id:1,title:{rendered:' — אליצור שומרון'}}]};},'2023-24');
+  older.regularOnly=true;
+  const olderData=await older.fetchSeasonGames();
+  assert(olderUrls.every(url=>url.includes('seasons=18583')&&url.includes('leagues=18586')&&url.includes('tables=881046')),'historical requests use the official season, league and regular table');
+  assert.strictEqual(older.convertToInternalFormat(olderData.games[0]).homeTeam,'הפועל בני כפר קאסם','2023/24 deleted team retains the verified historical name');
+  assert.strictEqual(older.normalizeRound({...olderData.games[0],stage_id:26}).roundVerified,true);
+  assert.strictEqual(older.normalizeRound({...olderData.games[0],stage_id:27}).roundVerified,false,'later phases cannot enter the 26-round regular season');
   const stats=Object.fromEntries(['min','pts','fgm','fga','threepm','threepa','ftm','fta','off','def','ast','stl','blk','to','pf','rate'].map(key=>[key,'1']));
   const withPlayers=historical.convertToInternalFormat({...deletedTeamGame,performance:{596704:{123:stats}},away:{team:''}});
   assert.strictEqual(withPlayers.players[0].teamName,recovered.awayTeam,'player and game team labels agree');

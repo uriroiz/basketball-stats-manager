@@ -27,9 +27,10 @@ async function run(){
  const h=new H();let calls=0;
  h.fetchText=async()=>{calls++;throw Error('offline');};
  const failed=await h.loadHistory('2025-26');assert.strictEqual(failed.statuses[0].state,'error');
- h.fetchText=async()=>{calls++;return 'html';};h.parseOfficialSummaries=()=>[prior];
- const success=await h.loadHistory('2025-26');assert.strictEqual(success.records.length,1);assert.strictEqual(calls,2);
- assert.strictEqual((await h.loadHistory('2024-25')).records.length,0);
+ h.fetchText=async()=>{calls++;return 'html';};h.parseOfficialSummaries=(_,season)=>[{...prior,seasonKey:season.key,seasonLabel:season.label}];
+ const success=await h.loadHistory('2025-26');assert.deepStrictEqual(Array.from(success.records,r=>r.seasonKey),['2023-24','2024-25']);assert.strictEqual(calls,4);
+ assert.deepStrictEqual(Array.from((await h.loadHistory('2024-25')).records,r=>r.seasonKey),['2023-24'],'oldest season contributes to subsequent seasons');
+ assert.strictEqual((await h.loadHistory('2023-24')).records.length,0,'earliest season has no future history');
  const exportData=H.exportRows({seasonKey:'2026-27',state:'loading',records:[],statuses:[]});
  assert(exportData.some(row=>row.includes('ההיסטוריה טרם נטענה')));
  console.log('player history tests passed');
