@@ -40,6 +40,7 @@ async function run(){
  console.log('match context tests passed');
  const verified=new c.window.IBBAMatchContext({seasonData:{loadSeason:async(key,options)=>({complete:true,scheduleGames:[{...game(15,1),seasonKey:key,hasPlayerStats:true,roundVerified:Boolean(options.regularOnly),competitionPhase:options.regularOnly?'regular':'unknown'}]})}});
  const joined=await verified.load(match);
+ assert(joined.priorSeasons.find(s=>s.seasonKey==='2025-26').resultGames[0].roundVerified,'regular verification must also reach meeting results, not only player stats');
  assert(joined.priorSeasons.find(s=>s.seasonKey==='2025-26').statGames[0].roundVerified,'official regular table verifies the same event in player stats');
  const independent=new c.window.IBBAMatchContext({seasonData:{loadSeason:async key=>({complete:true,scheduleGames:[1,2,3,4].map(r=>({...game(30+r,r),seasonKey:key,teams:[{teamId:1,score:80},{teamId:3,score:75}]}))})}});
  const own=await independent.load({...match,roundNumber:5});

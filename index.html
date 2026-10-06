@@ -41,12 +41,10 @@
   <div class="max-w-none mx-auto px-2 md:px-4 py-4">
     <!-- Header -->
     <div class="header-gradient rounded-lg p-3 mb-3 shadow-md">
-      <h1 class="text-2xl font-bold mb-1 text-center">IBBA Dashboard - Pure API</h1>
-      <p class="text-sm text-center text-blue-100">כל המשחקים • ללא מסד נתונים • נתונים בזמן אמת מ-ibasketball.co.il</p>
-      <div class="text-xs text-center text-blue-200 mt-2">
-        <span class="bg-blue-800/30 px-2 py-1 rounded-full">v1.1 - Phase 2</span>
-      </div>
+      <h1 class="text-2xl font-bold mb-1 text-center">הכנה לשידורי כדורסל</h1>
+      <p class="text-sm text-center text-blue-100">משחקים, סטטיסטיקות ונקודות לשידור</p>
     </div>
+    <div id="seasonError" role="alert" class="hidden card p-4 mb-4"></div>
     
     <div class="card p-3 mb-3 flex flex-wrap items-center justify-center gap-3" dir="rtl">
       <label for="seasonSelect" class="font-semibold">עונה:</label>
@@ -161,7 +159,7 @@
         <div class="flex items-center justify-between mb-3">
           <h2 class="text-lg font-bold text-blue-900">סטטיסטיקות קבוצתיות (<span id="teamsCount">0</span>)</h2>
           <div class="flex gap-2 items-center">
-            <input id="teamSearch" class="w-64 px-3 py-2 border rounded text-sm" placeholder="חפש קבוצה" oninput="filterTeams()">
+            <input id="teamSearch" aria-label="חפש קבוצה" class="w-64 px-3 py-2 border rounded text-sm" placeholder="חפש קבוצה" oninput="filterTeams()">
             <button id="teamStatsToggle" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm transition-colors" onclick="toggleTeamStatsView()">
               <span id="teamToggleText">הצג סה"כ</span>
             </button>
@@ -243,11 +241,11 @@
           
           <!-- Filters Row with Toggle Button -->
           <div class="flex gap-2 items-center mb-2">
-            <select id="playersTeamFilter" class="px-3 py-2 border rounded text-sm" onchange="filterPlayers()">
+            <select id="playersTeamFilter" aria-label="קבוצת השחקנים" class="px-3 py-2 border rounded text-sm" onchange="filterPlayers()">
               <option value="">כל הקבוצות</option>
             </select>
             
-            <input id="playersSearch" class="w-64 px-3 py-2 border rounded text-sm" placeholder="חפש לפי שם/מס' חולצה" oninput="filterPlayers()">
+            <input id="playersSearch" aria-label="חפש שחקן או מספר חולצה" class="w-64 px-3 py-2 border rounded text-sm" placeholder="חפש לפי שם/מס' חולצה" oninput="filterPlayers()">
             
             <button id="clearPlayersFilters" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-sm" onclick="clearPlayerFilters()">
               נקה סינון
@@ -575,9 +573,8 @@
 
     <!-- Game Preparation Section -->
     <section id="view-gamePrep" role="tabpanel" aria-labelledby="tab-gamePrep" class="hidden">
-      <div class="text-left mb-3"><button id="prepExport" type="button" disabled class="border rounded px-3 py-2 bg-white disabled:opacity-50" onclick="handleExcelExport()">ייצוא הכנה לשידור ל־Excel</button></div>
-      <div id="prepMatchSummary" role="status" aria-live="polite" class="hidden card p-4 mb-3"></div>
-      <div id="broadcastReport" class="hidden card p-4 mb-4" dir="rtl"></div>
+      <p id="prepUnavailable" class="hidden card p-4 mb-4">זו עונת עבר. להכנת משחק עתידי, בחרו בעונת 2026/27. נתוני העונה זמינים במסכי הסטטיסטיקה.</p>
+      <div id="prepWorkspace">
       <div class="card p-4">
         <h2 class="text-lg font-bold mb-4 text-blue-900">הכנה למשחק הבא</h2>
         
@@ -611,8 +608,8 @@
         </div>
         
         <!-- Team Selection -->
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 overflow-hidden">
-          <h3 class="font-semibold text-blue-800 mb-3">בחירת קבוצות</h3>
+        <details class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+          <summary class="font-semibold text-blue-800 mb-3 cursor-pointer">בחירה לפי קבוצות</summary>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label for="homeTeamSelect" class="block text-sm font-medium text-gray-700 mb-2">קבוצת בית</label>
@@ -630,9 +627,16 @@
           <button id="analyzeGame" class="mt-4 w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
             <span class="text-lg">📊 נתח משחק</span>
           </button>
-        </div>
+        </details>
+      </div>
 
-        <div id="playerHistoryPrep"></div>
+      <div class="flex flex-wrap items-center justify-between gap-3 mt-4 mb-3">
+        <div id="prepMatchSummary" role="status" aria-live="polite" class="hidden card p-4 flex-1" tabindex="-1"></div>
+        <button id="prepExport" type="button" disabled class="border rounded px-3 py-2 bg-white disabled:opacity-50" onclick="handleExcelExport()">ייצוא הכנה לשידור ל־Excel</button>
+      </div>
+      <div id="broadcastReport" class="hidden card p-4 mb-4" dir="rtl"></div>
+      <div id="playerHistoryPrep"></div>
+      <div class="card p-4">
         <!-- Analysis Results -->
         <div id="gameAnalysis" class="hidden">
           <!-- Player Comparison -->
@@ -816,6 +820,7 @@
         </div>
         <!-- END ADVANCED INSIGHTS V2 -->
       </div>
+      </div>
     </section>
   </div>
   
@@ -833,6 +838,7 @@
   <script src="js/ibba/ibba_window_stats.js"></script>
   <script src="js/ibba/ibba_rich_insights.js"></script>
   <script src="js/ibba/ibba_broadcast_copy.js"></script>
+  <script src="js/ibba/ibba_broadcast_view.js"></script>
   <script src="js/ibba/ibba_team_summaries.js"></script>
   <script src="js/ibba/ibba_historical_insights.js"></script>
   <script src="js/ibba/ibba_broadcast_report.js"></script>
@@ -856,7 +862,7 @@
     let scheduleGames = [];
     let allGames = window.allGames; // Local reference for convenience
     let filteredGames = [];
-    let currentSort = { field: 'gameId', direction: 'desc' };
+    let currentSort = { field: 'date', direction: 'asc' };
     
     // Global state - Teams Tab
     let allTeamStats = [];
@@ -926,7 +932,6 @@
     }
     
     function switchTab(tabName) {
-      if(tabName==='gamePrep'&&!window.IBBASeasons.canPrepareSeason(window.appConfig.seasonKey)) return;
       currentTab = tabName;
       console.log(`🔄 Switching to tab: ${tabName}`);
       
@@ -971,8 +976,13 @@
           initLeaderStats();
         }
         if (tabName === 'gamePrep') {
-          if (!gamePrepState.initialized) initGamePrep();
-          else window.historyView?.mount(document.getElementById('playerHistoryPrep'));
+          const available=window.IBBASeasons.canPrepareSeason(window.appConfig.seasonKey);
+          document.getElementById('prepWorkspace').classList.toggle('hidden',!available);
+          document.getElementById('prepUnavailable').classList.toggle('hidden',available);
+          if(available) {
+            if (!gamePrepState.initialized) initGamePrep();
+            else window.historyView?.mount(document.getElementById('playerHistoryPrep'));
+          }
         }
         if(tabName==='players' && document.getElementById('playerHistoryDetails').innerHTML) window.historyView?.mount(document.getElementById('playerHistoryDetails'));
       }
@@ -1128,8 +1138,9 @@
           valA = calculateEfficiency(a);
           valB = calculateEfficiency(b);
         } else {
-          valA = a[field];
-          valB = b[field];
+          const totalField=currentTeamStatsView==='totals'?{ppg:'points',rpg:'rebounds',apg:'assists',spg:'steals',bpg:'blocks',tpg:'turnovers',fpg:'fouls'}[field]:null;
+          valA = a[totalField||field];
+          valB = b[totalField||field];
         }
         
         // Handle numeric fields - convert strings to numbers if needed
@@ -1190,15 +1201,15 @@
           <tr class="hover:bg-blue-50 transition">
             <td class="col-team font-semibold text-blue-900">${safeText(teamName)}</td>
             <td class="num">${team.gamesPlayed}</td>
-            <td class="num">${formatNumber(team.ppg || team.points)}</td>
-            <td class="num">${formatNumber(team.rpg || team.rebounds)}</td>
-            <td class="num">${formatNumber(team.apg || team.assists)}</td>
-            <td class="num">${formatNumber(team.spg || team.steals)}</td>
-            <td class="num">${formatNumber(team.bpg || team.blocks)}</td>
-            <td class="num">${formatNumber(team.tpg || team.turnovers)}</td>
-            <td class="num">${formatNumber(team.fpg || team.fouls)}</td>
+            <td class="num">${formatNumber(team.ppg ?? team.points)}</td>
+            <td class="num">${formatNumber(team.rpg ?? team.rebounds)}</td>
+            <td class="num">${formatNumber(team.apg ?? team.assists)}</td>
+            <td class="num">${formatNumber(team.spg ?? team.steals)}</td>
+            <td class="num">${formatNumber(team.bpg ?? team.blocks)}</td>
+            <td class="num">${formatNumber(team.tpg ?? team.turnovers)}</td>
+            <td class="num">${formatNumber(team.fpg ?? team.fouls)}</td>
             <td class="pct">${formatPercentage(team.fgPct)}</td>
-            <td class="pct">${formatPercentage(team.threePtPct || team.threePct)}</td>
+            <td class="pct">${formatPercentage(team.threePtPct ?? team.threePct)}</td>
             <td class="pct">${formatPercentage(team.ftPct)}</td>
             <td class="num">${formatNumber(calculateEfficiency(team))}</td>
           </tr>
@@ -1320,11 +1331,13 @@
      */
     function populatePlayerTeamFilter() {
       const select = document.getElementById('playersTeamFilter');
+      const selected=select.value;
       const teams = [...new Set(allPlayerStats.map(p => p.teamName))].sort((a, b) => a.localeCompare(b, 'he'));
       
       // Keep "כל הקבוצות" option, add teams
       select.replaceChildren(new Option('כל הקבוצות', ''));
       teams.forEach(team => select.add(new Option(team, team)));
+      select.value=teams.includes(selected)?selected:'';
     }
     
     /**
@@ -1620,7 +1633,9 @@
       if(currentPlayerStatsView==='totals') togglePlayerStatsView();
       currentTeamSort={field:'points',direction:'desc'};
       currentPlayerSort={field:'ppg',direction:'desc'};
-      ['teamSearch','playersSearch','playerTeamFilter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+      currentSort={field:'date',direction:'asc'};
+      filteredGames=[];
+      ['teamSearch','playersSearch','playersTeamFilter'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
     }
     async function init() {
       if (!eventsBound) { setupEventListeners(); eventsBound = true; }
@@ -1629,6 +1644,7 @@
     async function selectSeason(key, refresh = false) {
       const season = window.IBBASeasons.getSeason(key);
       if (!season) return;
+      const targetTab=currentTab;
       Object.assign(window.appConfig, season, {seasonKey:key, seasonLabel:season.label});
       document.getElementById('seasonSelect').value = key;
       try { localStorage.setItem('ibba_selected_season',key); } catch (_) {}
@@ -1655,6 +1671,7 @@
       window.historyView?.reset(key,refresh);
       disableTabs();
       document.getElementById('loadingProgress').classList.remove('hidden');
+      document.getElementById('seasonError').classList.add('hidden');
       document.getElementById('seasonStatus').textContent = `טוען עונת ${season.label}…`;
       updateProgress(10,`טוען עונת ${season.label}`, 'טוען משחקים מאיגוד הכדורסל…');
       try {
@@ -1666,16 +1683,17 @@
           processGames(); populateFilters(); applyFilters();
           const loader = new window.IBBAPlayerNames(window.supabaseClient || null);
           window.playerNamesLoader = loader;
+          const names=allGames.length?loader.loadAllPlayerNames().catch(error=>console.warn('Names unavailable',error)):Promise.resolve();
           document.getElementById('seasonStatus').textContent = result.complete
             ? `${season.label} · ${scheduleGames.length} משחקים · ${allGames.length} עם סטטיסטיקה`
             : `${season.label} · נתונים חלקיים; טעינה נכשלה בחודשים: ${result.failedMonths.join(', ')}`;
           document.getElementById('loadingProgress').classList.add('hidden');
-          enableTabs(); switchTab('games');
+          enableTabs(); switchTab(targetTab);
           // Names enrich statistics; they must not block access to the season schedule.
           if (allGames.length) {
-            try { await loader.loadAllPlayerNames(); } catch(error) { console.warn('Names unavailable',error); }
+            await names;
             if (!isCurrent()) return;
-            await loader.loadReferencedPlayers?.(allGames,isCurrent);
+            await loader.loadReferencedPlayers?.(allGames,isCurrent,()=>{if(isCurrent())refreshNamedViews();});
             if (!isCurrent()) return;
             refreshNamedViews();
           }
@@ -1699,7 +1717,8 @@
         game.dateObj = new Date(game.date);
       });
       
-      // Initial sort (by gameId desc)
+      filteredGames=[];
+      // Sort the new season before applying any filters.
       sortGames(currentSort.field, true);
       
       console.log('✅ Games processed');
@@ -1908,22 +1927,10 @@
     function showError(message) {
       const loadingDiv = document.getElementById('loadingProgress');
       const safeMessage = safeText(message);
-      loadingDiv.innerHTML = `
-        <div class="text-center">
-          <div class="text-red-600 text-lg font-semibold mb-2">❌ ${safeMessage}</div>
-          <button onclick="location.reload()" class="btn bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors">
-            🔄 נסה שוב
-          </button>
-          <div class="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4 text-right">
-            <p class="text-xs text-amber-800 mb-2"><strong>💡 פתרונות אפשריים:</strong></p>
-            <div class="text-xs text-amber-700 space-y-1">
-              <div>• <strong>HTTP Server:</strong> הרץ את האתר דרך HTTP server (לא file://)</div>
-              <div>• <strong>פקודה:</strong> <code class="bg-amber-100 px-1 rounded">npm run dev</code></div>
-              <div>• <strong>גש:</strong> http://localhost:8000/ibba_dashboard_v1.html</div>
-            </div>
-          </div>
-        </div>
-      `;
+      loadingDiv.classList.add('hidden');
+      const errorPanel=document.getElementById('seasonError');
+      errorPanel.innerHTML=`<p class="text-red-700 mb-3">טעינת העונה נכשלה: ${safeMessage}</p><button type="button" onclick="selectSeason(document.getElementById('seasonSelect').value,true)" class="border rounded px-3 py-2">נסה שוב</button>`;
+      errorPanel.classList.remove('hidden');
     }
     
     // ========================================
@@ -2469,7 +2476,7 @@
       gamePrepState.awayTeamName = awayTeamName;
       gamePrepState.selectedGameId = selectedGame.gameId;
       const summary=document.getElementById('prepMatchSummary');
-      summary.innerHTML=`<h3 class="font-bold">${safeText(homeTeamName)} מול ${safeText(awayTeamName)}</h3><p>${safeText(window.appConfig.seasonLabel)} · ${safeText(new Date(selectedGame.date).toLocaleString('he-IL'))} · משחק מתוכנן</p>`;
+      summary.innerHTML=`<h3 class="font-bold">${safeText(homeTeamName)} מול ${safeText(awayTeamName)}</h3><p>${safeText(window.appConfig.seasonLabel)} · ${safeText(new Date(selectedGame.date).toLocaleString('he-IL',{dateStyle:'short',timeStyle:'short'}))} · משחק מתוכנן${selectedGame.roundVerified?` · מחזור ${safeText(selectedGame.roundNumber)}`:''}</p>`;
       summary.classList.remove('hidden');
       summary.scrollIntoView({block:'start',behavior:'smooth'});
       
@@ -2519,22 +2526,27 @@
       const filterValue=panel.querySelector('.broadcast-family-filter')?.value||'all';
       const openFamilies=Array.from(panel.querySelectorAll('[data-broadcast-family]')).filter(section=>section.open).map(section=>section.dataset.broadcastFamily);
       const rewordFocused=document.activeElement?.classList?.contains('broadcast-reword');
-      const storyCard=story=>`<article class="border rounded-lg p-3 my-2 bg-white"><p class="font-medium leading-relaxed">${safeText(story.text)}</p><p class="text-sm text-gray-600 mt-2">${safeText((story.seasonKeys||[]).map(k=>window.IBBASeasons.getSeason(k)?.label||k).join(', '))} · ${story.samples?.length?story.samples.map((s,i)=>`${i?'השוואה: ':''}${safeText(s.seasonKeys.map(k=>window.IBBASeasons.getSeason(k)?.label||k).join(', '))} — ${safeText(s.gameCount)} משחקים`).join(' · '):story.sampleSize==null?`${safeText(story.sourceGameCount??'לא צוין')} משחקי מקור; מדגם הגלאי לא צוין`:`${safeText(story.sampleSize)} משחקים במדגם`}${story.smallSample?' · מדגם קטן':''}${story.dataState==='partial'?' · מידע חלקי':''}</p><details class="mt-2 text-sm"><summary class="cursor-pointer text-blue-700">מקורות וראיות</summary>${story.windows?.map(w=>`<p>${safeText(window.IBBASeasons.getSeason(w.seasonKey)?.label||'')} · ${w.mode==='rounds'?`מחזורים ${safeText(w.fromRound)}–${safeText(w.toRound)}`:w.count?`${safeText(w.count)} משחקים${w.offset?' קודמים':' אחרונים'}`:'כל המשחקים בחלון'}${w.fromDate?` · ${safeText(new Date(w.fromDate).toLocaleDateString('he-IL'))}–${safeText(new Date(w.toDate).toLocaleDateString('he-IL'))}`:''}</p>`).join('')||''}${story.coverage?.filter(c=>c.missingRounds?.length).map(c=>`<p>מחזורים חסרים בחלון: ${safeText(c.missingRounds.join(', '))}</p>`).join('')||''}${[...new Map((story.evidence||[]).map(e=>[`${e.seasonKey}:${e.gameId}:${e.sourceUrl}`,e])).values()].map(e=>{const url=broadcastSourceLink(e.sourceUrl);return url?`<a href="${safeText(url)}" target="_blank" rel="noopener" class="block underline py-1">${safeText(e.gameId?`משחק ${e.gameId}`:'סיכום עונתי')}</a>`:'<p>מקור ישיר אינו זמין</p>';}).join('')}</details></article>`;
+      const view=window.IBBABroadcastView;
+      const storyCard=story=>view.renderCard(story);
       const history=report.historicalInsights||[];
       const familyLabels={ROUND:'מחזורים ושלבי העונה',MOMENTUM:'מומנטום והתפתחות',PROFILE:'סגנון ובית־חוץ',DECIDING:'משחקים צמודים ורבעים',MATCHUP:'מפגשים בין הקבוצות',PLAYERS:'שחקנים'};
       const families=report.families||{ROUND:history.filter(i=>i.category==='ROUND'),PROFILE:history.filter(i=>i.category!=='ROUND')};
       const sections=Object.entries(families).filter(([,items])=>items.length);
-      panel.innerHTML=`<h3 class="font-bold text-lg mb-2">נקודות לשידור</h3><p class="text-sm text-gray-600">הסיפורים הבולטים למשחק. עונות, מדגמים ופירוט מופיעים לצד כל תובנה.</p>${(report.topStories||[]).map(storyCard).join('')||'<p class="py-3">לא נמצאו עדיין סיפורים מאומתים למשחק במקורות הזמינים.</p>'}
+      panel.innerHTML=`<h3 class="font-bold text-lg mb-2">נקודות לשידור</h3><p class="text-gray-600 mb-3">נקודות בולטות למשחק, ואחריהן השוואות בין העונות לפי נושא.</p><div class="broadcast-highlights">${(report.topStories||[]).map(storyCard).join('')||'<p class="py-3">עדיין אין נקודות לשידור למשחק זה.</p>'}</div>
         <h4 class="font-bold mt-4">העונה הנוכחית</h4><p class="my-2">${report.currentSeason?'ניתוח עונתי זמין בהמשך הדוח.':'אין עדיין נתונים מספיקים לניתוח עונתי של שתי הקבוצות. סיפורי העבר זמינים בנפרד.'}</p>
-        ${(report.sourceStatuses||[]).filter(s=>s.state!=='ready').map(s=>`<p role="status" class="text-amber-800 my-2">${safeText(window.IBBASeasons.getSeason(s.seasonKey)?.label||s.seasonKey)}: ${safeText(s.error||'נתונים חלקיים')} ${safeText((s.failedMonths||[]).join(', '))}</p>`).join('')}
+        ${view.sourceNotices(report.sourceStatuses).map(message=>`<p role="status" class="text-amber-800 my-2">${safeText(message)}</p>`).join('')}
         <p role="status" aria-live="polite" class="my-2">${['idle','loading'].includes(report.historicalContext?.state)?'סיכומי שחקנים ורקע קבוצתי עדיין נטענים…':''}</p>
-        <div class="flex flex-wrap items-center gap-3 mt-5"><h4 class="font-bold">כל התובנות (${report.allInsights?.length??history.length})</h4><label>סינון לפי נושא <select class="broadcast-family-filter border rounded p-2"><option value="all">כל הנושאים</option>${sections.map(([family,items])=>`<option value="${family}">${familyLabels[family]} (${items.length})</option>`).join('')}</select></label><button type="button" onclick="regenerateInsights()" class="broadcast-reword border rounded px-3 py-2">החלף ניסוח</button></div>
-        ${sections.map(([family,items])=>`<details data-broadcast-family="${family}" class="border-t py-3"><summary class="font-bold cursor-pointer">${familyLabels[family]} (${items.length})</summary>${items.map(storyCard).join('')}</details>`).join('')}
+        <div class="flex flex-wrap items-center gap-3 mt-5"><h4 class="font-bold">השוואות ורקע למשחק</h4><label>נושא <select class="broadcast-family-filter border rounded p-2"><option value="all">כל הנושאים</option>${sections.map(([family,items])=>`<option value="${family}">${familyLabels[family]}</option>`).join('')}</select></label><button type="button" onclick="regenerateInsights()" class="broadcast-reword border rounded px-3 py-2">החלף ניסוח</button></div>
+        ${sections.map(([family,items])=>{
+          const rows=family==='ROUND'&&report.context?.match?.roundVerified?items.filter(s=>s.type!=='HISTORICAL_ROUND_RESULT'):family==='MATCHUP'&&report.context?items.filter(s=>!['LAST_HISTORICAL_MEETING','HISTORICAL_H2H_RECORD'].includes(s.type)):items;
+          const content=family==='ROUND'?view.roundTables(report.context)+view.renderGroups(rows):family==='MATCHUP'?view.meetingTable(report.context)+`<details class="mt-3"><summary class="cursor-pointer">ממוצעים במפגשים</summary>${view.renderGroups(rows)}</details>`:view.renderGroups(rows);
+          return `<details data-broadcast-family="${family}" class="broadcast-family"><summary>${familyLabels[family]}</summary>${content}</details>`;
+        }).join('')}
         ${(report.selectedPlayerRefs||[]).length?`<p class="text-sm my-2">שחקנים שנבחרו בידי השדרן — הבחירה אינה מאשרת סגל נוכחי.</p>${report.selectedPlayerRefs.map(ref=>`<button type="button" data-remove-player="${safeText(ref)}" class="border rounded px-3 py-2 m-1">הסר ${safeText(report.context?.playerSummaries?.records?.find(r=>report.context.identity(r.playerRef)===ref)?.name||ref)}</button>`).join('')}`:''}
         <button type="button" onclick="refreshBroadcastPreparation()" class="border rounded px-3 py-2 mt-3">נסה שוב / רענן מקורות</button>`;
       panel.classList.remove('hidden');
       const filter=panel.querySelector('.broadcast-family-filter');
-      const applyFamily=value=>panel.querySelectorAll('[data-broadcast-family]').forEach(section=>{section.hidden=value!=='all'&&section.dataset.broadcastFamily!==value;section.open=value!=='all'?!section.hidden:openFamilies.includes(section.dataset.broadcastFamily);});
+      const applyFamily=value=>panel.querySelectorAll('[data-broadcast-family]').forEach(section=>{section.hidden=value!=='all'&&section.dataset.broadcastFamily!==value;section.open=value!=='all'?!section.hidden:openFamilies.includes(section.dataset.broadcastFamily)||(!openFamilies.length&&section.dataset.broadcastFamily==='ROUND');});
       if(filter){filter.value=sections.some(([family])=>family===filterValue)?filterValue:'all';applyFamily(filter.value);filter.addEventListener('change',event=>applyFamily(event.target.value));}
       if(rewordFocused)panel.querySelector('.broadcast-reword')?.focus();
       panel.querySelectorAll('[data-remove-player]').forEach(button=>button.addEventListener('click',()=>{

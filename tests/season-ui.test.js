@@ -1,10 +1,11 @@
 const assert=require('assert');const fs=require('fs');const vm=require('vm');
 const nodes=new Map();
 const element=()=>({value:'',innerHTML:'',textContent:'',disabled:false,style:{},options:[],events:{},
-  classList:{add(){},remove(){},contains(){return false;}},addEventListener(name,fn){this.events[name]=fn;},setAttribute(){},scrollIntoView(){this.scrolled=true;},closest(){return null;},querySelectorAll(){return[];},querySelector(){return null;}});
+  classList:{add(){},remove(){},toggle(){},contains(){return false;}},addEventListener(name,fn){this.events[name]=fn;},setAttribute(){},scrollIntoView(){this.scrolled=true;},closest(){return null;},querySelectorAll(){return[];},querySelector(){return null;}});
 const document={readyState:'loading',addEventListener(){},querySelectorAll:()=>[],getElementById:id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);}};
 const c=vm.createContext({window:{appConfig:{seasonKey:'2026-27'}},document,URL,URLSearchParams,console:{log(){},warn(){},error(){}},setTimeout:()=>1,clearTimeout(){},Map,Promise});
 vm.runInContext(fs.readFileSync('js/ibba/ibba_seasons.js','utf8'),c);
+for(const file of ['ibba_broadcast_copy','ibba_broadcast_view'])vm.runInContext(fs.readFileSync(`js/ibba/${file}.js`,'utf8'),c);
 const html=fs.readFileSync('index.html','utf8');
 const script=Array.from(html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)).find(m=>m[2].includes('async function selectSeason'))[2];
 vm.runInContext(script,c);
@@ -17,6 +18,25 @@ vm.runInContext(`currentTeamStatsView='totals';currentPlayerStatsView='totals';t
 assert.strictEqual(vm.runInContext('currentTeamStatsView',c),'averages');
 assert.strictEqual(vm.runInContext('currentPlayerStatsView',c),'averages');
 async function run(){
+ const oldRender=c.renderGames;c.renderGames=()=>{};
+ vm.runInContext("scheduleGames=[{gameId:99,date:'2026-10-20'},{gameId:1,date:'2026-10-13'}];filteredGames=[];processGames();",c);
+ assert.strictEqual(vm.runInContext('scheduleGames[0].gameId',c),1,'schedule starts with earliest date, independently of source IDs');
+ c.renderGames=oldRender;
+ document.getElementById('playersTeamFilter').value='old team';
+ vm.runInContext('resetSeasonViews()',c);
+ assert.strictEqual(document.getElementById('playersTeamFilter').value,'','actual player team filter clears on season change');
+ const oldTeamRender=c.renderTeams;c.renderTeams=()=>{};
+ vm.runInContext("currentTeamStatsView='totals';allTeamStats=filteredTeamStats=[{name:'B',points:20},{name:'A',points:10}];currentTeamSort={field:'ppg',direction:'desc'};sortTeams('ppg');",c);
+ assert.strictEqual(vm.runInContext('filteredTeamStats[0].name',c),'A','totals sorting uses the values displayed under the points header');
+ vm.runInContext("currentTeamStatsView='averages';filteredTeamStats=[{name:'zero',ppg:0}];",c);
+ c.renderTeams=oldTeamRender;c.renderTeams();
+ assert(document.getElementById('teamsTbody').innerHTML.includes('>0.0</td>'),'published zero average is not rendered as missing');
+ c.Option=function(text,value){this.text=text;this.value=value;};
+ const teamFilter=document.getElementById('playersTeamFilter');
+ teamFilter.replaceChildren=()=>{teamFilter.value='';teamFilter.options=[];};teamFilter.add=option=>teamFilter.options.push(option);
+ teamFilter.value='B';
+ vm.runInContext("allPlayerStats=[{teamName:'A'},{teamName:'B'}];populatePlayerTeamFilter()",c);
+ assert.strictEqual(teamFilter.value,'B','name enrichment and totals toggle preserve valid player team selection');
  const headerEvents={};const header={setAttribute(){},addEventListener:(name,fn)=>{headerEvents[name]=fn;},click:()=>vm.runInContext("sortPlayers('ppg')",c)};
  document.querySelectorAll=selector=>selector.split(',').some(s=>s.trim()==='th[data-sort-field]')?[header]:[];
  vm.runInContext('setupEventListeners()',c);
@@ -95,13 +115,17 @@ async function run(){
  let namesRelease;const namesPending=new Promise(r=>namesRelease=r);let enabled=false;
  c.URL=URL;c.location={href:'http://localhost/?season=2026-27'};c.history={replaceState(){}};c.localStorage={setItem(){}};
  const realSwitchTab=c.switchTab;
- for(const name of ['disableTabs','updateProgress','processGames','populateFilters','applyFilters','switchTab']) c[name]=()=>{};
+ let selectedTab;
+ for(const name of ['disableTabs','updateProgress','processGames','populateFilters','applyFilters']) c[name]=()=>{};
+ c.switchTab=tab=>{selectedTab=tab;};
  c.enableTabs=()=>{enabled=true;};
  c.window.IBBAPlayerNames=function(){this.loadAllPlayerNames=()=>namesPending;this.getPlayerName=()=> 'Recovered official name';};
  c.window.historyView.reset=()=>{};
  vm.runInContext("seasonController.select=async(key,apply)=>apply({scheduleGames:[],analyticsGames:[{}],complete:true},()=>true)",c);
+ vm.runInContext("currentTab='teams'",c);
  const selecting=vm.runInContext("selectSeason('2025-26')",c);
  await Promise.resolve();assert.ok(enabled,'schedule access must not wait for slow names enrichment');
+ assert.strictEqual(selectedTab,'teams','season changes preserve the active statistics panel');
  c.window.ibbaAnalytics.getPlayerAverages=()=>[{playerId:772662,ppg:24}];
  vm.runInContext("allPlayerStats=[{playerId:772662,name:'Unavailable'}];currentTab='teams';",c);
  namesRelease();await selecting;
@@ -133,8 +157,8 @@ async function run(){
  completeBroadcast({historicalInsights:[],topStories:[],sourceStatuses:[]});await pendingBroadcast;
  assert.strictEqual(vm.runInContext('currentAdvancedReport',c),null,'late historical report cannot restore cleared prep');
  c.renderBroadcastReport({historicalInsights:[{text:'2025/26 official story',sampleSize:1,seasonKeys:['2025-26'],evidence:[{sourceUrl:'https://ibasketball.co.il/match/1'}]}],topStories:[],sourceStatuses:[],historicalContext:{state:'loading'}});
- assert(document.getElementById('broadcastReport').innerHTML.includes('2025/26 official story'),'historical stories visible without current stats');
- assert(document.getElementById('broadcastReport').innerHTML.includes('https://ibasketball.co.il/match/1'),'story source visible');
+ assert(document.getElementById('broadcastReport').innerHTML.replace(/<[^>]*>/g,'').includes('2025/26 official story'),'historical stories visible without current stats');
+ assert(!document.getElementById('broadcastReport').innerHTML.includes('מקורות וראיות'),'source details stay in export, outside reading flow');
  console.log('season UI tests passed');
  c.window.loadUpcomingGames=async()=>{};
  vm.runInContext("currentTab='gamePrep'",c);

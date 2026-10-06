@@ -454,10 +454,10 @@ class IBBAPlayerNames {
     throw new Error('Player source unavailable');
   }
 
-  async loadReferencedPlayers(games, isCurrent = ()=>true) {
+  async loadReferencedPlayers(games, isCurrent = ()=>true, onProgress = ()=>{}) {
     const ids=Array.from(new Set((games || []).flatMap(g=>(g.players || []).map(p=>String(p.playerId))))).filter(id=>/^[1-9]\d*$/.test(id)&&!this.namesMap.has(id));
     this.isLoading=true;
-    let cursor=0;
+    let cursor=0, resolved=0;
     try {
       await Promise.all(Array.from({length:Math.min(6,ids.length)},async()=>{
         while(cursor<ids.length && isCurrent()) {
@@ -470,12 +470,13 @@ class IBBAPlayerNames {
             const name=doc.body?.textContent || player.title.rendered;
             this.namesMap.set(id,{name,jersey:'',teamId:null});
             window.historyView?.service?.registerPlayer(player);
+            if(++resolved%6===0)onProgress();
           } catch(_) {}
         }
       }));
       if(isCurrent()) {this.saveToCache();this.sourceState=ids.some(id=>!this.namesMap.has(id))?'partial':'ready';}
       return this.namesMap;
-    } finally {this.isLoading=false;}
+    } finally {this.isLoading=false;if(isCurrent())onProgress();}
   }
   
   /**

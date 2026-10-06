@@ -1,19 +1,39 @@
 (function () {
   'use strict';
   class IBBABroadcastReport {
-    static selectTopStories(candidates,{limit=8}={}) {
-      const sorted=[...candidates].sort((a,b)=>(b.priority??({high:90,medium:65,low:40}[b.importance]||40))-(a.priority??({high:90,medium:65,low:40}[a.importance]||40))||String(a.id||a.type).localeCompare(String(b.id||b.type)));
+    static selectTopStories(candidates,{limit=6,variant=0}={}) {
+      const rounds=new Map();
+      for(const story of candidates.filter(s=>s.type==='ROUND_SCORING'&&Number.isFinite(s.facts?.value))) {
+        const key=JSON.stringify([story.teamIds,story.seasonKeys,story.facts.round]);
+        if(!rounds.has(key))rounds.set(key,[]);
+        rounds.get(key).push(story);
+      }
+      const merged=new Set(),briefings=[];
+      for(const stories of rounds.values()) {
+        if(!['points','opponentPoints','margin'].every(metric=>stories.some(s=>s.facts.metric===metric)))continue;
+        const base=stories.find(s=>s.facts.metric==='margin')||stories[0];
+        const summary={...base,id:`ROUND_TEAM_SUMMARY:${base.id}`,factKey:`ROUND_TEAM_SUMMARY:${base.factKey||base.id}`,type:'ROUND_TEAM_SUMMARY',
+          facts:{...base.facts,roundMetrics:Object.fromEntries(stories.map(s=>[s.facts.metric,s.facts.value]))}};
+        summary.text=window.IBBABroadcastCopy.format(summary,{variant});summary.broadcastShort=summary.text;
+        briefings.push(summary);stories.forEach(s=>merged.add(s));
+      }
+      candidates=[...candidates.filter(s=>!merged.has(s)),...briefings];
+      const hasRoundSummary=candidates.some(s=>s.type==='ROUND_SCORING');
+      const hasBriefing=hasRoundSummary||briefings.length>0;
+      const priority=s=>['ROUND_SCORING','ROUND_TEAM_SUMMARY'].includes(s.type)?110:(s.priority??({high:90,medium:65,low:40}[s.importance]||40));
+      const sorted=candidates.filter(s=>!hasBriefing||s.type!=='HISTORICAL_ROUND_RESULT').sort((a,b)=>priority(b)-priority(a)||String(a.id||a.type).localeCompare(String(b.id||b.type)));
       const seen=new Set(),result=[];
       const distinct=sorted.filter(story=>{const key=story.factKey||story.id||`${story.type}:${story.teamName}:${story.text}`;if(seen.has(key))return false;seen.add(key);return true;});
       const representedTeams=new Set(),representedFamilies=new Set();
       const take=story=>{result.push(story);story.teamIds?.forEach(id=>representedTeams.add(String(id)));representedFamilies.add(story.family||story.category||story.type);};
       for(const story of distinct)if(result.length<Math.min(limit,4)&&((story.teamIds||[]).some(id=>!representedTeams.has(String(id)))||!representedFamilies.has(story.family||story.category||story.type)))take(story);
-      for(const story of distinct)if(result.length<limit&&!result.includes(story))take(story);
+      for(const story of distinct)if(result.length<limit&&!result.includes(story)&&!result.some(other=>other.type===story.type&&['CLOSE_GAME_RECORD','QUARTER_WINDOW','HALFTIME_RECORD','SAME_STAGE_RECORD'].includes(story.type)&&JSON.stringify(other.teamIds)===JSON.stringify(story.teamIds)&&other.facts?.quarter===story.facts?.quarter&&other.facts?.position===story.facts?.position))take(story);
       return result;
     }
     static async build(match,{contextService,currentReportBuilder,selectedPlayerRefs=[],now=new Date(),refresh=false}={}) {
       const context=await contextService.load(match,{now,refresh});
       let currentSeason=null;const sourceStatuses=context.priorSeasons.map(s=>({seasonKey:s.seasonKey,state:s.state,error:s.error,failedMonths:s.failedMonths}));
+      if(!context.currentComplete)sourceStatuses.push({seasonKey:match.seasonKey,state:'partial',failedMonths:context.currentFailedMonths||[],error:context.currentError});
       const both=context.currentComplete&&(match.teams||[]).every(team=>context.currentGames.some(g=>g.teams?.some(t=>String(t.teamId)===String(team.teamId))));
       if(both&&context.currentGames.length&&currentReportBuilder) {
         try {currentSeason=await currentReportBuilder(context.currentGames);}
@@ -37,7 +57,7 @@
       const legacy=[...current,...historicalInsights].map(s=>({...s,family:familyFor(s),factKey:s.factKey||s.id}));
       const allInsights=[...new Map([...rich,...legacy].map(s=>[s.factKey||s.id,s])).values()];
       const families=Object.fromEntries(['ROUND','MOMENTUM','PROFILE','DECIDING','MATCHUP','PLAYERS'].map(f=>[f,allInsights.filter(s=>s.family===f)]));
-      return {...report,historicalContext:report.context.playerSummaries,historicalInsights,allInsights,families,topStories:this.selectTopStories(allInsights),selectedPlayerRefs:[...playerRefs]};
+      return {...report,historicalContext:report.context.playerSummaries,historicalInsights,allInsights,families,topStories:this.selectTopStories(allInsights,{variant:report.copyVariant||0}),selectedPlayerRefs:[...playerRefs]};
     }
     static exportRows(report) {
       const rows=[['=== נקודות לשידור ===']];

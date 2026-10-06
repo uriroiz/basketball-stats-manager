@@ -10,6 +10,9 @@ season.statGames.forEach(g=>{g.playerObservations=g.players.map(p=>({...p,partic
 let stories=c.window.IBBAHistoricalInsights.generate(context);
 assert(stories.some(i=>i.type==='HISTORICAL_ROUND_RESULT'));
 assert(stories.some(i=>i.type==='LAST_HISTORICAL_MEETING'&&i.evidence[0].gameId===2));
+assert(!stories.find(i=>i.type==='LAST_HISTORICAL_MEETING').text.includes('לא אומת'),'verified regular meeting must not be labelled unverified');
+const currentMeeting={...game(99,2,'2026-10-15'),seasonKey:'2026-27'};
+assert.strictEqual(c.window.IBBAHistoricalInsights.generate({...context,currentResultGames:[currentMeeting]}).find(i=>i.type==='LAST_HISTORICAL_MEETING').evidence[0].gameId,99,'last meeting includes completed games from the selected season');
 assert(!stories.some(i=>i.type==='SAME_STAGE_RECORD'),'opening round cannot compare zero games');
 assert(!stories.some(i=>i.playerRef),'historical roster is never assumed current');
 stories=c.window.IBBAHistoricalInsights.generate(context,{playerRefs:['post:7']});
@@ -22,7 +25,7 @@ const record=c.window.IBBAHistoricalInsights.generate(later).find(i=>i.type==='S
 assert.strictEqual(record.sampleSize,3,'a duplicate event cannot count twice');
 assert.strictEqual(record.facts.wins,3);
 const partial=c.window.IBBAHistoricalInsights.generate({...later,priorSeasons:[{...later.priorSeasons[0],coverage:{roundWindowComplete:false,transportComplete:false},state:'partial'}]});
-assert(partial.filter(i=>i.type==='SAME_STAGE_RECORD').every(i=>i.text.includes('הזמינים')));
+assert(partial.filter(i=>i.type==='SAME_STAGE_RECORD').every(i=>i.dataState==='partial'&&i.text.includes('3 משחקים')&&!i.text.includes('מאומת')&&!i.text.includes('הזמינים')),'keep factual counts and export coverage without diagnostic prose');
 assert(!partial.some(i=>i.text.includes('כל המפגשים')));
 const unknown=c.window.IBBAHistoricalInsights.generate({...context,match:{...match,roundVerified:false},priorSeasons:[{...season,sameRoundGames:[]}]});
 assert(!unknown.some(i=>i.type==='HISTORICAL_ROUND_RESULT'));

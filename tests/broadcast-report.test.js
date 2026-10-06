@@ -1,5 +1,5 @@
 const assert=require('assert'),fs=require('fs'),vm=require('vm');const c={window:{},URLSearchParams,URL,Date,console};
-for(const name of ['ibba_seasons','ibba_historical_insights','ibba_broadcast_report'])if(fs.existsSync('js/ibba/'+name+'.js'))vm.runInNewContext(fs.readFileSync('js/ibba/'+name+'.js','utf8'),c);
+for(const name of ['ibba_seasons','ibba_broadcast_copy','ibba_historical_insights','ibba_broadcast_report'])if(fs.existsSync('js/ibba/'+name+'.js'))vm.runInNewContext(fs.readFileSync('js/ibba/'+name+'.js','utf8'),c);
 assert(c.window.IBBABroadcastReport,'broadcast report builder must exist');
 const B=c.window.IBBABroadcastReport;
 const story=(id,team=1)=>({id,type:'PLAYER_OFFICIAL_SEASON',scope:'historical',priority:80,teamIds:[team],seasonKeys:['2025-26'],sampleSize:3,text:'2025/26 story '+id,broadcastShort:'2025/26 story '+id,facts:{points:10},evidence:[{seasonKey:'2025-26',sourceUrl:'https://ibasketball.co.il/league/2025-2/'}]});
@@ -8,6 +8,13 @@ assert.strictEqual(top.length,3,'never pad short selection');
 assert(top.some(i=>i.id==='b'),'identical story type on other team must remain');
 assert.strictEqual(B.selectTopStories([story('a'),story('a')]).length,1);
 assert.strictEqual(B.selectTopStories([{...story('a'),factKey:'same'},{...story('other'),factKey:'same'}]).length,1);
+const roundStories=[{...story('aggregate'),type:'ROUND_SCORING',family:'ROUND',facts:{metric:'margin'},seasonKeys:['2023-24','2024-25','2025-26']},...[1,2,3].map(i=>({...story(`result${i}`),type:'HISTORICAL_ROUND_RESULT',family:'ROUND',priority:100}))];
+assert.strictEqual(B.selectTopStories(roundStories).filter(s=>s.type==='HISTORICAL_ROUND_RESULT').length,0,'season rows do not displace pooled round stories in highlights');
+const roundSummary=B.selectTopStories(['points','opponentPoints','margin'].map((metric,i)=>({...roundStories[0],id:metric,facts:{metric,value:[81.7,86.7,-5][i],round:1},sampleSize:3})));
+assert.strictEqual(roundSummary.length,1,'a team round briefing combines scoring, defence and margin');
+assert(roundSummary[0].text.includes('-5')&&roundSummary[0].text.includes('81.7')&&roundSummary[0].text.includes('86.7'),'combined story preserves all three facts');
+assert(B.selectTopStories(['points','margin'].map(metric=>({...roundStories[0],id:metric,facts:{metric,value:5,round:1}}))).every(s=>s.type!=='ROUND_TEAM_SUMMARY'),'missing defence metric does not generate incomplete briefing');
+assert.strictEqual(B.selectTopStories(['2023-24','2024-25','2025-26'].map(key=>({...story(key),type:'SAME_STAGE_RECORD',teamIds:[1]}))).length,1,'three yearly stage records remain in comparisons instead of repeating in highlights');
 async function run(){
  const match={seasonKey:'2026-27',gameId:1,date:'2026-10-13',teams:[{teamId:1,name:'H'},{teamId:2,name:'A'}]};
  const ctx={match,currentGames:[],currentComplete:true,priorSeasons:[],playerSummaries:{state:'idle',records:[],statuses:[]},teamSummaries:[],identity:r=>r};
@@ -16,6 +23,8 @@ async function run(){
  assert.strictEqual(calls,0,'no current stats never invokes seasonal analysis');
  assert.strictEqual(r.currentSeason,null);
  assert.strictEqual(r.sourceStatuses.length,0);
+ const partialCurrent=await B.build(match,{contextService:{load:async()=>({...ctx,currentComplete:false})}});
+ assert.strictEqual(partialCurrent.sourceStatuses.filter(s=>s.seasonKey===match.seasonKey&&s.state==='partial').length,1,'current transport failure stays visible after removing story badges');
  assert(B.exportRows(r).some(row=>row.includes('ההיסטוריה טרם נטענה')));
  const one=await B.build(match,{contextService:{load:async()=>({...ctx,currentGames:[{teams:[{teamId:1,name:'H'},{teamId:3,name:'C'}]}]})},currentReportBuilder:async()=>{calls++;return {};}});
  assert.strictEqual(one.currentSeason,null,'missing other team is local empty state');

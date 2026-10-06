@@ -16,18 +16,18 @@
       const stories=[],match=context.match;
       const selected=match.teams || [];
       const inMatch=game=>selected.every(t=>game.teams?.some(other=>same(t.teamId,other.teamId)));
-      const allMeetings=newest(context.priorSeasons.flatMap(s=>s.resultGames).filter(inMatch));
+      const allMeetings=newest([...context.priorSeasons.flatMap(s=>s.resultGames),...(context.currentResultGames||[])].filter(inMatch));
       if(allMeetings.length) {
         const g=allMeetings[0];
         stories.push(make('LAST_HISTORICAL_MEETING',g.seasonKey,selected.map(t=>t.teamId),{score:g.teams.map(t=>t.score),date:g.date},
-          `המפגש האחרון במקורות שנבדקו, בעונת ${label(g.seasonKey)} (${new Date(g.date).toLocaleDateString('he-IL')}): ${gameText(g)}. שלב העונה לא אומת.`,[g]));
+          `במפגש האחרון, בעונת ${label(g.seasonKey)} (${new Date(g.date).toLocaleDateString('he-IL')}): ${gameText(g)}${g.roundVerified&&g.competitionPhase==='regular'?`, במחזור ${g.roundNumber} של העונה הסדירה`:''}.`,[g],{scope:g.seasonKey===match.seasonKey?'current':'historical'}));
       }
       for(const season of context.priorSeasons) {
         const year=label(season.seasonKey),meetings=unique(season.resultGames.filter(inMatch));
         if(meetings.length) {
           const team=selected[0],wins=meetings.filter(g=>{const t=g.teams.find(t=>same(t.teamId,team.teamId));return t.score>g.teams.find(t=>!same(t.teamId,team.teamId)).score;}).length;
-          stories.push(make('HISTORICAL_H2H_RECORD',season.seasonKey,selected.map(t=>t.teamId),{wins,losses:meetings.length-wins},
-            `בעונת ${year}, ב־${meetings.length} המפגשים הזמינים במקור בין הקבוצות: ${team.name} עם ${wins} ניצחונות ו־${meetings.length-wins} הפסדים.`,meetings,{dataState:season.state,priority:80}));
+          stories.push(make('HISTORICAL_H2H_RECORD',season.seasonKey,selected.map(t=>t.teamId),{wins,losses:meetings.length-wins,total:meetings.length},
+            `בעונת ${year}, ${team.name} ניצחה ב־${wins} מתוך ${meetings.length} המפגשים מול ${selected[1].name}.`,meetings,{dataState:season.state,priority:80}));
         }
         for(const team of selected) {
           if(match.roundVerified&&match.competitionPhase==='regular') {
@@ -42,7 +42,7 @@
                 const wins=games.filter(g=>{const t=g.teams.find(t=>same(t.teamId,team.teamId));return t.score>g.teams.find(t=>!same(t.teamId,team.teamId)).score;}).length;
                 const complete=season.coverageByTeam?.[team.teamId]?.complete??season.coverage.roundWindowComplete;
                 stories.push(make('SAME_STAGE_RECORD',season.seasonKey,[team.teamId],{wins,losses:games.length-wins,from:1,to:match.roundNumber-1},
-                  `לפני מחזור ${match.roundNumber} בעונת ${year}, ${team.name} רשמה ${wins} ניצחונות ו־${games.length-wins} הפסדים ב־${games.length} משחקים ${complete?'שהושלמו':'הזמינים במקור'} ממחזורים 1–${match.roundNumber-1} של העונה הסדירה${complete?'':'; החלון אינו מאומת כמלא'}.`,games,{roundWindow:[1,match.roundNumber-1],dataState:complete?'ready':'partial',priority:90}));
+                  `לפני מחזור ${match.roundNumber} בעונת ${year}, ${team.name} רשמה ${wins===1?'ניצחון אחד':`${wins} ניצחונות`} ב־${games.length} משחקים ממחזורים 1–${match.roundNumber-1} של העונה הסדירה.`,games,{teamName:team.name,roundWindow:[1,match.roundNumber-1],dataState:complete?'ready':'partial',priority:90}));
               }
             }
           }
@@ -64,7 +64,7 @@
             const name=rows[0]?.name || window.playerNamesLoader?.namesMap?.get(p.playerId)?.name || `שחקן במזהה ${p.playerId}`;
             const rival=g.teams.find(t=>!same(t.teamId,p.teamId));
             stories.push(make(type,season.seasonKey,[p.teamId],{points:Number(points),date:g.date,round:g.roundVerified?g.roundNumber:null},
-              `${name} קלע ${points} נקודות מול ${rival.name} בעונת ${year}${g.roundVerified?`, מחזור ${g.roundNumber} בעונה הסדירה`:`, בתאריך ${new Date(g.date).toLocaleDateString('he-IL')} (שלב לא מאומת)`}, כששיחק ב${p.teamName}. זו הופעה היסטורית אחת.`,[g],{playerRef:ref,historicalTeam:p.teamName,priority:92}));
+              `${name} קלע ${points} נקודות מול ${rival.name} בעונת ${year}${g.roundVerified?`, מחזור ${g.roundNumber} בעונה הסדירה`:`, בתאריך ${new Date(g.date).toLocaleDateString('he-IL')}`}, כששיחק ב${p.teamName}.`,[g],{playerRef:ref,historicalTeam:p.teamName,priority:92}));
           }
         }
         for(const team of selected) {

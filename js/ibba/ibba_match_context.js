@@ -35,13 +35,14 @@
             this.seasonData.loadSeason(season.key,{}),
             this.seasonData.loadSeason(season.key,{regularOnly:true})
           ]);
-          const resultGames=unique(data.scheduleGames).filter(g=>g.seasonKey===season.key&&g.hasResult);
+          const rawResults=unique(data.scheduleGames).filter(g=>g.seasonKey===season.key&&g.hasResult);
           const regularGames=unique(regular.scheduleGames).filter(g=>g.seasonKey===season.key&&g.roundVerified&&g.competitionPhase==='regular');
           const regularById=new Map(regularGames.map(g=>[String(g.gameId),g]));
-          const statGames=resultGames.filter(g=>g.hasPlayerStats).map(g=>{
+          const resultGames=rawResults.map(g=>{
             const verified=regularById.get(String(g.gameId));
             return verified?{...g,roundNumber:verified.roundNumber,roundLabel:verified.roundLabel,roundVerified:true,competitionPhase:'regular'}:g;
           });
+          const statGames=resultGames.filter(g=>g.hasPlayerStats);
           const comparable=match.roundVerified&&match.competitionPhase==='regular';
           const beforeRoundGames=comparable?regularGames.filter(g=>g.hasResult&&g.roundNumber<match.roundNumber):[];
           const sameRoundGames=comparable?regularGames.filter(g=>g.hasResult&&g.roundNumber===match.roundNumber):[];
@@ -56,6 +57,7 @@
       const currentResultGames=currentScheduleGames.filter(g=>g.hasResult&&+new Date(g.date)<=+new Date(asOf));
       const currentRegularGames=currentScheduleGames.filter(g=>g.roundVerified&&g.competitionPhase==='regular');
       return {match,asOf,currentComplete:Boolean(current?.complete),currentScheduleGames,currentResultGames,currentRegularGames,
+        currentFailedMonths:current?.failedMonths||[],currentError:current?.error,
         currentCoverageByTeam:this.coverage(currentRegularGames,match,current?.complete,asOf),
         currentGames:currentResultGames.filter(g=>g.hasPlayerStats),priorSeasons,
         playerSummaries:{state:'idle',records:[],statuses:[]},teamSummaries:[],identity:ref=>this.playerHistory?.identity(ref) || window.IBBAPlayerHistory?.playerRef(ref)};

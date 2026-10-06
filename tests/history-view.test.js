@@ -15,6 +15,7 @@ view.panel={id:'playerHistoryPrep',innerHTML:'',querySelector:s=>{if(!nodes.has(
 view.query='';view.render();assert(!view.panel.innerHTML.includes('<th scope="col" class="p-3 text-right border-b">מקור'));
 assert(!view.panel.innerHTML.includes('history-player'));assert(view.panel.innerHTML.includes('פירוט עונות'));
 view.setBroadcastSelection([],{ready:false});view.query='Same';view.render();assert(view.panel.innerHTML.includes('disabled'),'add requires ready report');
+view.query='';view.render();assert(view.panel.innerHTML.includes('26 שחקנים זמינים לחיפוש'),'empty search must not imply the loaded history has zero players');
 c.document={activeElement:{className:'history-search',selectionStart:3},querySelector:()=>null};
 view.panel.contains=()=>true;
 nodes.get('.history-search').focused=false;view.render();assert(nodes.get('.history-search').focused,'render after a late bridge must retain current search focus');

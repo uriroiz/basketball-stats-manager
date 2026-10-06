@@ -62,6 +62,12 @@ async function run() {
   assert.strictEqual(referenced.getPlayerName('772662'),'ריקי פאק','known event ID resolves from official individual player API');
   assert.strictEqual(referenced.getPlayerName('906516'),null,'mismatched API identity never used');
   assert.strictEqual(requested.filter(id=>id==='772662').length,1,'duplicate appearances request identity once');
+  const progressive=new IBBAPlayerNames(null);let releaseLast;const last=new Promise(resolve=>releaseLast=resolve),updates=[];
+  progressive.fetchPlayerById=async id=>{if(id==='7')await last;return {id:Number(id),title:{rendered:`Player ${id}`}};};
+  const progress=progressive.loadReferencedPlayers([{players:[1,2,3,4,5,6,7].map(playerId=>({playerId}))}],()=>true,()=>updates.push(progressive.getPlayerName(1)));
+  for(let i=0;i<12;i++)await Promise.resolve();
+  assert(updates.includes('Player 1'),'resolved names become available to the UI before the final request finishes');
+  releaseLast();await progress;
 
   console.log('player-names tests passed');
 }
