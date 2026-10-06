@@ -10,10 +10,18 @@ async function run(){
  const service=new c.window.IBBAMatchContext({seasonData:data});
  const match={...game(100,4,'2026-10-20'),seasonKey:'2026-27'};
  const context=await service.load(match,{now:new Date('2026-10-06')});
+ assert.strictEqual(context.currentResultGames.length,0);
+ const resultOnly=new c.window.IBBAMatchContext({seasonData:{loadSeason:async(key)=>({complete:true,scheduleGames:key==='2026-27'?[{...game(21,1,'2026-10-05'),seasonKey:key},{...game(22,2,'2026-10-07'),seasonKey:key}]:[]})}});
+ const resultContext=await resultOnly.load(match,{now:new Date('2026-10-06')});
+ assert.strictEqual(resultContext.currentResultGames.length,1);
+ assert.strictEqual(resultContext.currentGames.length,0);
+ assert.strictEqual(resultContext.currentScheduleGames.length,2);
  assert.deepStrictEqual(Array.from(context.priorSeasons,s=>s.seasonKey),['2024-25','2025-26']);
  const prior=context.priorSeasons[1];
  assert.deepStrictEqual(Array.from(prior.beforeRoundGames,g=>g.gameId),[1]);
  assert.strictEqual(prior.coverage.roundWindowComplete,false,'missing and postponed rounds cannot look complete');
+ assert.strictEqual(prior.coverageByTeam[1].complete,false);
+ assert.deepStrictEqual(Array.from(prior.coverageByTeam[1].missingRounds),[2,3]);
  assert.strictEqual(prior.resultGames.length,2,'duplicates removed and result-only games retained');
  assert.strictEqual(prior.statGames.length,0);
  assert(calls.some(([k,regular])=>k==='2025-26'&&regular),'round comparisons use official regular table');
@@ -33,5 +41,12 @@ async function run(){
  const verified=new c.window.IBBAMatchContext({seasonData:{loadSeason:async(key,options)=>({complete:true,scheduleGames:[{...game(15,1),seasonKey:key,hasPlayerStats:true,roundVerified:Boolean(options.regularOnly),competitionPhase:options.regularOnly?'regular':'unknown'}]})}});
  const joined=await verified.load(match);
  assert(joined.priorSeasons[1].statGames[0].roundVerified,'official regular table verifies the same event in player stats');
+ const independent=new c.window.IBBAMatchContext({seasonData:{loadSeason:async key=>({complete:true,scheduleGames:[1,2,3,4].map(r=>({...game(30+r,r),seasonKey:key,teams:[{teamId:1,score:80},{teamId:3,score:75}]}))})}});
+ const own=await independent.load({...match,roundNumber:5});
+ assert(own.priorSeasons[1].coverageByTeam[1].complete);
+ assert(!own.priorSeasons[1].coverageByTeam[2].complete);
+ const invalidated=[];const refreshService=new c.window.IBBAMatchContext({seasonData:{invalidateSeason:key=>invalidated.push(key),loadSeason:async(key,options)=>{assert(!options.refresh,'invalidate once before starting both variants');return {complete:true,scheduleGames:[]};}}});
+ await refreshService.load(match,{refresh:true});
+ assert.deepStrictEqual(invalidated,['2026-27','2024-25','2025-26']);
 }
 run().catch(e=>{console.error(e);process.exit(1)});
