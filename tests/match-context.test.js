@@ -22,7 +22,7 @@ async function run(){
  assert.strictEqual(unknown.priorSeasons[1].resultGames.length,2);
  const active=await service.load(match,{now:new Date('2025-10-02')});
  assert.strictEqual(active.currentGames.length,0,'wrong season cannot enter current games');
- const failure=new c.window.IBBAMatchContext({seasonData:{loadSeason:async key=>{if(key==='2024-25')throw Error('offline');return {seasonKey:key,scheduleGames:[{...game(8,1,'2026-10-05'),seasonKey:key},{...game(9,2,'2026-10-07'),seasonKey:key}],complete:false,failedMonths:['2026-11']};}}});
+ const failure=new c.window.IBBAMatchContext({seasonData:{loadSeason:async key=>{if(key==='2024-25')throw Error('offline');return {seasonKey:key,scheduleGames:[{...game(8,1,'2026-10-05'),seasonKey:key,hasPlayerStats:true},{...game(9,2,'2026-10-07'),seasonKey:key,hasPlayerStats:true}],complete:false,failedMonths:['2026-11']};}}});
  const partial=await failure.load(match,{now:new Date('2026-10-06')});
  assert.strictEqual(partial.priorSeasons[0].state,'error');
  assert.deepStrictEqual(Array.from(partial.currentGames,g=>g.gameId),[8]);

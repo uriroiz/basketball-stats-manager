@@ -1,0 +1,28 @@
+const assert=require('assert'),fs=require('fs'),vm=require('vm');const c={window:{},URL,URLSearchParams,Date,console};
+for(const name of ['ibba_seasons','ibba_player_history','ibba_historical_insights'])if(fs.existsSync('js/ibba/'+name+'.js'))vm.runInNewContext(fs.readFileSync('js/ibba/'+name+'.js','utf8'),c);
+assert(c.window.IBBAHistoricalInsights,'historical story generator must exist');
+// Synthetic results make expected counts and historical affiliations unambiguous.
+const game=(id,round,date='2025-10-01',teams=[1,2])=>({gameId:id,seasonKey:'2025-26',date,roundVerified:true,roundNumber:round,competitionPhase:'regular',hasResult:true,hasPlayerStats:true,teams:teams.map((teamId,i)=>({teamId,name:'team '+teamId,isHome:!i,score:80-i*5})),permalink:'https://ibasketball.co.il/match/'+id,players:[{playerId:7,teamId:teams[0],teamName:'team '+teams[0],stats:{points:25}}]});
+const match={...game(100,1,'2026-10-20'),seasonKey:'2026-27'};
+const season={seasonKey:'2025-26',state:'ready',coverage:{transportComplete:true,roundWindowComplete:true},resultGames:[game(1,1),game(2,2,'2025-10-08')],sameRoundGames:[game(1,1)],beforeRoundGames:[],statGames:[game(1,1),game(3,2,'2025-10-08',[3,2])],regularGames:[]};
+const context={match,priorSeasons:[season],playerSummaries:{records:[{playerRef:'post:7',name:'P',seasonKey:'2025-26',seasonLabel:'2025/26',team:'old team',games:30,points:20,sourceUrl:'https://ibasketball.co.il/league/2025-2/'}]},identity:r=>c.window.IBBAPlayerHistory.playerRef(r),teamSummaries:[]};
+let stories=c.window.IBBAHistoricalInsights.generate(context);
+assert(stories.some(i=>i.type==='HISTORICAL_ROUND_RESULT'));
+assert(stories.some(i=>i.type==='LAST_HISTORICAL_MEETING'&&i.evidence[0].gameId===2));
+assert(!stories.some(i=>i.type==='SAME_STAGE_RECORD'),'opening round cannot compare zero games');
+assert(!stories.some(i=>i.playerRef),'historical roster is never assumed current');
+stories=c.window.IBBAHistoricalInsights.generate(context,{playerRefs:['post:7']});
+assert(stories.some(i=>i.type==='PLAYER_PREVIOUS_OPPONENT_GAME'&&i.historicalTeam==='team 3'),'player vs opponent retained from another historical team');
+assert(stories.some(i=>i.type==='PLAYER_OFFICIAL_SEASON'&&i.text.includes('old team')));
+assert(!c.window.IBBAHistoricalInsights.generate(context,{playerRefs:['post:8']}).some(i=>i.playerRef),'similar names cannot connect identities');
+assert(stories.every(i=>i.evidence.length&&i.seasonKeys.length&&i.text.includes('2025/26')),'every story has a source and season');
+const later={...context,match:{...match,roundNumber:4},priorSeasons:[{...season,beforeRoundGames:[game(1,1),game(2,2),game(4,3),game(1,1)]}]};
+const record=c.window.IBBAHistoricalInsights.generate(later).find(i=>i.type==='SAME_STAGE_RECORD'&&i.teamIds[0]===1);
+assert.strictEqual(record.sampleSize,3,'a duplicate event cannot count twice');
+assert.strictEqual(record.facts.wins,3);
+const partial=c.window.IBBAHistoricalInsights.generate({...later,priorSeasons:[{...later.priorSeasons[0],coverage:{roundWindowComplete:false,transportComplete:false},state:'partial'}]});
+assert(partial.filter(i=>i.type==='SAME_STAGE_RECORD').every(i=>i.text.includes('הזמינים')));
+assert(!partial.some(i=>i.text.includes('כל המפגשים')));
+const unknown=c.window.IBBAHistoricalInsights.generate({...context,match:{...match,roundVerified:false},priorSeasons:[{...season,sameRoundGames:[]}]});
+assert(!unknown.some(i=>i.type==='HISTORICAL_ROUND_RESULT'));
+console.log('historical insights tests passed');
