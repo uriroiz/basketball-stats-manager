@@ -38,10 +38,12 @@
     static exportRows(report) {
       const rows=[['=== נקודות לשידור ===']];
       if(!report?.historicalInsights)return rows.concat([['ההקשר ההיסטורי טרם נטען']]);
-      for(const [title,stories] of [['נקודות לשידור',report.topStories],['עבר רלוונטי למשחק ולמחזור',report.historicalInsights]]) {
-        rows.push([title],['משפט לשידור','עונות','מחזורים','משחקים במדגם','מצב נתונים','מקור']);
-        for(const s of stories||[])rows.push([s.text,(s.seasonKeys||[]).map(k=>window.IBBASeasons.getSeason(k)?.label||k).join(', '),s.roundWindow?.join('–')||'—',s.sampleSize??`${s.sourceGameCount??'—'} משחקי מקור; מדגם הגלאי לא צוין`,s.dataState||'ready',(s.evidence||[]).map(e=>e.sourceUrl||'מקור חסר').join('\n')]);
+      for(const [title,stories] of [['נקודות לשידור',report.topStories],['כל התובנות',report.allInsights||report.historicalInsights]]) {
+        rows.push([title],['משפט לשידור','עונות','חלונות','משחקים במדגם','מצב נתונים','מקור','משפחה','עובדות','מדגמי ההשוואה','כיסוי','שחקן']);
+        for(const s of stories||[])rows.push([s.text,(s.seasonKeys||[]).map(k=>window.IBBASeasons.getSeason(k)?.label||k).join(', '),s.windows?JSON.stringify(s.windows):s.roundWindow?.join('–')||'—',s.sampleSize??`${s.sourceGameCount??'—'} משחקי מקור; מדגם הגלאי לא צוין`,s.dataState||'ready',(s.evidence||[]).map(e=>e.sourceUrl||'מקור חסר').join('\n'),s.family||s.category,JSON.stringify(s.facts||{}),JSON.stringify(s.samples||[]),JSON.stringify(s.coverage||[]),s.playerRef||'']);
       }
+      const records=(report.context?.playerSummaries?.records||[]).filter(r=>(report.selectedPlayerRefs||[]).includes(report.context.identity(r.playerRef)));
+      if(records.length&&window.IBBAPlayerHistory)rows.push(...window.IBBAPlayerHistory.exportRows({...report.context.playerSummaries,records}));
       if(['idle','loading'].includes(report.historicalContext?.state)||!report.historicalContext)rows.push(['ההיסטוריה טרם נטענה']);
       for(const status of report.sourceStatuses||[])if(status.state!=='ready')rows.push([window.IBBASeasons.getSeason(status.seasonKey)?.label||status.seasonKey,status.state,status.error||status.failedMonths?.join(', ')||'נתונים חלקיים']);
       return rows;
