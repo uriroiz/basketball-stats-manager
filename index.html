@@ -224,6 +224,7 @@
     
     <!-- ========== Player Statistics Section ========== -->
     <section id="view-players" role="tabpanel" aria-labelledby="tab-players" class="hidden">
+      <div id="playerHistoryDetails"></div>
       <div class="card p-4">
         <div class="mb-3">
           <div class="flex items-center justify-between mb-2">
@@ -574,8 +575,8 @@
 
     <!-- Game Preparation Section -->
     <section id="view-gamePrep" role="tabpanel" aria-labelledby="tab-gamePrep" class="hidden">
-      <div class="text-left mb-3"><button type="button" class="border rounded px-3 py-2 bg-white" onclick="handleExcelExport()">ייצוא הכנה לשידור ל־Excel</button></div>
-      <div id="playerHistoryPrep"></div>
+      <div class="text-left mb-3"><button id="prepExport" type="button" disabled class="border rounded px-3 py-2 bg-white disabled:opacity-50" onclick="handleExcelExport()">ייצוא הכנה לשידור ל־Excel</button></div>
+      <div id="prepMatchSummary" role="status" aria-live="polite" class="hidden card p-4 mb-3"></div>
       <div class="card p-4">
         <h2 class="text-lg font-bold mb-4 text-blue-900">הכנה למשחק הבא</h2>
         
@@ -630,6 +631,7 @@
           </button>
         </div>
 
+        <div id="playerHistoryPrep"></div>
         <!-- Analysis Results -->
         <div id="gameAnalysis" class="hidden">
           <!-- Player Comparison -->
@@ -907,10 +909,16 @@
         tab.disabled = false;
         tab.classList.remove('disabled');
       });
+      const prepTab=document.getElementById('tab-gamePrep');
+      if(prepTab) {
+        prepTab.disabled=!window.IBBASeasons.canPrepareSeason(window.appConfig.seasonKey);
+        prepTab.title=prepTab.disabled?'הכנה למשחק זמינה רק למשחקים עתידיים בעונה הנוכחית':'';
+      }
       console.log('🔓 Tabs enabled - data loaded');
     }
     
     function switchTab(tabName) {
+      if(tabName==='gamePrep'&&!window.IBBASeasons.canPrepareSeason(window.appConfig.seasonKey)) return;
       currentTab = tabName;
       console.log(`🔄 Switching to tab: ${tabName}`);
       
@@ -954,9 +962,11 @@
         if (tabName === 'leaders' && allGames.length && leaderStats === null) {
           initLeaderStats();
         }
-        if (tabName === 'gamePrep' && !gamePrepState.initialized) {
-          initGamePrep();
+        if (tabName === 'gamePrep') {
+          if (!gamePrepState.initialized) initGamePrep();
+          else window.historyView?.mount(document.getElementById('playerHistoryPrep'));
         }
+        if(tabName==='players' && document.getElementById('playerHistoryDetails').innerHTML) window.historyView?.mount(document.getElementById('playerHistoryDetails'));
       }
     }
     
@@ -1242,12 +1252,26 @@
       }
       
       // Fallback to jersey number
-      return `Player #${player.jersey}`;
+      return `שם לא זמין (מזהה ${player.playerId})`;
     }
     
     /**
      * Initialize player statistics
      */
+    function mapPlayerTotals(player) {
+      return {...player,ppg:player.totalPoints,rpg:player.totalRebounds,apg:player.totalAssists,
+        spg:player.totalSteals,bpg:player.totalBlocks,tpg:player.totalTurnovers,fpg:player.totalFouls,
+        foulsDrawnPg:player.totalFoulsDrawn,efficiencyAvg:player.totalEfficiency,
+        fgPct:player.totalFGA>0?player.totalFGM/player.totalFGA*100:0,
+        threePtPct:player.total3PA>0?player.total3PM/player.total3PA*100:0,
+        ftPct:player.totalFTA>0?player.totalFTM/player.totalFTA*100:0};
+    }
+    function refreshNamedViews() {
+      allPlayerStats=[];
+      leaderStats=null;
+      if(currentTab==='players') initPlayerStats();
+      if(currentTab==='leaders') initLeaderStats();
+    }
     function initPlayerStats() {
       console.log('👥 Initializing player statistics...');
       
@@ -1257,13 +1281,22 @@
       }
       
       // Get averages (default view)
-      const averages = window.ibbaAnalytics.getPlayerAverages();
+      const averages = currentPlayerStatsView==='totals'
+        ? Object.values(window.ibbaAnalytics.getPlayerStats()).map(mapPlayerTotals)
+        : window.ibbaAnalytics.getPlayerAverages();
       
       // Add display name to each player
       allPlayerStats = averages.map(player => ({
         ...player,
         name: getPlayerDisplayName(player)
       }));
+      const missingNames=averages.filter(p=>!window.playerNamesLoader?.getPlayerName(p.playerId)).length;
+      const namesStatus=document.getElementById('playerNamesStatus');
+      if(namesStatus) {
+        namesStatus.textContent=window.playerNamesLoader?.isLoading?'טוען שמות שחקנים…':(missingNames?`${missingNames} שמות אינם זמינים מהאיגוד. ניתן לנסות רענון שמות.`:'');
+        namesStatus.style.display=namesStatus.textContent?'block':'none';
+      }
+      const refreshNames=document.getElementById('refreshPlayerNamesBtn');if(refreshNames)refreshNames.style.display=averages.length?'inline-block':'none';
       
       console.log(`✅ Loaded ${allPlayerStats.length} players`);
       
@@ -1303,14 +1336,15 @@
         // Refresh names from Supabase
         if (loader) {
           loader.clearCache();
-          await loader.loadFromSupabase();
+          try { await loader.loadFromSupabase(); } catch(error) {console.warn('Name list unavailable',error.message);}
+          if(refreshVersion!==seasonController.gate.version || loader!==window.playerNamesLoader) return;
+          await loader.loadReferencedPlayers?.(allGames,()=>refreshVersion===seasonController.gate.version && loader===window.playerNamesLoader);
           console.log('✅ Player names refreshed from Supabase');
         }
         
         // Re-initialize player stats (recalculates from analytics)
         if (refreshVersion !== seasonController.gate.version || loader !== window.playerNamesLoader || !window.ibbaAnalytics) return;
-        allPlayerStats = [];
-        initPlayerStats();
+        refreshNamedViews();
         
         console.log('✅ Player data refreshed successfully');
       } catch (error) {
@@ -1348,22 +1382,7 @@
         
         // Get totals data from analytics
         const totals = window.ibbaAnalytics.getPlayerStats();
-        allPlayerStats = Object.values(totals).map(player => ({
-          ...player,
-          name: getPlayerDisplayName(player),
-          ppg: player.totalPoints,  // Map to ppg for consistency
-          rpg: player.totalRebounds,
-          apg: player.totalAssists,
-          spg: player.totalSteals,
-          bpg: player.totalBlocks,
-          tpg: player.totalTurnovers,
-          fpg: player.totalFouls,
-          foulsDrawnPg: player.totalFoulsDrawn,
-          efficiencyAvg: player.totalEfficiency,
-          fgPct: player.totalFGA > 0 ? (player.totalFGM / player.totalFGA * 100) : 0,
-          threePtPct: player.total3PA > 0 ? (player.total3PM / player.total3PA * 100) : 0,
-          ftPct: player.totalFTA > 0 ? (player.totalFTM / player.totalFTA * 100) : 0
-        }));
+        allPlayerStats = Object.values(totals).map(player=>({...mapPlayerTotals(player),name:getPlayerDisplayName(player)}));
         
       } else {
         // Switch to averages
@@ -1575,7 +1594,10 @@
     let reportVersion = 0;
     let currentTab = 'games';
     function resetPreparationReport() {
+      reportVersion++;
       currentAdvancedReport = null;
+      const exportButton=document.getElementById('prepExport');if(exportButton)exportButton.disabled=true;
+      const summary=document.getElementById('prepMatchSummary');if(summary){summary.innerHTML='';summary.classList.add('hidden');}
       gamePrepState.teamAveragesData = null;
       gamePrepState.lastFiveGamesData = {homeTeam:[],awayTeam:[]};
       gamePrepState.headToHeadData = [];
@@ -1601,7 +1623,6 @@
       try { localStorage.setItem('ibba_selected_season',key); } catch (_) {}
       const url = new URL(location.href); url.searchParams.set('season',key);
       history.replaceState(null,'',url);
-      reportVersion++;
       resetPreparationReport();
       resetSeasonViews();
       window.ibbaAnalytics = null;
@@ -1643,7 +1664,9 @@
           if (allGames.length) {
             try { await loader.loadAllPlayerNames(); } catch(error) { console.warn('Names unavailable',error); }
             if (!isCurrent()) return;
-            if (currentTab === 'players') initPlayerStats();
+            await loader.loadReferencedPlayers?.(allGames,isCurrent);
+            if (!isCurrent()) return;
+            refreshNamedViews();
           }
         }, {refresh});
       } catch(error) {
@@ -1922,7 +1945,7 @@
         });
       });
 
-      document.querySelectorAll('th.sortable').forEach(header => {
+      document.querySelectorAll('th.sortable, th[data-sort-field]').forEach(header => {
         header.setAttribute('role', 'button');
         header.setAttribute('tabindex', '0');
         header.addEventListener('keydown', event => {
@@ -2235,15 +2258,15 @@
      * Initialize Game Prep tab
      */
     async function openPlayerHistory(playerId) {
-      switchTab('gamePrep');
-      window.historyView.mount(document.getElementById('playerHistoryPrep'));
+      const panel=document.getElementById('playerHistoryDetails');
+      window.historyView.mount(panel);
       await window.historyView.openPlayer(playerId);
-      document.getElementById('playerHistoryPrep').scrollIntoView({block:'start'});
+      panel.scrollIntoView({block:'start'});
     }
     async function initGamePrep() {
+      if(!window.IBBASeasons.canPrepareSeason(window.appConfig.seasonKey)) return;
+      const initVersion=seasonController.gate.version;
       console.log('🏀 Initializing Game Prep tab...');
-      
-      gamePrepState.initialized = true;
       
       // Populate team selects
       populateTeamSelects();
@@ -2260,6 +2283,8 @@
       }
       
       // Setup event listeners
+      if(initVersion!==seasonController.gate.version || currentTab!=='gamePrep') return;
+      gamePrepState.initialized = true;
       if (!prepEventsBound) { setupGamePrepEventListeners(); prepEventsBound = true; }
       window.historyView?.mount(document.getElementById('playerHistoryPrep'));
       
@@ -2280,11 +2305,13 @@
       
       if (homeSelect && awaySelect && analyzeBtn) {
         homeSelect.addEventListener('change', () => {
+          resetPreparationReport();
           updateTeamSelects();
           updateAnalyzeButton();
         });
         
         awaySelect.addEventListener('change', () => {
+          resetPreparationReport();
           updateTeamSelects();
           updateAnalyzeButton();
         });
@@ -2340,7 +2367,7 @@
       
       // Extract unique teams
       const teamsSet = new Set();
-      scheduleGames.forEach(game => {
+      window.IBBASeasons.getUpcomingGames(scheduleGames,window.appConfig.seasonKey).forEach(game => {
         if (game.homeTeam) teamsSet.add(game.homeTeam);
         if (game.awayTeam) teamsSet.add(game.awayTeam);
       });
@@ -2409,20 +2436,31 @@
       const homeTeam = homeSelect.value;
       const awayTeam = awaySelect.value;
       
-      analyzeBtn.disabled = !(homeTeam && awayTeam && homeTeam !== awayTeam);
+      analyzeBtn.disabled = !findGameByTeams(homeTeam,awayTeam);
     }
     
     
     /**
      * Main game analysis function
      */
-    async function analyzeGame(homeTeamName, awayTeamName) {
+    async function analyzeGame(homeTeamName, awayTeamName, gameId = null) {
+      if(!window.IBBASeasons.canPrepareSeason(window.appConfig.seasonKey)) return;
+      const selectedGame=findGameByTeams(homeTeamName,awayTeamName,gameId);
+      if(!selectedGame) {
+        document.getElementById('seasonStatus').textContent='לא נמצא משחק עתידי בין הקבוצות שנבחרו';
+        return;
+      }
       console.log('📊 Analyzing game:', homeTeamName, 'vs', awayTeamName);
       
-      const analysisVersion = ++reportVersion;
       resetPreparationReport();
+      const analysisVersion = reportVersion;
       gamePrepState.homeTeamName = homeTeamName;
       gamePrepState.awayTeamName = awayTeamName;
+      gamePrepState.selectedGameId = selectedGame.gameId;
+      const summary=document.getElementById('prepMatchSummary');
+      summary.innerHTML=`<h3 class="font-bold">${safeText(homeTeamName)} מול ${safeText(awayTeamName)}</h3><p>${safeText(window.appConfig.seasonLabel)} · ${safeText(new Date(selectedGame.date).toLocaleString('he-IL'))} · משחק מתוכנן</p>`;
+      summary.classList.remove('hidden');
+      summary.scrollIntoView({block:'start',behavior:'smooth'});
       
       // Show analysis section
       const analysisSection = document.getElementById('gameAnalysis');
@@ -2433,7 +2471,9 @@
       window.historyView?.mount(document.getElementById('playerHistoryPrep'));
       if (!window.activeSeasonData?.complete || !allGames.some(g=>[g.homeTeam,g.awayTeam].includes(homeTeamName)) || !allGames.some(g=>[g.homeTeam,g.awayTeam].includes(awayTeamName))) {
         document.getElementById('gameAnalysis').classList.add('hidden');
-        currentAdvancedReport = {seasonKey:window.appConfig.seasonKey, gameInfo:findGameByTeams(homeTeamName,awayTeamName), historicalContext:window.historyView?.context(), insightsV2:{}};
+        currentAdvancedReport = {seasonKey:window.appConfig.seasonKey, gameInfo:selectedGame, historicalContext:window.historyView?.context(), insightsV2:{}};
+        document.getElementById('prepExport').disabled=false;
+        summary.innerHTML+='<p class="mt-2">אין עדיין סטטיסטיקה עונתית זמינה לניתוח זה. ניתן להיעזר בהיסטוריית השחקנים; היא אינה מאשרת את הסגל הנוכחי.</p>';
         document.getElementById('seasonStatus').textContent = window.activeSeasonData?.complete
           ? 'עדיין אין משחקים שהושלמו עם סטטיסטיקה עבור שתי הקבוצות בעונה זו. ההיסטוריה זמינה בנפרד.'
           : 'נתוני העונה חלקיים. ניתוח עונתי יהיה זמין לאחר רענון מוצלח; ההיסטוריה זמינה בנפרד.';
@@ -3067,17 +3107,17 @@
       
       // Reload from Supabase
       try {
-        const count = await loader.loadFromSupabase();
+        try {await loader.loadFromSupabase();} catch(error) {console.warn('Name list unavailable',error.message);}
+        if(!isCurrent()) return;
+        await loader.loadReferencedPlayers?.(allGames,isCurrent);
+        const count=loader.namesMap?.size || 0;
         if (!isCurrent()) return;
         
         if (count > 0) {
           console.log(`✅ Refreshed ${count} player names from Supabase`);
           
           // Refresh player tab if open
-          if (currentTab === 'players') {
-            // Re-initialize to get fresh names
-            initPlayerStats();
-          }
+          refreshNamedViews();
           
           if (statusDiv) {
             statusDiv.textContent = `✅ רוענן! נטענו ${Number(count) || 0} שחקנים`;
@@ -3107,14 +3147,14 @@
     /**
      * Find game by team names
      */
-    function findGameByTeams(homeTeam, awayTeam) {
+    function findGameByTeams(homeTeam, awayTeam, gameId = null) {
       if (!scheduleGames || scheduleGames.length === 0) {
         console.warn('⚠️ No games available to find match');
         return null;
       }
       
-      const game = scheduleGames.find(g => 
-        g.homeTeam === homeTeam && g.awayTeam === awayTeam
+      const game = window.IBBASeasons.getUpcomingGames(scheduleGames,window.appConfig.seasonKey).find(g =>
+        g.homeTeam === homeTeam && g.awayTeam === awayTeam && (gameId==null || String(g.gameId)===String(gameId))
       );
       
       if (game) {
@@ -3166,9 +3206,10 @@
         report.seasonKey = window.appConfig.seasonKey;
         report.historicalContext = window.historyView?.context();
         currentAdvancedReport = report;
+        document.getElementById('prepExport').disabled=false;
         
         // Find and save game info (including date) for export
-        const gameInfo = findGameByTeams(homeTeam, awayTeam);
+        const gameInfo = findGameByTeams(homeTeam, awayTeam,gamePrepState.selectedGameId);
         if (gameInfo) {
           currentAdvancedReport.gameInfo = gameInfo;
         }
@@ -3548,14 +3589,20 @@
       // Prepare data for Excel (array of arrays)
       const exportReport = currentAdvancedReport;
       const excelData = [['עונה',window.appConfig.seasonLabel]];
+      const match=exportReport.gameInfo;
+      if(match) {
+        excelData.push(['משחק',match.homeTeam,match.awayTeam]);
+        excelData.push(['מועד מתוכנן',new Date(match.date).toLocaleString('he-IL')]);
+        excelData.push(['מקור המשחק',match.permalink||'לא זמין']);
+      }
       currentAdvancedReport.historicalContext = window.historyView.context();
       excelData.push(...window.IBBAPlayerHistory.exportRows(currentAdvancedReport.historicalContext));
       
       // Get team names
       const homeTeamName = gamePrepState.homeTeamName || 'קבוצת בית';
       const awayTeamName = gamePrepState.awayTeamName || 'קבוצת חוץ';
-      const exportHomeTeam = document.getElementById('homeTeamSelect')?.selectedOptions?.[0]?.text || homeTeamName;
-      const exportAwayTeam = document.getElementById('awayTeamSelect')?.selectedOptions?.[0]?.text || awayTeamName;
+      const exportHomeTeam = match?.homeTeam || homeTeamName;
+      const exportAwayTeam = match?.awayTeam || awayTeamName;
       
       // ========================================
       // SECTION 1: TEAM AVERAGES AND RANKINGS

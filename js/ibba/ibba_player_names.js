@@ -9,6 +9,8 @@ class IBBAPlayerNames {
   constructor(supabaseClient = null) {
     const config = window.appConfig || {};
     this.namesMap = new Map(); // playerId → { name, jersey, teamId }
+    this.seasonKey=config.seasonKey || config.key || '2025-26';
+    this.sourceState='idle';
     this.isLoading = false;
     this.isLoaded = false;
     this.supabase = supabaseClient; // Optional Supabase client
@@ -153,8 +155,10 @@ class IBBAPlayerNames {
     console.log(`📥 Fetching players page ${page}${useLeagueFilter ? ` (league ${this.leagueId})` : ' (all leagues)'}...`);
     
     // Try direct fetch first
+    const directController = new AbortController();
+    const directTimeout = setTimeout(()=>directController.abort(),12000);
     try {
-      const response = await fetch(url);
+      const response = await fetch(url,{signal:directController.signal});
       
       if (response.ok) {
         console.log(`✅ Direct fetch succeeded for page ${page}`);
@@ -171,7 +175,7 @@ class IBBAPlayerNames {
         throw error;
       }
       console.log(`⚠️ Direct fetch failed, trying CORS proxy...`);
-    }
+    } finally { clearTimeout(directTimeout); }
     
     // Fallback to CORS proxy
     const proxies = [`${window.appConfig?.ibbaProxyUrl || '/api/ibba'}?url=`];
@@ -272,6 +276,11 @@ class IBBAPlayerNames {
       // Parse HTML to extract Plus/Minus data
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
+      const season=window.IBBASeasons?.getSeason(this.seasonKey);
+      if(season && window.IBBAPlayerHistory) {
+        const records=new window.IBBAPlayerHistory().parseOfficialSummaries(doc,season);
+        this.addOfficialSummaryNames(records);
+      }
       
       // Find player rows with data-pm attribute
       const playerRows = doc.querySelectorAll('tr[data-pm]');
@@ -320,6 +329,7 @@ class IBBAPlayerNames {
     }
     
     this.isLoading = true;
+    this.sourceState='loading';
     
     try {
       console.log('🔄 Loading player names from SportsPress API...');
@@ -353,7 +363,7 @@ class IBBAPlayerNames {
           }
         } catch (error) {
           // If we get 400/404, we've reached the end
-          if (error.message.includes('400') || error.message.includes('404') || error.message.includes('All proxies failed')) {
+          if (error.message.includes('400') || error.message.includes('404')) {
             console.log(`ℹ️ Reached end of players at page ${page} (${allPlayers.length} total)`);
             hasMore = false;
           } else {
@@ -387,6 +397,7 @@ class IBBAPlayerNames {
       // Load Plus/Minus stats from HTML (pass progress callback)
       if (onProgress) onProgress({ stage: 'stats', percent: 85, message: 'Loading Plus/Minus stats...' });
       await this.loadPlayerStatsFromHTML(onProgress);
+      if(!this.namesMap.size) throw new Error('לא ניתן לטעון שמות שחקנים מאומתים מהאיגוד');
       
       if (onProgress) onProgress({ stage: 'complete', percent: 100, message: 'Complete!' });
       
@@ -394,10 +405,17 @@ class IBBAPlayerNames {
       this.saveToCache();
       
       this.isLoaded = true;
+      this.sourceState='ready';
       return this.namesMap;
       
     } catch (error) {
-      console.error('❌ Failed to load player names:', error);
+      console.warn('Player-name API unavailable; checking official summaries:',error.message);
+      await this.loadPlayerStatsFromHTML(onProgress);
+      this.sourceState=this.namesMap.size?'partial':'error';
+      if(this.namesMap.size) {
+        this.saveToCache();this.isLoaded=true;
+        return this.namesMap;
+      }
       
       // Save what we have so far (if >= 100)
       if (this.namesMap.size >= 100) {
@@ -412,6 +430,52 @@ class IBBAPlayerNames {
     } finally {
       this.isLoading = false;
     }
+  }
+
+  addOfficialSummaryNames(records) {
+    for(const record of records) {
+      const match=/^post:([1-9]\d*)$/.exec(record.playerRef || '');
+      if(match && record.name && !this.namesMap.has(match[1])) {
+        this.namesMap.set(match[1],{name:record.name,jersey:'',teamId:null});
+      }
+    }
+  }
+
+  async fetchPlayerById(id) {
+    const url=`${this.apiUrl}/${id}`;
+    const sources=[url,`${window.appConfig?.ibbaProxyUrl || '/api/ibba'}?url=${encodeURIComponent(url)}`];
+    for(const source of sources) {
+      const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),12000);
+      try {
+        const response=await fetch(source,{signal:controller.signal});
+        if(response.ok) return await response.json();
+      } catch(_) {} finally {clearTimeout(timer);}
+    }
+    throw new Error('Player source unavailable');
+  }
+
+  async loadReferencedPlayers(games, isCurrent = ()=>true) {
+    const ids=Array.from(new Set((games || []).flatMap(g=>(g.players || []).map(p=>String(p.playerId))))).filter(id=>/^[1-9]\d*$/.test(id)&&!this.namesMap.has(id));
+    this.isLoading=true;
+    let cursor=0;
+    try {
+      await Promise.all(Array.from({length:Math.min(6,ids.length)},async()=>{
+        while(cursor<ids.length && isCurrent()) {
+          const id=ids[cursor++];
+          try {
+            const player=await this.fetchPlayerById(id);
+            if(!isCurrent()) return;
+            if(String(player.id)!==id || !player.title?.rendered) continue;
+            const doc=new DOMParser().parseFromString(player.title.rendered,'text/html');
+            const name=doc.body?.textContent || player.title.rendered;
+            this.namesMap.set(id,{name,jersey:'',teamId:null});
+            window.historyView?.service?.registerPlayer(player);
+          } catch(_) {}
+        }
+      }));
+      if(isCurrent()) {this.saveToCache();this.sourceState=ids.some(id=>!this.namesMap.has(id))?'partial':'ready';}
+      return this.namesMap;
+    } finally {this.isLoading=false;}
   }
   
   /**

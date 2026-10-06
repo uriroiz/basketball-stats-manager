@@ -18,6 +18,12 @@
     }))
   }));
   const getSeason = key => seasons.find(s => s.key === key) || null;
+  const canPrepareSeason = key => key === seasons[seasons.length - 1].key;
+  function getUpcomingGames(games, key, now = new Date()) {
+    if (!canPrepareSeason(key)) return [];
+    return (games || []).filter(g=>g && (!g.seasonKey || g.seasonKey===key) && !g.hasResult && g.gameStatus!=='completed' && new Date(g.date)>now)
+      .sort((a,b)=>new Date(a.date)-new Date(b.date));
+  }
   function resolveInitialSeason(location, storage) {
     const params = new URLSearchParams(location?.search || '');
     if (params.has('season')) return getSeason(params.get('season'))?.key || '2026-27';
@@ -55,7 +61,7 @@
       return request;
     }
   }
-  window.IBBASeasons = {seasons, getSeason, resolveInitialSeason, SelectionGate};
+  window.IBBASeasons = {seasons, getSeason, resolveInitialSeason, SelectionGate, canPrepareSeason, getUpcomingGames};
   window.IBBASeasonData = IBBASeasonData;
   window.IBBASeasonController = class {
     constructor(data) { this.data = data; this.gate = new SelectionGate(); }

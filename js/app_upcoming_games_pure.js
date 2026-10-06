@@ -35,6 +35,7 @@ async function loadUpcomingGames() {
       games = raw.games;
     }
     if (version !== upcomingVersion || seasonKey !== window.appConfig?.seasonKey) return [];
+    if(window.IBBASeasons) games=window.IBBASeasons.getUpcomingGames(games,seasonKey);
     cachedGames = games;
     cachedGamesByRound = groupGamesByRound(games);
     renderUpcomingGamesUI(cachedGamesByRound,findDefaultRound(cachedGamesByRound));
@@ -78,6 +79,9 @@ function getFallbackGamesFromLoadedSeason() {
     .map((game, index) => ({
       id: game.gameId || game.gameSerial || game.id || `loaded-${index}`,
       date: game.date,
+      seasonKey:game.seasonKey,
+      hasResult:game.hasResult,
+      gameStatus:game.gameStatus,
       stage_id: String(game.cycle || game.stage_id || game.round || 'unknown'),
       home: { team: game.homeTeam || game.home?.team || 'unknown' },
       away: { team: game.awayTeam || game.away?.team || 'unknown' }
@@ -372,14 +376,15 @@ function attachAnalyzeButtonEvents() {
 // ========================================
 
 function getUniqueTeamsFromGames() {
-  if (!window.allGames || window.allGames.length === 0) {
+  const games = window.scheduleGames || window.allGames;
+  if (!games || games.length === 0) {
     console.warn('⚠️ window.allGames not available or empty');
     return [];
   }
   
   const teamsMap = new Map();
   
-  window.allGames.forEach(game => {
+  games.forEach(game => {
     if (game.homeTeam && !teamsMap.has(game.homeTeam)) {
       teamsMap.set(game.homeTeam, {
         team_id: game.homeTeam,
@@ -396,7 +401,7 @@ function getUniqueTeamsFromGames() {
     }
   });
   
-  console.log(`📊 Extracted ${teamsMap.size} unique teams from allGames (${window.allGames.length} games)`);
+  console.log(`📊 Extracted ${teamsMap.size} unique teams from schedule (${games.length} games)`);
   
   return Array.from(teamsMap.values());
 }
@@ -467,36 +472,11 @@ async function handleAnalyzeClick(homeTeamName, awayTeamName, gameId) {
       analyzeBtn.disabled = false;
     }
     
-    // עדכון פונקציות רלוונטיות (ללא הפעלת event handlers שבונים dropdowns מחדש)
-    if (typeof window.loadPlayersForComparison === 'function') {
-      window.loadPlayersForComparison();
-    }
-    
-    // 4. גלילה לאזור ההשוואה
-    setTimeout(() => {
-      homeTeamSelect.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'start',
-        inline: 'nearest'
-      });
-    }, 100);
-    
-    // 5. הפעלת הניתוח (לחיצה אוטומטית על כפתור)
-    setTimeout(() => {
-      const analyzeBtn = document.getElementById('analyzeGame');
-      if (analyzeBtn && !analyzeBtn.disabled) {
-        console.log('🎯 Triggering analyze button click');
-        analyzeBtn.click();
-      } else {
-        console.warn('⚠️ Analyze button not available or disabled');
-      }
-      
-      // נקה הודעת סטטוס
-      setTimeout(() => {
-        hideStatusMessage();
-      }, 2000);
-    }, 500);
-    
+    // Analyze the exact scheduled event without a delayed click crossing seasons.
+    window.updateTeamSelects?.();
+    window.updateAnalyzeButton?.();
+    await window.analyzeGame(homeTeam.team_id, awayTeam.team_id, gameId);
+    hideStatusMessage();
     console.log('✅ Analysis flow completed successfully');
     
   } catch (error) {

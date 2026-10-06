@@ -47,6 +47,21 @@ async function run() {
   assert.strictEqual(count, 0);
   assert.strictEqual(errors.length, 0, 'optional enrichment failure should not log console.error');
   assert(warnings.some(line => line.includes('Failed to load player stats from HTML')));
+  const unavailable=new IBBAPlayerNames(null);
+  unavailable.fetchPlayersPage=async()=>{throw Error('All proxies failed for page 1');};
+  await assert.rejects(()=>unavailable.loadAllPlayerNames(),/All proxies failed/,'source failure must not become successful empty player list');
+  assert.strictEqual(unavailable.isLoaded,false,'failed names load remains retryable');
+  const fallback=new IBBAPlayerNames(null);
+  fallback.addOfficialSummaryNames([{playerRef:'post:609338',name:'Verified player',team:'Historical team'},{playerRef:'profile:/player/some-profile',name:'Profile only'},{playerRef:'post:0',name:'Invalid identity'}]);
+  assert.strictEqual(fallback.getPlayerName(609338),'Verified player');
+  assert.strictEqual(fallback.namesMap.size,1,'only explicit numeric post identities map to performance player IDs');
+  assert.strictEqual(fallback.getPlayerTeam(609338),null,'summary names do not assert current membership');
+  const referenced=new IBBAPlayerNames(null);const requested=[];
+  referenced.fetchPlayerById=async id=>{requested.push(id);return id==='772662'?{id:772662,title:{rendered:'ריקי פאק'},link:'https://ibasketball.co.il/player/profile/'}:{id:999,title:{rendered:'Wrong identity'}};};
+  await referenced.loadReferencedPlayers([{players:[{playerId:'772662'},{playerId:'772662'},{playerId:'906516'}]}]);
+  assert.strictEqual(referenced.getPlayerName('772662'),'ריקי פאק','known event ID resolves from official individual player API');
+  assert.strictEqual(referenced.getPlayerName('906516'),null,'mismatched API identity never used');
+  assert.strictEqual(requested.filter(id=>id==='772662').length,1,'duplicate appearances request identity once');
 
   console.log('player-names tests passed');
 }
