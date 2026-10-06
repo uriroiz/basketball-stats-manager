@@ -6,6 +6,36 @@
  * @version 1.0.0
  */
 class IBBAAdapter {
+  static metricFields = {points:'pts',fieldGoalsMade:'fgm',fieldGoalsAttempted:'fga',threePointsMade:'threepm',threePointsAttempted:'threepa',freeThrowsMade:'ftm',freeThrowsAttempted:'fta',offensiveRebounds:'off',defensiveRebounds:'def',assists:'ast',steals:'stl',blocks:'blk',turnovers:'to',personalFouls:'pf',efficiency:'rate'};
+  static advancedFields = {pointsFastBreak:'pfb',pointsFromTurnovers:'pto',pointsInPaint:'pipm',pointsSecondChance:'psc',pointsBench:'pbc'};
+  static metricNumber(value) {return value==null||value===''||!Number.isFinite(Number(value))?null:Number(value);}
+  static parseMinutes(value) {
+    if(value==null||value==='')return null;
+    if(String(value).includes(':')) {
+      const match=String(value).match(/^(\d+):([0-5]\d)$/);return match?Number(match[1])+Number(match[2])/60:null;
+    }
+    const n=this.metricNumber(value);return n!=null&&n>=0?n:null;
+  }
+  readObservedStats(raw={},advanced={}) {
+    const stats=Object.fromEntries(Object.entries(IBBAAdapter.metricFields).map(([field,key])=>[field,IBBAAdapter.metricNumber(raw[key])]));
+    Object.assign(stats,Object.fromEntries(Object.entries(IBBAAdapter.advancedFields).map(([field,key])=>[field,IBBAAdapter.metricNumber(advanced[key])])));
+    stats.totalRebounds=stats.offensiveRebounds==null||stats.defensiveRebounds==null?null:stats.offensiveRebounds+stats.defensiveRebounds;
+    stats.minutesPlayed=IBBAAdapter.parseMinutes(raw.min);return stats;
+  }
+  extractMetricAvailability(event,ids) {
+    return Object.fromEntries(ids.map(id=>[id,Object.entries(this.readObservedStats(event.performance?.[id]?.[0],event.sp_teams?.[id])).filter(([,value])=>value!=null).map(([field])=>field)]));
+  }
+  extractPlayerObservations(event,ids) {
+    return ids.flatMap((teamId,index)=>Object.entries(event.performance?.[teamId]||{}).flatMap(([playerId,raw])=>{
+      if(playerId==='0'||!raw||typeof raw!=='object')return [];
+      const stats=this.readObservedStats(raw),availableMetrics=Object.keys(stats).filter(k=>stats[k]!=null);
+      if(!availableMetrics.length)return [];
+      const participation=Object.entries(stats).some(([,value])=>value!=null&&value!==0)?'verified':'unknown';
+      const titles=(event.title?.rendered||'').split(/\s*[—–-]\s*/);
+      const teamName=this.decodeHtmlEntities(this.resolveTeamName(teamId,(index===0?event.home?.team:event.away?.team)||titles[index]));
+      return [{playerId,teamId,teamName,stats,availableMetrics,participation}];
+    }));
+  }
   constructor(season = null) {
     const config = season || window.appConfig || {};
     this.seasonKey = config.key || config.seasonKey || '2025-26';
@@ -305,6 +335,8 @@ class IBBAAdapter {
       cycle: ibbaGame.stage_id || ibbaGame.stage || null,
       ...this.normalizeRound(ibbaGame),
       availableMetrics: this.availableMetrics(ibbaGame, [homeTeamId, awayTeamId]),
+      metricAvailability: this.extractMetricAvailability(ibbaGame,[homeTeamId,awayTeamId]),
+      playerObservations: this.extractPlayerObservations(ibbaGame,[homeTeamId,awayTeamId]),
       
       // ליגה
       league: ibbaGame.league?.name || 'לאומית',
@@ -455,7 +487,7 @@ class IBBAAdapter {
             freeThrowsAttempted: stats.fta || 0,
             offensiveRebounds: stats.off || 0,
             defensiveRebounds: stats.def || 0,
-            totalRebounds: (stats.off || 0) + (stats.def || 0),
+            totalRebounds: (IBBAAdapter.metricNumber(stats.off) || 0) + (IBBAAdapter.metricNumber(stats.def) || 0),
             assists: stats.ast || 0,
             steals: stats.stl || 0,
             blocks: stats.blk || 0,
@@ -512,7 +544,7 @@ class IBBAAdapter {
       freeThrowsAttempted: stats.fta || 0,
       offensiveRebounds: stats.off || 0,
       defensiveRebounds: stats.def || 0,
-      totalRebounds: (stats.off || 0) + (stats.def || 0),
+      totalRebounds: (IBBAAdapter.metricNumber(stats.off) || 0) + (IBBAAdapter.metricNumber(stats.def) || 0),
       assists: stats.ast || 0,
       steals: stats.stl || 0,
       blocks: stats.blk || 0,

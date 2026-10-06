@@ -1,0 +1,17 @@
+const assert=require('assert'),fs=require('fs'),vm=require('vm');
+const c={window:{},URL,URLSearchParams,console,document:{createElement:()=>({set innerHTML(v){this.value=v;}})}};
+vm.runInNewContext(fs.readFileSync('js/ibba/ibba_adapter.js','utf8'),c);
+const A=c.window.IBBAAdapter,a=new A();
+assert.strictEqual(A.parseMinutes('12:30'),12.5);assert.strictEqual(A.parseMinutes('12:75'),null);
+assert.strictEqual(A.parseMinutes('12.5'),12.5);assert.strictEqual(A.parseMinutes(null),null);
+assert.strictEqual(a.normalizeTeamStats({off:'4',def:'5'}).totalRebounds,9);
+const event={performance:{10:{0:{off:'4',def:'5',ast:'0'},7:{pts:'12',min:'3:30'},8:{number:4,status:'sub'},9:{pts:'0',min:'0:00'}}},sp_teams:{10:{pbc:0}},teams:[10,20]};
+const availability=a.extractMetricAvailability(event,[10,20]);
+assert(availability[10].includes('pointsBench'));assert(availability[10].includes('assists'));
+assert(!availability[20].includes('pointsBench'));assert(!availability[20].includes('assists'));
+const players=a.extractPlayerObservations(event,[10,20]);
+assert.strictEqual(players.find(p=>p.playerId==='7').stats.points,12);
+assert.strictEqual(players.find(p=>p.playerId==='7').stats.blocks,null);
+assert.strictEqual(players.find(p=>p.playerId==='7').participation,'verified');
+assert(!players.some(p=>p.playerId==='8'));assert.strictEqual(players.find(p=>p.playerId==='9').participation,'unknown');
+console.log('metric availability tests passed');
