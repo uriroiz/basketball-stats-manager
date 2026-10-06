@@ -1579,6 +1579,7 @@
       gamePrepState.teamAveragesData = null;
       gamePrepState.lastFiveGamesData = {homeTeam:[],awayTeam:[]};
       gamePrepState.headToHeadData = [];
+      ['teamAHeaderAdvanced','teamBHeaderAdvanced','teamAStatsAdvanced','teamBStatsAdvanced','insightsCounter','insightsDisplay','tldrContent'].forEach(id=>{const node=document.getElementById(id);if(node)node.innerHTML='';});
       ['gameAnalysis','advancedAnalysis','tldrSection','h2hAdvancedSection'].forEach(id=>document.getElementById(id)?.classList.add('hidden'));
     }
     function resetSeasonViews() {
@@ -1632,16 +1633,18 @@
           window.ibbaAnalytics = new window.IBBAAnalytics(allGames);
           processGames(); populateFilters(); applyFilters();
           const loader = new window.IBBAPlayerNames(window.supabaseClient || null);
-          if (allGames.length) {
-            try { await loader.loadAllPlayerNames(); } catch(error) { console.warn('Names unavailable',error); }
-            if (!isCurrent()) return;
-          }
           window.playerNamesLoader = loader;
           document.getElementById('seasonStatus').textContent = result.complete
             ? `${season.label} · ${scheduleGames.length} משחקים · ${allGames.length} עם סטטיסטיקה`
             : `${season.label} · נתונים חלקיים; טעינה נכשלה בחודשים: ${result.failedMonths.join(', ')}`;
           document.getElementById('loadingProgress').classList.add('hidden');
           enableTabs(); switchTab('games');
+          // Names enrich statistics; they must not block access to the season schedule.
+          if (allGames.length) {
+            try { await loader.loadAllPlayerNames(); } catch(error) { console.warn('Names unavailable',error); }
+            if (!isCurrent()) return;
+            if (currentTab === 'players') initPlayerStats();
+          }
         }, {refresh});
       } catch(error) {
         document.getElementById('seasonStatus').textContent = `טעינת ${season.label} נכשלה — ניתן לנסות רענון עונה`;
@@ -3136,6 +3139,7 @@
       
       if (advancedSection) advancedSection.classList.remove('hidden');
       if (loadingDiv) loadingDiv.classList.remove('hidden');
+      if (loadingDiv) loadingDiv.innerHTML = '<p class="font-semibold">טוען ניתוח מתקדם…</p>';
       if (tldrSection) tldrSection.classList.add('hidden');
       
       try {
@@ -3542,6 +3546,7 @@
       }
 
       // Prepare data for Excel (array of arrays)
+      const exportReport = currentAdvancedReport;
       const excelData = [['עונה',window.appConfig.seasonLabel]];
       currentAdvancedReport.historicalContext = window.historyView.context();
       excelData.push(...window.IBBAPlayerHistory.exportRows(currentAdvancedReport.historicalContext));
@@ -3549,6 +3554,8 @@
       // Get team names
       const homeTeamName = gamePrepState.homeTeamName || 'קבוצת בית';
       const awayTeamName = gamePrepState.awayTeamName || 'קבוצת חוץ';
+      const exportHomeTeam = document.getElementById('homeTeamSelect')?.selectedOptions?.[0]?.text || homeTeamName;
+      const exportAwayTeam = document.getElementById('awayTeamSelect')?.selectedOptions?.[0]?.text || awayTeamName;
       
       // ========================================
       // SECTION 1: TEAM AVERAGES AND RANKINGS
@@ -3774,16 +3781,14 @@
         }
 
         // Generate filename with team names and date
-        const homeSelect = document.getElementById('homeTeamSelect');
-        const awaySelect = document.getElementById('awayTeamSelect');
-        const homeTeam = homeSelect?.selectedOptions?.[0]?.text || 'קבוצת-בית';
-        const awayTeam = awaySelect?.selectedOptions?.[0]?.text || 'קבוצת-חוץ';
+        const homeTeam = exportHomeTeam;
+        const awayTeam = exportAwayTeam;
         
         // Format date as DDMMYYYY (use game date if available)
         let dateToUse;
-        if (currentAdvancedReport.gameInfo && currentAdvancedReport.gameInfo.date) {
-          dateToUse = new Date(currentAdvancedReport.gameInfo.date);
-          console.log('📅 Using game date:', currentAdvancedReport.gameInfo.date);
+        if (exportReport.gameInfo && exportReport.gameInfo.date) {
+          dateToUse = new Date(exportReport.gameInfo.date);
+          console.log('📅 Using game date:', exportReport.gameInfo.date);
         } else {
           dateToUse = new Date();
           console.log('📅 Using current date (no game date found)');

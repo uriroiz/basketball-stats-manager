@@ -1,4 +1,5 @@
-import { readdirSync, statSync } from 'node:fs';
+import { readdirSync, statSync, readFileSync } from 'node:fs';
+import { Script } from 'node:vm';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
@@ -25,3 +26,10 @@ for (const file of files.sort()) {
 }
 
 console.log(`Syntax check passed for ${files.length} JavaScript files.`);
+const html = readFileSync('index.html', 'utf8');
+let inlineScripts = 0;
+for (const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
+  if (/\bsrc\s*=/.test(match[1]) || !match[2].trim()) continue;
+  new Script(match[2], {filename:`index.html:inline-${++inlineScripts}`});
+}
+console.log(`Syntax check passed for ${inlineScripts} inline scripts.`);

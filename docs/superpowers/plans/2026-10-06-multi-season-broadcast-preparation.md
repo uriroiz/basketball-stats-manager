@@ -10,12 +10,12 @@ Match official IDs/links, never names; preserve historical teams. No new depende
 Preserve unrelated working-tree changes. No deployment in this task.
 
 ## Tasks
-- [ ] 1. Central season registry and IBBASeasonData: selection, deduplicated loads, cache invalidation and partial results. RED/GREEN tests in tests/seasons.test.js.
-- [ ] 2. Adapter: explicit season, both filters, offset pagination, monthly fallback, deduplication, null scores and separate analytics eligibility. RED/GREEN adapter tests.
-- [ ] 3. Global season selector: latest-request guard, reset reports/filters/caches, schedule display, empty statistics, scheduled-game preparation. Test reversed responses and upcoming module.
-- [ ] 4. IBBAPlayerHistory: official summary tables, header mapping, ignored DTFC clones, post/profile identities and official API bridges, no future history. Test transfers, collisions and missing values.
-- [ ] 5. Shared searchable history UI in preparation/player details, lazy loads, local retry and separate historicalContext/Insights. Test no current roster and no current statistics.
-- [ ] 6. Export season/history/status/source even without seasonal insights; integrate npm tests and syntax checks, browser RTL/mobile/keyboard/live-source validation and final review.
+- [x] 1. Central season registry and IBBASeasonData: selection, deduplicated loads, cache invalidation and partial results. RED/GREEN tests in tests/seasons.test.js.
+- [x] 2. Adapter: explicit season, both filters, offset pagination, monthly fallback, deduplication, null scores and separate analytics eligibility. RED/GREEN adapter tests.
+- [x] 3. Global season selector: latest-request guard, reset reports/filters/caches, schedule display, empty statistics, scheduled-game preparation. Test reversed responses and upcoming module.
+- [x] 4. IBBAPlayerHistory: official summary tables, header mapping, ignored DTFC clones, post/profile identities and official API bridges, no future history. Test transfers, collisions and missing values.
+- [x] 5. Shared searchable history UI in preparation/player details, lazy loads, local retry and separate historicalContext/Insights. Test no current roster and no current statistics.
+- [x] 6. Export season/history/status/source even without seasonal insights; integrate npm tests and syntax checks, browser RTL/mobile/keyboard/live-source validation and final review.
 
 Each task: write failing behavior tests, observe RED, implement, observe GREEN including existing suite, commit only task files. Save test evidence and decisions in progress ledger.
 
