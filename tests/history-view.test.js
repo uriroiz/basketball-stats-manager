@@ -1,0 +1,18 @@
+const assert=require('assert'),fs=require('fs'),vm=require('vm');const c={window:{appConfig:{seasonKey:'2026-27'}},console,URL,URLSearchParams};
+for(const file of ['ibba_seasons','ibba_player_history','ibba_history_view'])vm.runInNewContext(fs.readFileSync(`js/ibba/${file}.js`,'utf8'),c);
+const service=new c.window.IBBAPlayerHistory(),view=new c.window.IBBAHistoryView(service);
+const row=(id,seasonKey='2025-26',team='A')=>({playerRef:`post:${id}`,name:'Same name',seasonKey,seasonLabel:'2025/26',team,points:10});
+const records=[row(1),row(1,'2024-25'),row(1,'2025-26','B'),row(2)];
+assert.strictEqual(service.groupRecords(records).length,2);assert.strictEqual(service.groupRecords(records)[0].records.length,3);
+service.registerPlayer({id:1,link:'https://ibasketball.co.il/player/official/'});
+assert.strictEqual(service.groupRecords([row(1),{...row(1),playerRef:'profile:/player/official'}]).length,1);
+view.data={state:'ready',records:Array.from({length:26},(_,i)=>row(i)),statuses:[]};
+assert.strictEqual(view.visiblePlayers().length,0,'default does not dump database');
+view.query='Same';assert.strictEqual(view.visiblePlayers().length,25);view.page=2;assert.strictEqual(view.visiblePlayers().length,1);
+view.setBroadcastSelection(['post:5'],{ready:true});view.query='nothing';assert.strictEqual(view.context({selectedRefs:['post:5']}).records.length,1);
+const nodes=new Map();const node=()=>({addEventListener(){},focus(){this.focused=true;},setSelectionRange(){},value:''});
+view.panel={id:'playerHistoryPrep',innerHTML:'',querySelector:s=>{if(!nodes.has(s))nodes.set(s,node());return nodes.get(s);},querySelectorAll:()=>[]};
+view.query='';view.render();assert(!view.panel.innerHTML.includes('<th scope="col" class="p-3 text-right border-b">מקור'));
+assert(!view.panel.innerHTML.includes('history-player'));assert(view.panel.innerHTML.includes('פירוט עונות'));
+view.setBroadcastSelection([],{ready:false});view.query='Same';view.render();assert(view.panel.innerHTML.includes('disabled'),'add requires ready report');
+console.log('history view tests passed');

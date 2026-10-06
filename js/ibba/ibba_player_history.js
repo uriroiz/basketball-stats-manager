@@ -27,6 +27,17 @@
       if (player.id != null && ref) this.aliases.set(`post:${player.id}`,ref);
     }
     identity(ref) { const key=playerRef(ref); return this.aliases.get(key) || key; }
+    groupRecords(records) {
+      const groups=new Map();
+      for(const record of records||[]) {
+        const ref=this.identity(record.playerRef);if(!ref)continue;
+        if(!groups.has(ref))groups.set(ref,{playerRef:ref,name:record.name,seasons:[],teams:[],records:[]});
+        const group=groups.get(ref);group.records.push(record);
+        if(!group.seasons.includes(record.seasonLabel||record.seasonKey))group.seasons.push(record.seasonLabel||record.seasonKey);
+        if(record.team&&!group.teams.includes(record.team))group.teams.push(record.team);
+      }
+      return Array.from(groups.values()).sort((a,b)=>a.name.localeCompare(b.name,'he')||a.playerRef.localeCompare(b.playerRef));
+    }
     getPlayerHistory(ref,records) {
       const key=this.identity(ref);
       return key ? records.filter(r=>this.identity(r.playerRef)===key).sort((a,b)=>a.seasonKey.localeCompare(b.seasonKey)) : [];
