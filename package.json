@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node tools/dev_server.mjs",
     "preview": "node tools/dev_server.mjs",
-    "test": "node tests/upcoming-games.test.js && node tests/player-names.test.js && node tests/ibba-adapter.test.js && node tests/seasons.test.js && node tests/season-adapter.test.js && node tests/player-history.test.js && node tests/season-ui.test.js",
+    "test": "node tests/upcoming-games.test.js && node tests/player-names.test.js && node tests/ibba-adapter.test.js && node tests/seasons.test.js && node tests/season-adapter.test.js && node tests/player-history.test.js && node tests/season-ui.test.js && node tests/match-context.test.js && node tests/historical-insights.test.js && node tests/broadcast-report.test.js && node tests/insights-regressions.test.js && node tests/team-summaries.test.js",
     "test:syntax": "node tools/check_js_syntax.mjs",
     "check": "npm run test:syntax && npm test"
   },
