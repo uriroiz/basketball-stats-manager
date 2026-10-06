@@ -6,6 +6,7 @@ const game=(id,round,date='2025-10-01',teams=[1,2])=>({gameId:id,seasonKey:'2025
 const match={...game(100,1,'2026-10-20'),seasonKey:'2026-27'};
 const season={seasonKey:'2025-26',state:'ready',coverage:{transportComplete:true,roundWindowComplete:true},resultGames:[game(1,1),game(2,2,'2025-10-08')],sameRoundGames:[game(1,1)],beforeRoundGames:[],statGames:[game(1,1),game(3,2,'2025-10-08',[3,2])],regularGames:[]};
 const context={match,priorSeasons:[season],playerSummaries:{records:[{playerRef:'post:7',name:'P',seasonKey:'2025-26',seasonLabel:'2025/26',team:'old team',games:30,points:20,sourceUrl:'https://ibasketball.co.il/league/2025-2/'}]},identity:r=>c.window.IBBAPlayerHistory.playerRef(r),teamSummaries:[]};
+season.statGames.forEach(g=>{g.playerObservations=g.players.map(p=>({...p,participation:'verified',availableMetrics:['points']}));});
 let stories=c.window.IBBAHistoricalInsights.generate(context);
 assert(stories.some(i=>i.type==='HISTORICAL_ROUND_RESULT'));
 assert(stories.some(i=>i.type==='LAST_HISTORICAL_MEETING'&&i.evidence[0].gameId===2));
@@ -28,3 +29,5 @@ assert(!unknown.some(i=>i.type==='HISTORICAL_ROUND_RESULT'));
 console.log('historical insights tests passed');
 const split={...context,playerSummaries:{records:[...context.playerSummaries.records,{...context.playerSummaries.records[0],team:'second team'}]}};
 assert.strictEqual(c.window.IBBAHistoricalInsights.generate(split,{playerRefs:['post:7']}).filter(i=>i.type==='PLAYER_OFFICIAL_SEASON').length,2,'official team splits retain separate stories');
+const missingPlayer={...game(11,1),players:[{playerId:7,teamId:1,stats:{points:0}}],playerObservations:[{playerId:'7',teamId:1,participation:'unknown',stats:{points:null},availableMetrics:[]}]};
+assert(!c.window.IBBAHistoricalInsights.generate({...context,priorSeasons:[{...season,statGames:[missingPlayer]}]},{playerRefs:['post:7']}).some(s=>['PLAYER_PREVIOUS_OPPONENT_GAME','PLAYER_SAME_ROUND_GAME'].includes(s.type)),'legacy stories must not fabricate an appearance');

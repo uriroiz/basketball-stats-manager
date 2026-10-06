@@ -150,5 +150,10 @@ async function run(){
  const comeback={type:'COMEBACK_KINGS',text:'verified quarter-end qualifier'};
  c.regenerateInsightTexts({TEAM:[comeback]});
  assert.strictEqual(comeback.text,'verified quarter-end qualifier','wording must preserve evidence-sensitive comeback qualifier');
+ const panelNode=document.getElementById('broadcastReport'),familyFilter={value:'ROUND',addEventListener(){}};
+ let panelHtml=panelNode.innerHTML;Object.defineProperty(panelNode,'innerHTML',{configurable:true,get:()=>panelHtml,set:value=>{panelHtml=value;familyFilter.value='all';}});
+ panelNode.querySelector=selector=>selector==='.broadcast-family-filter'?familyFilter:null;
+ c.renderBroadcastReport({families:{ROUND:[{text:'round story'}]},allInsights:[{text:'round story'}],topStories:[],sourceStatuses:[]});
+ assert.strictEqual(familyFilter.value,'ROUND','rephrasing/rerender retains the chosen story family');
 }
 run().catch(e=>{console.error(e);process.exit(1);});

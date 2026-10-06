@@ -40,9 +40,9 @@
               const games=unique(season.beforeRoundGames).filter(g=>g.teams.some(t=>same(t.teamId,team.teamId)));
               if(games.length) {
                 const wins=games.filter(g=>{const t=g.teams.find(t=>same(t.teamId,team.teamId));return t.score>g.teams.find(t=>!same(t.teamId,team.teamId)).score;}).length;
-                const complete=season.coverage.roundWindowComplete;
+                const complete=season.coverageByTeam?.[team.teamId]?.complete??season.coverage.roundWindowComplete;
                 stories.push(make('SAME_STAGE_RECORD',season.seasonKey,[team.teamId],{wins,losses:games.length-wins,from:1,to:match.roundNumber-1},
-                  `לפני מחזור ${match.roundNumber} בעונת ${year}, ${team.name} רשמה ${wins} ניצחונות ו־${games.length-wins} הפסדים ב־${games.length} משחקים ${complete?'שהושלמו':'הזמינים במקור'} ממחזורים 1–${match.roundNumber-1} של העונה הסדירה.${complete?'':'; החלון אינו מאומת כמלא'}.`,games,{roundWindow:[1,match.roundNumber-1],dataState:complete?'ready':'partial',priority:90}));
+                  `לפני מחזור ${match.roundNumber} בעונת ${year}, ${team.name} רשמה ${wins} ניצחונות ו־${games.length-wins} הפסדים ב־${games.length} משחקים ${complete?'שהושלמו':'הזמינים במקור'} ממחזורים 1–${match.roundNumber-1} של העונה הסדירה${complete?'':'; החלון אינו מאומת כמלא'}.`,games,{roundWindow:[1,match.roundNumber-1],dataState:complete?'ready':'partial',priority:90}));
               }
             }
           }
@@ -53,7 +53,7 @@
             const text=`${r.name}: בעונת ${year}, ב${r.team||'קבוצה שלא צוינה'}, ${r.games??'מספר לא ידוע של'} משחקים${r.points==null?'':`, ${r.points} נקודות בממוצע`}.`;
             stories.push(make('PLAYER_OFFICIAL_SEASON',season.seasonKey,[],{games:r.games,points:r.points},text,[],{playerRef:ref,historicalTeam:r.team,sampleSize:r.games,evidence:[{seasonKey:r.seasonKey,sourceUrl:r.sourceUrl,fields:['games','points','team']}],priority:88}));
           }
-          const appearances=newest(season.statGames).flatMap(g=>(g.players||[]).filter(p=>context.identity({playerId:p.playerId})===ref).map(p=>({g,p})));
+          const appearances=newest(season.statGames).flatMap(g=>(g.playerObservations||[]).filter(p=>p.participation==='verified'&&p.availableMetrics.includes('points')&&context.identity({playerId:p.playerId})===ref).map(p=>({g,p})));
           for(const type of ['PLAYER_PREVIOUS_OPPONENT_GAME','PLAYER_SAME_ROUND_GAME']) {
             const found=appearances.find(({g,p})=>type==='PLAYER_SAME_ROUND_GAME'
               ? match.roundVerified&&g.roundVerified&&g.competitionPhase==='regular'&&g.roundNumber===match.roundNumber
@@ -79,4 +79,5 @@
   }
   window.IBBAHistoricalInsights=IBBAHistoricalInsights;
 })();
+
 

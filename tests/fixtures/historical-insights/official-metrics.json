@@ -1,0 +1,10 @@
+{
+  "capturedAt": "2026-10-06",
+  "eventId": 993045,
+  "apiUrl": "https://ibasketball.co.il/wp-json/sportspress/v2/events/993045",
+  "sourceUrl": "https://ibasketball.co.il/match/705892-%d7%9e-%d7%9b-%d7%a2%d7%95%d7%98%d7%a3-%d7%93%d7%a8%d7%95%d7%9d-%d7%94%d7%a4%d7%95%d7%a2%d7%9c-%d7%90%d7%99%d7%9c%d7%aa/",
+  "teamId": 991375,
+  "performance": {"rate":72,"fta":18,"ftm":12,"def":17,"off":12,"sc":3,"stl":8,"threepa":21,"threepm":10,"to":14,"fga":43,"fgm":18,"min":"200:00","blka":3,"ast":21,"blk":1,"pfa":16,"pf":22,"pts":78,"mins":200},
+  "advanced": {"off":2,"pfb":10,"pto":20,"pipm":36,"pipa":34,"psc":8,"def":3,"to":1,"min":"200:00","pbc":13,"reb":5,"pf":0,"mins":200},
+  "playerMinutes": {"playerId":178813,"min":"20:31"}
+}

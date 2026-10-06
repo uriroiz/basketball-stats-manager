@@ -6,20 +6,23 @@
     static format(story,{variant=0}={}) {
       const f=story.facts||{},name=story.playerName||story.teamName||'הקבוצה';
       const years=(story.seasonKeys||[]).map(k=>window.IBBASeasons.getSeason(k)?.label||k).join(' ו־');
-      const season=years?`בעונת ${years}`:'';
+      const season=years?`${story.seasonKeys.length>1?'בעונות':'בעונת'} ${years}`:'';
       const group=story.playerName&&story.historicalTeam?`, במדי ${story.historicalTeam}`:'';
       const n=v=>this.formatNumber(v),metric=labels[f.metric]||f.metric||'';
       const value=this.formatNumber(f.value,{percent:f.metric?.includes('Percentage')});
       const unit=f.metric?.includes('Percentage')||f.metric==='assistTurnoverRatio'?'':' למשחק';
+      const statement=f.metric==='points'?`${name} ${story.playerName?'קלע':'קולעת'} ${value} נקודות בממוצע למשחק`:f.metric==='opponentPoints'?`${name} סופגת ${value} נקודות בממוצע למשחק`:f.metric==='margin'?`${name} עם הפרש ממוצע של ${value} נקודות למשחק`:`${name}: ${value} ${metric}${unit}`;
       const range=story.windows?.find(w=>w.mode==='rounds');
-      const windowLabel=range?`במחזורים ${range.fromRound===range.toRound?range.fromRound:`${range.fromRound}–${range.toRound}`}`:story.windows?.some(w=>w.count===5)?'בחמשת המשחקים האחרונים':'במשחקים שנבדקו';
+      const windowLabel=range?range.fromRound===range.toRound?`במחזור ${range.fromRound}`:`במחזורים ${range.fromRound}–${range.toRound}`:story.windows?.some(w=>w.count===5)?'בחמשת המשחקים האחרונים':'במשחקים שנבדקו';
       let body;
       if(f.referenceValue!=null&&story.type!=='MATCHUP_STYLE') {
-        const reference=story.type==='WINDOW_VS_LEAGUE'?'נקודות למשחק לקבוצה בליגה':story.scope==='comparison'?'בחלון ההשוואה ההיסטורי':'בחלון הקודם';
-        const direction=f.difference>0?'עלייה':f.difference<0?'ירידה':'ללא שינוי';
-        body=`${name}: ${value} ${metric}${unit} ${windowLabel}, לעומת ${this.formatNumber(f.referenceValue,{percent:f.metric?.includes('Percentage')})} ${reference}; ${direction}${f.difference?` של ${n(Math.abs(f.difference))}${f.metric?.includes('Percentage')?' נקודות אחוז':''}`:''}.`;
+        const referenceYears=(story.samples?.[1]?.seasonKeys||[]).map(k=>window.IBBASeasons.getSeason(k)?.label||k).join(' ו־');
+        const reference=story.type==='WINDOW_VS_LEAGUE'?'נקודות למשחק לקבוצה בליגה':story.scope==='comparison'?`בחלון המקביל${referenceYears?` בעונת ${referenceYears}`:''}`:'בחמשת המשחקים הקודמים';
+        const rounded=f.difference==null?0:Number(f.difference.toFixed(1));
+        const direction=story.type==='WINDOW_VS_LEAGUE'?'פער':rounded>0?'עלייה':rounded<0?'ירידה':'ללא שינוי';
+        body=`${statement} ${windowLabel}, לעומת ${this.formatNumber(f.referenceValue,{percent:f.metric?.includes('Percentage')})} ${reference}; ${direction}${rounded?` של ${n(Math.abs(f.difference))}${f.metric?.includes('Percentage')?' נקודות אחוז':''}`:''}.`;
       }else switch(story.type) {
-        case 'ROUND_SCORING': case 'PLAYER_ROUND_PROFILE':body=`${name}: ${value} ${metric}${unit} במחזור ${f.round}.`;break;
+        case 'ROUND_SCORING': case 'PLAYER_ROUND_PROFILE':body=`${statement} במחזור ${f.round}.`;break;
         case 'CLOSE_GAME_RECORD':body=`${name} ניצחה ב־${f.wins} מתוך ${f.total} משחקים שהסתיימו בהפרש של עד חמש נקודות (${f.losses} הפסדים).`;break;
         case 'HALFTIME_RECORD':body=`${name} ניצחה ב־${f.wins} מתוך ${f.total} משחקים שבהם ${f.position==='leading'?'הובילה':'פיגרה'} במחצית.`;break;
         case 'LEAD_REVERSAL':body=`${name} חזרה מפיגור בסיום רבע לניצחון ב־${f.count} מתוך ${f.total} משחקים עם נתוני ארבעת הרבעים.`;break;
@@ -31,9 +34,10 @@
         case 'PLAYER_CONSISTENCY':body=`${name} קלע לפחות ${f.threshold} נקודות ב־${f.count} מתוך ${f.total} הופעות.`;break;
         case 'MATCHUP_STYLE':body=`${name} עם ${value} ${metric}${unit}, מול ${story.referenceName}: ${this.formatNumber(f.referenceValue,{percent:f.referenceMetric?.includes('Percentage')})} ${labels[f.referenceMetric]}${f.referenceMetric?.includes('Percentage')?'':' למשחק'}.`;break;
         case 'H2H_WINDOW_PROFILE': case 'H2H_VENUE_PROFILE':case 'PLAYER_OPPONENT_PROFILE':body=`${name}: ${value} ${metric}${unit} מול ${story.referenceName}${f.venue?`, ${f.venue==='home'?'בבית':'בחוץ'}`:''}${f.total!=null?`; ${f.wins} ניצחונות ו־${f.losses} הפסדים`:''}.`;break;
-        default:body=`${name}: ${value} ${metric}${unit} ${windowLabel}${f.venue?`, ${f.venue==='home'?'בבית':'בחוץ'}`:''}.`;
+        default:body=`${statement} ${windowLabel}${f.venue?`, ${f.venue==='home'?'בבית':'בחוץ'}`:''}.`;
       }
-      return variant%2?`${body} ${season}${group}.`:`${season}${group}: ${body}`;
+      const prefix=season?`${season}${group}, `:'';
+      return variant%2?`${body} ${season}${group}.`:`${prefix}${body}`;
     }
   }
   window.IBBABroadcastCopy=IBBABroadcastCopy;

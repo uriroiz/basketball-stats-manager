@@ -21,7 +21,7 @@
     static entry(g,teamId,observation) {
       const index=g.teams?.findIndex(t=>String(t.teamId)===String(teamId));if(index==null||index<0)return null;
       const own=g.teams[index],opponent=g.teams[1-index];
-      const stats=observation?.stats||g.teamStats?.[index===0?'home':'away']||{};
+      const stats=observation?.stats||g.teamObservations?.[teamId]||g.teamStats?.[index===0?'home':'away']||{};
       const available=observation?.availableMetrics||g.metricAvailability?.[teamId]||[];
       const values=Object.fromEntries(basic.map(m=>[m,available.includes(m)?number(stats[m]):null]));
       values.points=observation?(available.includes('points')?number(stats.points):null):number(own.score);
@@ -44,6 +44,7 @@
         gameCount:included.length,dataState:!included.length||denominator===0?'unavailable':transportComplete&&included.length===entries.length?'ready':'partial'};
     }
     static snapshot(entries,entityRef,window) {
+      window={...window,spec:{...window.spec,gameIds:window.resultGames.map(g=>String(g.gameId))}};
       entries=Array.from(new Map(entries.filter(Boolean).map(e=>[e.id,e])).values());
       const metrics=Object.fromEntries(['points','opponentPoints','margin',...basic].map(m=>[m,this.metric(entries,m,null,window.transportComplete)]));
       for(const [m,pair]of Object.entries(pairs))metrics[m]=this.metric(entries,m,pair,window.transportComplete);
@@ -61,6 +62,10 @@
         coverage:window.coverageByTeam?.[entityRef]||{complete:window.transportComplete},entries};
     }
     static team(window,teamId){return this.snapshot(window.resultGames.map(g=>this.entry(g,teamId)),String(teamId),window);}
+    static subset(window,games,{offset=0}={}) {
+      const unique=Array.from(new Map(games.map(g=>[key(g),g])).values()).sort(chronological);
+      return {...window,spec:{...window.spec,mode:'recent',count:unique.length,offset,gameIds:unique.map(g=>String(g.gameId)),fromDate:unique[0]?.date,toDate:unique.at(-1)?.date},scheduledGames:unique,resultGames:unique};
+    }
     static player(window,playerRef,identity=x=>typeof x==='object'?`wp:${x.playerId}`:x){
       const canonical=identity(playerRef);
       const entries=window.resultGames.flatMap(g=>(g.playerObservations||[]).filter(p=>p.participation==='verified'&&canonical&&identity({playerId:p.playerId})===canonical).map(p=>this.entry(g,p.teamId,p)));

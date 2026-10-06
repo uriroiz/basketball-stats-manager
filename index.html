@@ -2516,7 +2516,10 @@
     function renderBroadcastReport(report) {
       window.historyView?.setBroadcastSelection?.(report.selectedPlayerRefs||[],{ready:true});
       const panel=document.getElementById('broadcastReport');
-      const storyCard=story=>`<article class="border rounded-lg p-3 my-2 bg-white"><p class="font-medium leading-relaxed">${safeText(story.text)}</p><p class="text-sm text-gray-600 mt-2">${safeText((story.seasonKeys||[]).map(k=>window.IBBASeasons.getSeason(k)?.label||k).join(', '))} · ${story.samples?.length?story.samples.map((s,i)=>`${i?'השוואה: ':''}${safeText(s.seasonKeys.map(k=>window.IBBASeasons.getSeason(k)?.label||k).join(', '))} — ${safeText(story.facts?.metric?s.metricGameCounts[story.facts.metric]??s.gameCount:s.gameCount)} משחקים`).join(' · '):story.sampleSize==null?`${safeText(story.sourceGameCount??'לא צוין')} משחקי מקור; מדגם הגלאי לא צוין`:`${safeText(story.sampleSize)} משחקים במדגם`}${story.smallSample?' · מדגם קטן':''}${story.dataState==='partial'?' · מידע חלקי':''}</p><details class="mt-2 text-sm"><summary class="cursor-pointer text-blue-700">מקורות וראיות</summary>${story.windows?.map(w=>`<p>${safeText(window.IBBASeasons.getSeason(w.seasonKey)?.label||'')} · ${w.mode==='rounds'?`מחזורים ${safeText(w.fromRound)}–${safeText(w.toRound)}`:w.count?`${safeText(w.count)} משחקים אחרונים`:'כל המשחקים בחלון'}</p>`).join('')||''}${story.coverage?.filter(c=>c.missingRounds?.length).map(c=>`<p>מחזורים חסרים בחלון: ${safeText(c.missingRounds.join(', '))}</p>`).join('')||''}${[...new Map((story.evidence||[]).map(e=>[`${e.seasonKey}:${e.gameId}:${e.sourceUrl}`,e])).values()].map(e=>{const url=broadcastSourceLink(e.sourceUrl);return url?`<a href="${safeText(url)}" target="_blank" rel="noopener" class="block underline py-1">${safeText(e.gameId?`משחק ${e.gameId}`:'סיכום עונתי')}</a>`:'<p>מקור ישיר אינו זמין</p>';}).join('')}</details></article>`;
+      const filterValue=panel.querySelector('.broadcast-family-filter')?.value||'all';
+      const openFamilies=Array.from(panel.querySelectorAll('[data-broadcast-family]')).filter(section=>section.open).map(section=>section.dataset.broadcastFamily);
+      const rewordFocused=document.activeElement?.classList?.contains('broadcast-reword');
+      const storyCard=story=>`<article class="border rounded-lg p-3 my-2 bg-white"><p class="font-medium leading-relaxed">${safeText(story.text)}</p><p class="text-sm text-gray-600 mt-2">${safeText((story.seasonKeys||[]).map(k=>window.IBBASeasons.getSeason(k)?.label||k).join(', '))} · ${story.samples?.length?story.samples.map((s,i)=>`${i?'השוואה: ':''}${safeText(s.seasonKeys.map(k=>window.IBBASeasons.getSeason(k)?.label||k).join(', '))} — ${safeText(s.gameCount)} משחקים`).join(' · '):story.sampleSize==null?`${safeText(story.sourceGameCount??'לא צוין')} משחקי מקור; מדגם הגלאי לא צוין`:`${safeText(story.sampleSize)} משחקים במדגם`}${story.smallSample?' · מדגם קטן':''}${story.dataState==='partial'?' · מידע חלקי':''}</p><details class="mt-2 text-sm"><summary class="cursor-pointer text-blue-700">מקורות וראיות</summary>${story.windows?.map(w=>`<p>${safeText(window.IBBASeasons.getSeason(w.seasonKey)?.label||'')} · ${w.mode==='rounds'?`מחזורים ${safeText(w.fromRound)}–${safeText(w.toRound)}`:w.count?`${safeText(w.count)} משחקים${w.offset?' קודמים':' אחרונים'}`:'כל המשחקים בחלון'}${w.fromDate?` · ${safeText(new Date(w.fromDate).toLocaleDateString('he-IL'))}–${safeText(new Date(w.toDate).toLocaleDateString('he-IL'))}`:''}</p>`).join('')||''}${story.coverage?.filter(c=>c.missingRounds?.length).map(c=>`<p>מחזורים חסרים בחלון: ${safeText(c.missingRounds.join(', '))}</p>`).join('')||''}${[...new Map((story.evidence||[]).map(e=>[`${e.seasonKey}:${e.gameId}:${e.sourceUrl}`,e])).values()].map(e=>{const url=broadcastSourceLink(e.sourceUrl);return url?`<a href="${safeText(url)}" target="_blank" rel="noopener" class="block underline py-1">${safeText(e.gameId?`משחק ${e.gameId}`:'סיכום עונתי')}</a>`:'<p>מקור ישיר אינו זמין</p>';}).join('')}</details></article>`;
       const history=report.historicalInsights||[];
       const familyLabels={ROUND:'מחזורים ושלבי העונה',MOMENTUM:'מומנטום והתפתחות',PROFILE:'סגנון ובית־חוץ',DECIDING:'משחקים צמודים ורבעים',MATCHUP:'מפגשים בין הקבוצות',PLAYERS:'שחקנים'};
       const families=report.families||{ROUND:history.filter(i=>i.category==='ROUND'),PROFILE:history.filter(i=>i.category!=='ROUND')};
@@ -2525,12 +2528,15 @@
         <h4 class="font-bold mt-4">העונה הנוכחית</h4><p class="my-2">${report.currentSeason?'ניתוח עונתי זמין בהמשך הדוח.':'אין עדיין נתונים מספיקים לניתוח עונתי של שתי הקבוצות. סיפורי העבר זמינים בנפרד.'}</p>
         ${(report.sourceStatuses||[]).filter(s=>s.state!=='ready').map(s=>`<p role="status" class="text-amber-800 my-2">${safeText(window.IBBASeasons.getSeason(s.seasonKey)?.label||s.seasonKey)}: ${safeText(s.error||'נתונים חלקיים')} ${safeText((s.failedMonths||[]).join(', '))}</p>`).join('')}
         <p role="status" aria-live="polite" class="my-2">${['idle','loading'].includes(report.historicalContext?.state)?'סיכומי שחקנים ורקע קבוצתי עדיין נטענים…':''}</p>
-        <div class="flex flex-wrap items-center gap-3 mt-5"><h4 class="font-bold">כל התובנות (${report.allInsights?.length??history.length})</h4><label>סינון לפי נושא <select class="broadcast-family-filter border rounded p-2"><option value="all">כל הנושאים</option>${sections.map(([family,items])=>`<option value="${family}">${familyLabels[family]} (${items.length})</option>`).join('')}</select></label><button type="button" onclick="regenerateInsights()" class="border rounded px-3 py-2">החלף ניסוח</button></div>
+        <div class="flex flex-wrap items-center gap-3 mt-5"><h4 class="font-bold">כל התובנות (${report.allInsights?.length??history.length})</h4><label>סינון לפי נושא <select class="broadcast-family-filter border rounded p-2"><option value="all">כל הנושאים</option>${sections.map(([family,items])=>`<option value="${family}">${familyLabels[family]} (${items.length})</option>`).join('')}</select></label><button type="button" onclick="regenerateInsights()" class="broadcast-reword border rounded px-3 py-2">החלף ניסוח</button></div>
         ${sections.map(([family,items])=>`<details data-broadcast-family="${family}" class="border-t py-3"><summary class="font-bold cursor-pointer">${familyLabels[family]} (${items.length})</summary>${items.map(storyCard).join('')}</details>`).join('')}
         ${(report.selectedPlayerRefs||[]).length?`<p class="text-sm my-2">שחקנים שנבחרו בידי השדרן — הבחירה אינה מאשרת סגל נוכחי.</p>${report.selectedPlayerRefs.map(ref=>`<button type="button" data-remove-player="${safeText(ref)}" class="border rounded px-3 py-2 m-1">הסר ${safeText(report.context?.playerSummaries?.records?.find(r=>report.context.identity(r.playerRef)===ref)?.name||ref)}</button>`).join('')}`:''}
         <button type="button" onclick="refreshBroadcastPreparation()" class="border rounded px-3 py-2 mt-3">נסה שוב / רענן מקורות</button>`;
       panel.classList.remove('hidden');
-      panel.querySelector('.broadcast-family-filter')?.addEventListener('change',event=>panel.querySelectorAll('[data-broadcast-family]').forEach(section=>{section.hidden=event.target.value!=='all'&&section.dataset.broadcastFamily!==event.target.value;if(event.target.value!=='all'&&!section.hidden)section.open=true;}));
+      const filter=panel.querySelector('.broadcast-family-filter');
+      const applyFamily=value=>panel.querySelectorAll('[data-broadcast-family]').forEach(section=>{section.hidden=value!=='all'&&section.dataset.broadcastFamily!==value;section.open=value!=='all'?!section.hidden:openFamilies.includes(section.dataset.broadcastFamily);});
+      if(filter){filter.value=sections.some(([family])=>family===filterValue)?filterValue:'all';applyFamily(filter.value);filter.addEventListener('change',event=>applyFamily(event.target.value));}
+      if(rewordFocused)panel.querySelector('.broadcast-reword')?.focus();
       panel.querySelectorAll('[data-remove-player]').forEach(button=>button.addEventListener('click',()=>{
         window.removePlayerFromBroadcast(button.dataset.removePlayer);
       }));
@@ -2567,7 +2573,7 @@
         if(!window.matchContextService.enrich)return;
         const context=await window.matchContextService.enrich(report.context,{refresh});
         if(version!==reportVersion)return;
-        const enriched=window.IBBABroadcastReport.compose({...report,context},window.selectedBroadcastPlayers||[]);
+        const enriched=window.IBBABroadcastReport.compose({...report,copyVariant:currentAdvancedReport?.copyVariant||0,context},window.selectedBroadcastPlayers||[]);
         for(const s of context.playerSummaries.statuses||[])enriched.sourceStatuses.push({seasonKey:s.seasonKey,state:s.state,error:s.error});
         for(const s of context.teamSummaries||[])if(s.state==='error')enriched.sourceStatuses.push(s);
         publish(enriched);
@@ -2585,7 +2591,7 @@
     }
 
     window.addPlayerToBroadcast=async function(ref) {
-      if(!currentAdvancedReport?.context)return;
+      if(!currentAdvancedReport?.context||window.historyView?.broadcastReady===false)return;
       const version=reportVersion;
       await window.historyView.service.resolveReference(ref);
       if(version!==reportVersion||!currentAdvancedReport?.context)return;

@@ -18,6 +18,9 @@ class IBBAAdapter {
   }
   readObservedStats(raw={},advanced={}) {
     const stats=Object.fromEntries(Object.entries(IBBAAdapter.metricFields).map(([field,key])=>[field,IBBAAdapter.metricNumber(raw[key])]));
+    // fgm/fga are official two-point columns; overall field goals need both shot types.
+    stats.fieldGoalsMade=IBBAAdapter.metricNumber(raw.fgm)!=null&&IBBAAdapter.metricNumber(raw.threepm)!=null?Number(raw.fgm)+Number(raw.threepm):null;
+    stats.fieldGoalsAttempted=IBBAAdapter.metricNumber(raw.fga)!=null&&IBBAAdapter.metricNumber(raw.threepa)!=null?Number(raw.fga)+Number(raw.threepa):null;
     Object.assign(stats,Object.fromEntries(Object.entries(IBBAAdapter.advancedFields).map(([field,key])=>[field,IBBAAdapter.metricNumber(advanced[key])])));
     stats.totalRebounds=stats.offensiveRebounds==null||stats.defensiveRebounds==null?null:stats.offensiveRebounds+stats.defensiveRebounds;
     stats.minutesPlayed=IBBAAdapter.parseMinutes(raw.min);return stats;
@@ -336,6 +339,7 @@ class IBBAAdapter {
       ...this.normalizeRound(ibbaGame),
       availableMetrics: this.availableMetrics(ibbaGame, [homeTeamId, awayTeamId]),
       metricAvailability: this.extractMetricAvailability(ibbaGame,[homeTeamId,awayTeamId]),
+      teamObservations: Object.fromEntries([homeTeamId,awayTeamId].map(id=>[id,this.readObservedStats(ibbaGame.performance?.[id]?.[0],ibbaGame.sp_teams?.[id])])),
       playerObservations: this.extractPlayerObservations(ibbaGame,[homeTeamId,awayTeamId]),
       
       // ליגה

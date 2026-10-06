@@ -28,5 +28,26 @@ assert(!R.generate(pc,{playerRefs:['post:8']}).some(s=>s.type.startsWith('PLAYER
 const missing=context(3);missing.priorSeasons[1].resultGames=playerGames.map(g=>({...g,playerObservations:g.playerObservations.map(p=>({...p,stats:{...p.stats,totalRebounds:null},availableMetrics:['points','assists']}))}));
 assert(!R.generate(missing,{playerRefs:['post:7']}).some(s=>s.type==='PLAYER_DOUBLE_DOUBLES'));
 assert(!ps.some(s=>s.type==='H2H_CHANGE'));
+const reviewFailures=[];
+function regression(name,fn){try{fn();}catch(error){reviewFailures.push(name+': '+error.message);}}
+regression('postponed windows and separate years',()=>{
+ const delayed=context(10,[1,5,6,7,8,9].map(r=>game(r,'2026-27',r===1?200:90,{date:r===1?'2026-02-01':`2026-01-${r}`})));
+ delayed.priorSeasons.forEach(s=>{s.regularGames=[5,6,7,8,9].map(r=>game(r,s.seasonKey,80));});
+ const changes=R.generate(delayed).filter(s=>s.type==='HISTORICAL_WINDOW_COMPARISON'&&s.teamIds[0]===1&&s.facts.metric==='points');
+ assert.strictEqual(changes.length,2);assert(changes.every(s=>s.facts.value===90&&s.facts.referenceValue===80&&s.samples[1].gameCount===5));
+});
+regression('zero changes suppressed',()=>assert(!R.generate(context(11,Array.from({length:10},(_,i)=>game(i+1,'2026-27',80)))).some(s=>s.type==='RECENT_WINDOW_CHANGE')));
+regression('phase verification for h2h changes',()=>{
+ const unverified=context(11);unverified.priorSeasons=[];unverified.currentResultGames=Array.from({length:10},(_,i)=>game(i+1,'2026-27',i<5?80:90,{roundVerified:false,competitionPhase:'unknown'}));
+ assert(!R.generate(unverified).some(s=>s.type==='H2H_CHANGE'));
+});
+regression('accurate comparison subset metadata',()=>assert(change.windows.every(w=>w.count===5&&w.gameIds.length===5)));
+regression('conditional sample count',()=>assert.strictEqual(R.generate(context(8,[...deciding,game(7,'2026-27',110)])).find(s=>s.type==='CLOSE_GAME_RECORD'&&s.scope==='current'&&s.teamIds[0]===1).samples[0].gameCount,6));
+regression('quarter metric readiness',()=>assert.strictEqual(q.find(s=>s.type==='QUARTER_WINDOW'&&s.scope==='current'&&s.facts.quarter===4).dataState,'ready'));
+regression('metric-specific rival denominator',()=>{
+ const available=Array.from({length:5},(_,i)=>game(i+1,'2026-27',80,{teamStats:{home:{offensiveRebounds:10},away:{offensiveRebounds:6,defensiveRebounds:20}},metricAvailability:{1:['offensiveRebounds'],2:i<2?['offensiveRebounds','defensiveRebounds']:['offensiveRebounds']}}));
+ const s=R.generate(context(6,available)).find(s=>s.type==='MATCHUP_STYLE'&&s.teamIds[0]===1&&s.facts.metric==='offensiveRebounds');assert.strictEqual(s.samples[1].metric,'defensiveRebounds');assert.strictEqual(s.samples[1].gameCount,2);assert.strictEqual(s.dataState,'partial');
+});
+if(reviewFailures.length){console.error(reviewFailures.join('\n'));process.exit(1);}
 console.log('rich insights tests passed');
 module.exports={c,context,game};
