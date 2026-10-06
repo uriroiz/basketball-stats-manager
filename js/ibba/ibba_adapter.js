@@ -6,8 +6,9 @@
  * @version 1.0.0
  */
 class IBBAAdapter {
-  constructor() {
-    const config = window.appConfig || {};
+  constructor(season = null) {
+    const config = season || window.appConfig || {};
+    this.seasonKey = config.key || config.seasonKey || '2025-26';
     this.baseURL = 'https://ibasketball.co.il/wp-json/wp/v2';
     this.sportspressURL = 'https://ibasketball.co.il/wp-json/sportspress/v2';
     this.leagueId = config.leagueId || 119474;
@@ -18,6 +19,36 @@ class IBBAAdapter {
       '2026-01', '2026-02', '2026-03',
       '2026-04', '2026-05', '2026-06'
     ];
+  }
+
+  async fetchEventPages(month = null) {
+    const games = [];
+    for (let offset = 0; ; offset += 100) {
+      const url = `${this.sportspressURL}/events?order=asc&by=post_date&seasons=${this.seasonId}&leagues=${this.leagueId}&per_page=100&offset=${offset}${month ? `&month=${month}` : ''}`;
+      const page = await this.fetchJsonWithProxyFallback(url);
+      if (!Array.isArray(page)) throw new Error('Invalid IBBA game response');
+      // Prevent a broken upstream ignoring offset from looping indefinitely.
+      if (page.length && games.length && page.every(g => games.some(previous => previous.id === g.id))) {
+        throw new Error('IBBA pagination did not advance');
+      }
+      games.push(...page);
+      if (page.length < 100) return games;
+    }
+  }
+
+  async fetchSeasonGames() {
+    try {
+      const games = await this.fetchEventPages();
+      if (games.length) return {games,complete:true,failedMonths:[]};
+    } catch (error) { console.warn('Season request failed; loading months',error.message); }
+    const byId = new Map();
+    const failedMonths = [];
+    for (const month of this.seasonMonths) {
+      try { (await this.fetchEventPages(month)).forEach(g => byId.set(g.id,g)); }
+      catch (_) { failedMonths.push(month); }
+    }
+    if (failedMonths.length === this.seasonMonths.length) throw new Error('לא ניתן לטעון את משחקי העונה מהאיגוד');
+    return {games:Array.from(byId.values()),complete:!failedMonths.length,failedMonths};
   }
 
   async fetchSeasonMonthGames(limit = 500) {
@@ -76,7 +107,7 @@ class IBBAAdapter {
    * @param {string} after - תאריך מינימלי (ISO format)
    */
   async fetchGames(limit = 20, before = null, after = null) {
-    let url = `${this.baseURL}/events?leagues=${this.leagueId}&per_page=${limit}`;
+    let url = `${this.baseURL}/events?leagues=${this.leagueId}&seasons=${this.seasonId}&per_page=${limit}`;
     
     if (before) url += `&before=${before}`;
     if (after) url += `&after=${after}`;
@@ -236,19 +267,29 @@ class IBBAAdapter {
     const awayTeamName = teamNames[1]?.trim() || 'Unknown';
     
     // חילוץ ניקוד מ-performance data (אם קיים)
-    let homeScore = 0;
-    let awayScore = 0;
-    if (ibbaGame.performance) {
-      const rawHomeScore = Number(ibbaGame.performance[homeTeamId]?.[0]?.pts);
-      const rawAwayScore = Number(ibbaGame.performance[awayTeamId]?.[0]?.pts);
-      homeScore = Number.isFinite(rawHomeScore) ? rawHomeScore : 0;
-      awayScore = Number.isFinite(rawAwayScore) ? rawAwayScore : 0;
-    }
+    const readScore = teamId => {
+      const results = ibbaGame.results?.[teamId];
+      const value = ibbaGame.performance?.[teamId]?.['0']?.pts
+        ?? results?.pts ?? results?.points ?? results?.total;
+      if (value === '' || value == null) return null;
+      const score = Number(value);
+      return Number.isFinite(score) && score >= 0 ? score : null;
+    };
+    let homeScore = readScore(homeTeamId);
+    let awayScore = readScore(awayTeamId);
+    const hasResult = homeScore !== null && awayScore !== null && (homeScore > 0 || awayScore > 0);
+    if (!hasResult) { homeScore = null; awayScore = null; }
+    const players = this.extractPlayers(ibbaGame, homeTeamId, awayTeamId);
     
     const game = {
       // מזהה ייחודי
       gameSerial: ibbaGame.id,
       gameId: ibbaGame.id,
+      seasonKey: this.seasonKey,
+      seasonId: this.seasonId,
+      hasResult,
+      hasPlayerStats: players.length > 0,
+      gameStatus: hasResult ? 'completed' : (new Date(ibbaGame.date) > new Date() ? 'scheduled' : 'unavailable'),
       
       // Permalink למשחק באתר IBBA (לשימוש עתידי - scraping, קישורים וכו')
       permalink: ibbaGame.link || ibbaGame.guid?.rendered || null,
@@ -300,7 +341,7 @@ class IBBAAdapter {
       quarters: this.extractQuarters(ibbaGame, homeTeamId, awayTeamId),
       
       // שחקנים וסטטיסטיקות
-      players: this.extractPlayers(ibbaGame, homeTeamId, awayTeamId),
+      players,
       
       // סטטיסטיקות קבוצתיות
       teamStats: this.extractTeamStats(ibbaGame, homeTeamId, awayTeamId),
