@@ -1,0 +1,15 @@
+const assert=require('assert'),fs=require('fs'),vm=require('vm');
+const c={window:{},console,Date};for(const name of ['ibba_seasons','ibba_window_stats','ibba_rich_insights'])if(fs.existsSync(`js/ibba/${name}.js`))vm.runInNewContext(fs.readFileSync(`js/ibba/${name}.js`,'utf8'),c);
+const R=c.window.IBBARichInsights;assert(R,'rich insights engine exists');
+const game=(id,seasonKey='2025-26',points=80,extra={})=>({gameId:String(id),seasonKey,date:`2026-01-${String(id).padStart(2,'0')}`,hasResult:true,roundNumber:id,roundVerified:true,competitionPhase:'regular',teams:[{teamId:1,name:'A',score:points},{teamId:2,name:'B',score:75}],...extra});
+const context=(round=1,current=[])=>({match:{seasonKey:'2026-27',roundNumber:round,roundVerified:true,competitionPhase:'regular',teams:[{teamId:1,name:'A'},{teamId:2,name:'B'}]},asOf:'2026-10-06',currentResultGames:current,currentScheduleGames:current,currentRegularGames:current,currentComplete:true,identity:x=>typeof x==='object'?`post:${x.playerId}`:x,playerSummaries:{records:[]},priorSeasons:[{seasonKey:'2024-25',state:'ready',regularGames:[game(1,'2024-25',80)],resultGames:[game(1,'2024-25',80)]},{seasonKey:'2025-26',state:'ready',regularGames:[game(1,'2025-26',100)],resultGames:[game(1,'2025-26',100)]}]});
+let stories=R.generate(context());const round=stories.find(s=>s.type==='ROUND_SCORING'&&s.teamIds[0]===1);
+assert.strictEqual(round.facts.value,90);assert.strictEqual(round.samples[0].gameCount,2);
+const current=Array.from({length:10},(_,i)=>game(i+1,'2026-27',i<5?80:90));
+stories=R.generate(context(11,current));const change=stories.find(s=>s.type==='RECENT_WINDOW_CHANGE'&&s.teamIds[0]===1&&s.facts.metric==='points');
+assert.strictEqual(change.facts.difference,10);assert.strictEqual(change.samples[0].gameCount,5);assert.strictEqual(change.samples[1].gameCount,5);
+assert(!R.generate(context(10,current.slice(0,9))).some(s=>s.type==='RECENT_WINDOW_CHANGE'));
+const before=R.generate(context(10,current)).filter(s=>s.type==='SAME_STAGE_COMPARISON');assert(before.every(s=>s.windows.every(w=>w.toRound===9)));
+assert(!R.generate(context(1)).some(s=>s.type==='RECENT_WINDOW_CHANGE'));
+console.log('rich insights tests passed');
+module.exports={c,context,game};
