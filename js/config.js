@@ -6,6 +6,10 @@
 
   const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   const runtimeOverrides = window.IBBA_CONFIG || {};
+  let selectionStorage;
+  try { selectionStorage = window.localStorage; } catch (_) { /* storage may be disabled */ }
+  const selectedSeason = window.IBBASeasons?.getSeason(
+    window.IBBASeasons.resolveInitialSeason(window.location, selectionStorage));
 
   // Get configuration from environment or window object
   const config = {
@@ -23,10 +27,12 @@
 
     // League configuration. Override window.IBBA_CONFIG before loading this file
     // when a new season starts; consumers should not hard-code these values.
-    leagueId: Number(runtimeOverrides.leagueId || 119474),
-    seasonId: Number(runtimeOverrides.seasonId || 119472),
-    playersPageUrl: runtimeOverrides.playersPageUrl || 'https://ibasketball.co.il/league/2025-2/',
-    seasonMonths: runtimeOverrides.seasonMonths || [
+    seasonKey: selectedSeason?.key || '2025-26',
+    seasonLabel: selectedSeason?.label || '2025/26',
+    leagueId: selectedSeason?.leagueId || Number(runtimeOverrides.leagueId || 119474),
+    seasonId: selectedSeason?.seasonId || Number(runtimeOverrides.seasonId || 119472),
+    playersPageUrl: selectedSeason?.playersPageUrl || runtimeOverrides.playersPageUrl || 'https://ibasketball.co.il/league/2025-2/',
+    seasonMonths: selectedSeason?.seasonMonths || runtimeOverrides.seasonMonths || [
       '2025-10', '2025-11', '2025-12',
       '2026-01', '2026-02', '2026-03',
       '2026-04', '2026-05', '2026-06'
