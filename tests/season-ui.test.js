@@ -117,11 +117,13 @@ async function run(){
  assert.strictEqual(mounts,0,'late prep initialization cannot reopen history after season change');
  assert.strictEqual(typeof c.loadBroadcastPreparation,'function','scheduled game must load historical broadcast report');
  let bridgeRelease;const bridgePending=new Promise(r=>bridgeRelease=r);
+ const savedHistoryView=c.window.historyView;
  c.window.historyView={service:{resolveReference:()=>bridgePending,identity:r=>r}};
  vm.runInContext('currentAdvancedReport={context:{}}',c);
  const adding=c.window.addPlayerToBroadcast('post:7');
  vm.runInContext('resetPreparationReport()',c);bridgeRelease();await adding;
  assert.strictEqual(c.window.selectedBroadcastPlayers.length,0,'late identity bridge cannot select a player for another match');
+ c.window.historyView=savedHistoryView;
  let completeBroadcast;
  c.window.IBBABroadcastReport={build:()=>new Promise(resolve=>completeBroadcast=resolve)};
  c.window.IBBAMatchContext=function(){};
