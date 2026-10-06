@@ -27,6 +27,34 @@
       }else snapshot.coverage={complete:window.transportComplete&&(spec.count==null||snapshot.gamesPlayed===spec.count)};
       return snapshot;
     }
+    static profiles({context,team,seasons,current,snap,add}) {
+      const style=['threePointsAttempted','threePointPercentage','fgPercentage','ftPercentage','offensiveRebounds','defensiveRebounds','totalRebounds','assists','turnovers','steals','blocks','assistTurnoverRatio','pointsFastBreak','pointsFromTurnovers','pointsInPaint','pointsSecondChance','pointsBench'];
+      for(const season of seasons) {
+        const scope=season===current?'current':'historical';
+        const profile=snap(season,{phase:'any',mode:'recent'});if(!profile.gamesPlayed)continue;
+        for(const metric of style)if(profile.metrics[metric].value!=null)add('WINDOW_STYLE','PROFILE',team,[profile],{metric,value:profile.metrics[metric].value},{scope});
+        for(const venue of ['home','away']) {
+          const at=snap(season,{phase:'any',mode:'recent',venue});if(!at.gamesPlayed)continue;
+          for(const metric of scoring)if(at.metrics[metric].value!=null)add('VENUE_PROFILE','PROFILE',team,[at],{metric,value:at.metrics[metric].value,venue},{scope});
+        }
+        if(profile.closeRecord.total)add('CLOSE_GAME_RECORD','DECIDING',team,[profile],profile.closeRecord,{scope,sampleSize:profile.closeRecord.total,recordGameIds:profile.closeRecord.gameIds});
+        for(const [position,record]of Object.entries(profile.halftimeRecord))if(record.total)add('HALFTIME_RECORD','DECIDING',team,[profile],{...record,position},{scope,sampleSize:record.total,recordGameIds:record.gameIds});
+        for(let i=0;i<4;i++){const metric=profile.quarterMargins[i];if(metric.value!=null)add('QUARTER_WINDOW','DECIDING',team,[profile],{metric:'quarterMargin',value:metric.value,quarter:i+1},{scope,sampleSize:metric.gameCount,metricDefinitions:{quarterMargin:{unit:'pointsMargin'}},quarterGameIds:metric.gameIds});}
+        if(profile.leadReversals.total)add('LEAD_REVERSAL','DECIDING',team,[profile],{count:profile.leadReversals.total,total:profile.leadReversals.eligible},{scope});
+      }
+      const opponent=context.match.teams.find(t=>String(t.teamId)!==String(team.teamId));
+      const own=snap(current,{phase:'any',mode:'recent',count:5});
+      if(opponent&&own.gamesPlayed) {
+        const rival=this.snapshot(current,opponent,{phase:'any',mode:'recent',count:5,asOf:context.asOf});
+        for(const [metric,referenceMetric]of [['offensiveRebounds','defensiveRebounds'],['turnovers','steals']])if(own.metrics[metric].value!=null&&rival.metrics[referenceMetric].value!=null)add('MATCHUP_STYLE','PROFILE',team,[own,rival],{metric,value:own.metrics[metric].value,referenceMetric,referenceValue:rival.metrics[referenceMetric].value},{scope:'current',referenceName:opponent.name});
+        const opponents=rival.entries.map(e=>W.entry(e.game,e.game.teams.find(t=>String(t.teamId)!==String(opponent.teamId)).teamId));
+        const allowed=W.snapshot(opponents,`opponents:${opponent.teamId}`,rival.window);
+        if(own.metrics.threePointsAttempted.value!=null&&allowed.metrics.threePointPercentage.value!=null)add('MATCHUP_STYLE','PROFILE',team,[own,allowed],{metric:'threePointsAttempted',value:own.metrics.threePointsAttempted.value,referenceMetric:'threePointPercentage',referenceValue:allowed.metrics.threePointPercentage.value},{scope:'current',referenceName:`היריבות של ${opponent.name}`});
+      }
+      const ten=snap(current,{phase:'any',mode:'recent',count:10});const first=W.team({...ten.window,resultGames:ten.window.resultGames.slice(0,-5)},team.teamId);
+      const a=own.quarterMargins[3],b=first.quarterMargins[3];
+      if(a.gameCount>=5&&b.gameCount>=5)add('LATE_GAME_CHANGE','DECIDING',team,[own,first],{metric:'quarterMargin',quarter:4,value:a.value,referenceValue:b.value,difference:a.value-b.value},{scope:'current'});
+    }
     static generate(context,{playerRefs=[]}={}) {
       const match=context.match,round=match.roundNumber,regular=match.roundVerified&&match.competitionPhase==='regular',stories=[];
       const prior=(context.priorSeasons||[]).filter(s=>s.seasonKey<match.seasonKey);

@@ -11,5 +11,13 @@ assert.strictEqual(change.facts.difference,10);assert.strictEqual(change.samples
 assert(!R.generate(context(10,current.slice(0,9))).some(s=>s.type==='RECENT_WINDOW_CHANGE'));
 const before=R.generate(context(10,current)).filter(s=>s.type==='SAME_STAGE_COMPARISON');assert(before.every(s=>s.windows.every(w=>w.toRound===9)));
 assert(!R.generate(context(1)).some(s=>s.type==='RECENT_WINDOW_CHANGE'));
+const deciding=Array.from({length:6},(_,i)=>game(i+1,'2026-27',i<4?78:72,{quarters:{q1:{home:20,away:18},q2:{home:20,away:18},q3:{home:20,away:18},q4:{home:18,away:21}},teamStats:{home:{pointsBench:0}},metricAvailability:{1:['pointsBench']}}));
+const d=R.generate(context(7,deciding));const close=d.find(s=>s.type==='CLOSE_GAME_RECORD'&&s.teamIds[0]===1&&s.scope==='current');
+assert.strictEqual(close.facts.wins,4);assert.strictEqual(close.facts.total,6);
+assert(d.some(s=>s.type==='HALFTIME_RECORD'));
+assert(d.some(s=>s.type==='WINDOW_STYLE'&&s.facts.metric==='pointsBench'&&s.facts.value===0));
+assert(!d.some(s=>s.facts.metric==='pointsInPaint'));
+const q=R.generate(context(2,[game(1,'2026-27',80,{quarters:{q1:{home:null,away:null},q4:{home:30,away:20}}})]));
+assert(q.some(s=>s.type==='QUARTER_WINDOW'&&s.facts.quarter===4));assert(!q.some(s=>s.type==='QUARTER_WINDOW'&&s.facts.quarter===1&&s.scope==='current'));
 console.log('rich insights tests passed');
 module.exports={c,context,game};
