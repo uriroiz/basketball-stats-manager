@@ -288,7 +288,7 @@ class IBBAAdapter {
       seasonKey: this.seasonKey,
       seasonId: this.seasonId,
       hasResult,
-      hasPlayerStats: players.length > 0,
+      hasPlayerStats: [homeTeamId,awayTeamId].every(id=>players.some(p=>String(p.teamId)===String(id))),
       gameStatus: hasResult ? 'completed' : (new Date(ibbaGame.date) > new Date() ? 'scheduled' : 'unavailable'),
       
       // Permalink למשחק באתר IBBA (לשימוש עתידי - scraping, קישורים וכו')
@@ -397,6 +397,8 @@ class IBBAAdapter {
       Object.entries(teamPerformance).forEach(([playerId, stats]) => {
         // דילוג על סה"כ קבוצתי (key "0")
         if (playerId === '0') return;
+        const fields=['min','pts','fgm','fga','threepm','threepa','ftm','fta','off','def','ast','stl','blk','to','pf','rate'];
+        if (!stats || fields.some(field=>stats[field]==null || stats[field]==='')) return;
         
         players.push({
           // מזהים

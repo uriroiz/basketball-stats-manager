@@ -26,6 +26,8 @@ async function run() {
   assert.strictEqual(resultOnly.homeScore,80);
   assert.strictEqual(resultOnly.hasPlayerStats,false);
   assert.strictEqual(resultOnly.hasResult,true);
+  const rosterOnly=a.convertToInternalFormat({id:3,teams:[10,20],date:'2024-01-01',title:{rendered:'Home — Away'},performance:{10:{0:{pts:80},123:{number:4,status:'sub'}},20:{0:{pts:75},456:{}}}});
+  assert.strictEqual(rosterOnly.hasPlayerStats,false,'roster placeholders are not personal statistics');
   const b=adapter(async url=>({ok:true,json:async()=>{
     const u=new URL(url); if(!u.searchParams.get('month')) return [];
     if(u.searchParams.get('month')==='2026-11') throw Error('offline');
