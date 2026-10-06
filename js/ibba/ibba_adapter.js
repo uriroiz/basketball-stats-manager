@@ -9,6 +9,8 @@ class IBBAAdapter {
   constructor(season = null) {
     const config = season || window.appConfig || {};
     this.seasonKey = config.key || config.seasonKey || '2025-26';
+    this.regularOnly = config.regularOnly === true;
+    this.regularTableId = config.regularTableId;
     this.historicalTeamNames = config.historicalTeamNames || {};
     this.baseURL = 'https://ibasketball.co.il/wp-json/wp/v2';
     this.sportspressURL = 'https://ibasketball.co.il/wp-json/sportspress/v2';
@@ -25,7 +27,7 @@ class IBBAAdapter {
   async fetchEventPages(month = null) {
     const games = [];
     for (let offset = 0; ; offset += 100) {
-      const url = `${this.sportspressURL}/events?order=asc&by=post_date&seasons=${this.seasonId}&leagues=${this.leagueId}&per_page=100&offset=${offset}${month ? `&month=${month}` : ''}`;
+      const url = `${this.sportspressURL}/events?order=asc&by=post_date&seasons=${this.seasonId}&leagues=${this.leagueId}&per_page=100&offset=${offset}${month ? `&month=${month}` : ''}${this.regularOnly && this.regularTableId ? `&tables=${this.regularTableId}` : ''}`;
       const page = await this.fetchJsonWithProxyFallback(url);
       if (!Array.isArray(page)) throw new Error('Invalid IBBA game response');
       // Prevent a broken upstream ignoring offset from looping indefinitely.
@@ -301,6 +303,8 @@ class IBBAAdapter {
       
       // מחזור (stage)
       cycle: ibbaGame.stage_id || ibbaGame.stage || null,
+      ...this.normalizeRound(ibbaGame),
+      availableMetrics: this.availableMetrics(ibbaGame, [homeTeamId, awayTeamId]),
       
       // ליגה
       league: ibbaGame.league?.name || 'לאומית',
@@ -356,6 +360,26 @@ class IBBAAdapter {
     };
     
     return game;
+  }
+
+  normalizeRound(event) {
+    const round = Number(event.stage_id);
+    // The official league table labels stage_id as מחזור. Only the documented
+    // regular-season window is comparable; later stages are not inferred.
+    const maximum = this.seasonKey === '2024-25' ? 26 : 30;
+    const phaseKnown = this.seasonKey === '2026-27' || this.regularOnly;
+    const verified = phaseKnown && event.format === 'league' && Number.isInteger(round) && round > 0 && round <= maximum;
+    return {roundNumber:verified ? round : null, roundLabel:verified ? `מחזור ${round}` : null,
+      roundVerified:verified, competitionPhase:verified ? 'regular' : 'unknown'};
+  }
+
+  availableMetrics(event, teamIds) {
+    const fields = {pointsFastBreak:'pfb',pointsFromTurnovers:'pto',pointsInPaint:'pipm',pointsSecondChance:'psc',pointsBench:'pbc'};
+    const source = event.sp_teams;
+    return Object.entries(fields).filter(([,field])=>teamIds.every(id=> {
+      const value=source?.[id]?.[field];
+      return value!==null && value!==undefined && value!=='' && Number.isFinite(Number(value));
+    })).map(([metric])=>metric);
   }
 
   resolveTeamName(teamId, sourceName) {

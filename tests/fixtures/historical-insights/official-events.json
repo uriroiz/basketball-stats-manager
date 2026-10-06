@@ -1,0 +1,668 @@
+[
+  {
+    "seasonKey": "2024-25",
+    "regular": true,
+    "sourceUrl": "https://ibasketball.co.il/match/705893-%d7%90%d7%9c%d7%99%d7%a6%d7%95%d7%a8-%d7%99%d7%91%d7%a0%d7%94-%d7%9e%d7%9b%d7%91%d7%99-%d7%a8%d7%97%d7%95%d7%91%d7%95%d7%aa/",
+    "capturedAt": "2026-10-06",
+    "event": {
+      "id": 971113,
+      "date": "2024-10-25T12:30:00",
+      "format": "league",
+      "stage_id": 1,
+      "teams": [
+        166511,
+        166409
+      ],
+      "title": {
+        "rendered": "אליצור יבנה — מכבי רחובות"
+      },
+      "home": {
+        "team": "אליצור יבנה",
+        "points": 70,
+        "link": "https://ibasketball.co.il/team/168-%d7%90%d7%9c%d7%99%d7%a6%d7%95%d7%a8-%d7%99%d7%91%d7%a0%d7%94/",
+        "abbr": ""
+      },
+      "away": {
+        "team": "מכבי רחובות",
+        "points": 74,
+        "link": "https://ibasketball.co.il/team/75-%d7%9e%d7%9b%d7%91%d7%99-%d7%a8%d7%97%d7%95%d7%91%d7%95%d7%aa/",
+        "abbr": ""
+      },
+      "results": {
+        "0": {
+          "outcome": "תוֹצָאָה"
+        },
+        "166409": {
+          "points": 74,
+          "one": 19,
+          "two": 19,
+          "three": 18,
+          "four": 18,
+          "outcome": "win"
+        },
+        "166511": {
+          "points": 70,
+          "one": 25,
+          "two": 16,
+          "three": 20,
+          "four": 9,
+          "outcome": "loss"
+        }
+      }
+    }
+  },
+  {
+    "seasonKey": "2024-25",
+    "regular": true,
+    "sourceUrl": "https://ibasketball.co.il/match/705900-%d7%9e%d7%9b%d7%91%d7%99-%d7%a8%d7%97%d7%95%d7%91%d7%95%d7%aa-%d7%9e%d7%9b%d7%91%d7%99-%d7%a2%d7%99%d7%a8%d7%95%d7%a0%d7%99-wesure-%d7%a8%d7%a2%d7%a0%d7%a0%d7%94/",
+    "capturedAt": "2026-10-06",
+    "event": {
+      "id": 971290,
+      "date": "2024-10-30T19:45:00",
+      "format": "league",
+      "stage_id": 2,
+      "teams": [
+        166409,
+        166484
+      ],
+      "title": {
+        "rendered": "מכבי רחובות — מכבי עירוני weSure רעננה"
+      },
+      "home": {
+        "team": "מכבי רחובות",
+        "points": 91,
+        "link": "https://ibasketball.co.il/team/75-%d7%9e%d7%9b%d7%91%d7%99-%d7%a8%d7%97%d7%95%d7%91%d7%95%d7%aa/",
+        "abbr": ""
+      },
+      "away": {
+        "team": "מכבי עירוני weSure רעננה",
+        "points": 77,
+        "link": "https://ibasketball.co.il/team/145-%d7%9e%d7%9b%d7%91%d7%99-%d7%a8%d7%a2%d7%a0%d7%a0%d7%94-%d7%a2%d7%99%d7%a8%d7%95%d7%a0%d7%99/",
+        "abbr": ""
+      },
+      "results": {
+        "0": {
+          "outcome": "תוֹצָאָה"
+        },
+        "166409": {
+          "points": 91,
+          "one": 32,
+          "two": 20,
+          "three": 23,
+          "four": 16,
+          "outcome": "win"
+        },
+        "166484": {
+          "points": 77,
+          "one": 29,
+          "two": 14,
+          "three": 22,
+          "four": 12,
+          "outcome": "loss"
+        }
+      }
+    }
+  },
+  {
+    "seasonKey": "2024-25",
+    "regular": true,
+    "sourceUrl": "https://ibasketball.co.il/match/706025-%d7%9e-%d7%a1-%d7%a6%d7%a4%d7%aa-%d7%9e%d7%9b%d7%91%d7%99-%d7%a8%d7%90%d7%a9%d7%95%d7%9f-%d7%9c%d7%a6%d7%99%d7%95%d7%9f/",
+    "capturedAt": "2026-10-06",
+    "event": {
+      "id": 980147,
+      "date": "2025-02-12T19:00:00",
+      "format": "league",
+      "stage_id": 20,
+      "teams": [
+        169519,
+        166414
+      ],
+      "title": {
+        "rendered": "מ.ס צפת — מכבי ראשון לציון"
+      },
+      "home": {
+        "team": "מ.ס צפת",
+        "points": 75,
+        "link": "https://ibasketball.co.il/team/4818-%d7%94%d7%a4%d7%95%d7%a2%d7%9c-%d7%a6%d7%a4%d7%aa-%d7%92%d7%9c%d7%99%d7%9c-%d7%93%d7%a0%d7%99%d7%90%d7%9c/",
+        "abbr": ""
+      },
+      "away": {
+        "team": "מכבי ראשון לציון",
+        "points": 84,
+        "link": "https://ibasketball.co.il/team/81-%d7%9e%d7%9b%d7%91%d7%99-%d7%a8%d7%90%d7%a9%d7%95%d7%9f-%d7%9c%d7%a6%d7%99%d7%95%d7%9f/",
+        "abbr": ""
+      },
+      "results": {
+        "0": {
+          "outcome": "תוֹצָאָה"
+        },
+        "166414": {
+          "points": 84,
+          "one": 21,
+          "two": 24,
+          "three": 24,
+          "four": 15,
+          "outcome": "win"
+        },
+        "169519": {
+          "points": 75,
+          "one": 24,
+          "two": 19,
+          "three": 16,
+          "four": 16,
+          "outcome": "loss"
+        }
+      }
+    }
+  },
+  {
+    "seasonKey": "2024-25",
+    "regular": true,
+    "sourceUrl": "https://ibasketball.co.il/match/705891-%d7%9e-%d7%a1-%d7%a6%d7%a4%d7%aa-%d7%94%d7%a4%d7%95%d7%a2%d7%9c-%d7%9e%d7%92%d7%93%d7%9c-%d7%94%d7%a2%d7%9e%d7%a7-%d7%99%d7%96%d7%a8%d7%a2%d7%90%d7%9c/",
+    "capturedAt": "2026-10-06",
+    "event": {
+      "id": 971116,
+      "date": "2024-12-20T12:30:00",
+      "format": "league",
+      "stage_id": 1,
+      "teams": [
+        169519,
+        596011
+      ],
+      "title": {
+        "rendered": "מ.ס צפת — הפועל מגדל העמק/יזרעאל"
+      },
+      "home": {
+        "team": "מ.ס צפת",
+        "points": 81,
+        "link": "https://ibasketball.co.il/team/4818-%d7%94%d7%a4%d7%95%d7%a2%d7%9c-%d7%a6%d7%a4%d7%aa-%d7%92%d7%9c%d7%99%d7%9c-%d7%93%d7%a0%d7%99%d7%90%d7%9c/",
+        "abbr": ""
+      },
+      "away": {
+        "team": "הפועל מגדל העמק/יזרעאל",
+        "points": 73,
+        "link": "https://ibasketball.co.il/team/2267-%d7%94%d7%a4%d7%95%d7%a2%d7%9c-%d7%9e%d7%92%d7%93%d7%9c-%d7%94%d7%a2%d7%9e%d7%a7-%d7%99%d7%96%d7%a8%d7%a2/",
+        "abbr": ""
+      },
+      "results": {
+        "0": {
+          "outcome": "תוֹצָאָה"
+        },
+        "169519": {
+          "points": 81,
+          "one": 23,
+          "two": 15,
+          "three": 19,
+          "four": 24,
+          "outcome": "win"
+        },
+        "596011": {
+          "points": 73,
+          "one": 15,
+          "two": 18,
+          "three": 19,
+          "four": 21,
+          "outcome": "loss"
+        }
+      }
+    }
+  },
+  {
+    "seasonKey": "2024-25",
+    "regular": false,
+    "sourceUrl": "https://ibasketball.co.il/match/740539-%d7%9e%d7%9b%d7%91%d7%99-%d7%a8%d7%97%d7%95%d7%91%d7%95%d7%aa-%d7%90%d7%9c%d7%99%d7%a6%d7%95%d7%a8-%d7%a9%d7%95%d7%9e%d7%a8%d7%95%d7%9f/",
+    "capturedAt": "2026-10-06",
+    "event": {
+      "id": 1065704,
+      "date": "2025-04-01T18:30:00",
+      "format": "league",
+      "stage_id": 1,
+      "teams": [
+        166409,
+        168902
+      ],
+      "title": {
+        "rendered": "מכבי רחובות — אליצור שומרון"
+      },
+      "home": {
+        "team": "מכבי רחובות",
+        "points": 91,
+        "link": "https://ibasketball.co.il/team/75-%d7%9e%d7%9b%d7%91%d7%99-%d7%a8%d7%97%d7%95%d7%91%d7%95%d7%aa/",
+        "abbr": ""
+      },
+      "away": {
+        "team": "אליצור שומרון",
+        "points": 96,
+        "link": "https://ibasketball.co.il/team/4083-%d7%90%d7%9c%d7%99%d7%a6%d7%95%d7%a8-%d7%a9%d7%95%d7%9e%d7%a8%d7%95%d7%9f-%d7%97%d7%9c%d7%a4/",
+        "abbr": ""
+      },
+      "results": {
+        "0": {
+          "outcome": "תוֹצָאָה"
+        },
+        "166409": {
+          "points": 91,
+          "one": 27,
+          "two": 15,
+          "three": 27,
+          "four": 22,
+          "outcome": "loss"
+        },
+        "168902": {
+          "points": 96,
+          "one": 24,
+          "two": 16,
+          "three": 18,
+          "four": 38,
+          "outcome": "win"
+        }
+      }
+    }
+  },
+  {
+    "seasonKey": "2025-26",
+    "regular": true,
+    "sourceUrl": "https://ibasketball.co.il/match/741600/",
+    "capturedAt": "2026-10-06",
+    "event": {
+      "id": 1198670,
+      "date": "2025-10-31T12:30:00",
+      "format": "league",
+      "stage_id": 1,
+      "teams": [
+        166345,
+        166934
+      ],
+      "title": {
+        "rendered": "עירוני נהריה — א.ס רמה&quot;ש ירק השדה"
+      },
+      "home": {
+        "team": "עירוני נהריה",
+        "points": 78,
+        "link": "https://ibasketball.co.il/team/26-%d7%94%d7%a4%d7%95%d7%a2%d7%9c-%d7%a0%d7%94%d7%a8%d7%99%d7%94/",
+        "abbr": ""
+      },
+      "away": {
+        "team": "א.ס רמה&quot;ש ירק השדה",
+        "points": 86,
+        "link": "https://ibasketball.co.il/team/585-%d7%90-%d7%a1-%d7%a8%d7%9e%d7%94%d7%a9-%d7%99%d7%a8%d7%a7-%d7%94%d7%a9%d7%93%d7%94/",
+        "abbr": ""
+      },
+      "results": {
+        "0": {
+          "outcome": "תוֹצָאָה"
+        },
+        "166345": {
+          "points": 78,
+          "one": 14,
+          "two": 14,
+          "three": 23,
+          "four": 27,
+          "outcome": "loss"
+        },
+        "166934": {
+          "points": 86,
+          "one": 25,
+          "two": 28,
+          "three": 16,
+          "four": 17,
+          "outcome": "win"
+        }
+      }
+    }
+  },
+  {
+    "seasonKey": "2025-26",
+    "regular": true,
+    "sourceUrl": "https://ibasketball.co.il/match/741611/",
+    "capturedAt": "2026-10-06",
+    "event": {
+      "id": 1198684,
+      "date": "2025-10-17T13:00:00",
+      "format": "league",
+      "stage_id": 2,
+      "teams": [
+        166367,
+        166511
+      ],
+      "title": {
+        "rendered": "מכבי מנדל פ&quot;ת — אליצור יבנה"
+      },
+      "home": {
+        "team": "מכבי מנדל פ&quot;ת",
+        "points": 93,
+        "link": "https://ibasketball.co.il/team/42-%d7%9e%d7%9b%d7%91%d7%99-%d7%a4%d7%aa%d7%97-%d7%aa%d7%a7%d7%95%d7%95%d7%94-%d7%9e%d7%a0%d7%93%d7%9c/",
+        "abbr": ""
+      },
+      "away": {
+        "team": "אליצור יבנה",
+        "points": 91,
+        "link": "https://ibasketball.co.il/team/168-%d7%90%d7%9c%d7%99%d7%a6%d7%95%d7%a8-%d7%99%d7%91%d7%a0%d7%94/",
+        "abbr": ""
+      },
+      "results": {
+        "0": {
+          "outcome": "תוֹצָאָה"
+        },
+        "166367": {
+          "points": 93,
+          "one": 28,
+          "two": 26,
+          "three": 17,
+          "four": 22,
+          "outcome": "win"
+        },
+        "166511": {
+          "points": 91,
+          "one": 23,
+          "two": 17,
+          "three": 24,
+          "four": 27,
+          "outcome": "loss"
+        }
+      }
+    }
+  },
+  {
+    "seasonKey": "2025-26",
+    "regular": true,
+    "sourceUrl": "https://ibasketball.co.il/match/741755/",
+    "capturedAt": "2026-10-06",
+    "event": {
+      "id": 1207973,
+      "date": "2026-02-13T12:45:00",
+      "format": "league",
+      "stage_id": 20,
+      "teams": [
+        168288,
+        166511
+      ],
+      "title": {
+        "rendered": "א.ס. אשקלון/קרית גת — אליצור יבנה"
+      },
+      "home": {
+        "team": "א.ס. אשקלון/קרית גת",
+        "points": 89,
+        "link": "https://ibasketball.co.il/team/3043-%d7%90-%d7%a1-%d7%90%d7%a9%d7%a7%d7%9c%d7%95%d7%9f-%d7%a7%d7%a8%d7%99%d7%aa-%d7%92%d7%aa/",
+        "abbr": ""
+      },
+      "away": {
+        "team": "אליצור יבנה",
+        "points": 93,
+        "link": "https://ibasketball.co.il/team/168-%d7%90%d7%9c%d7%99%d7%a6%d7%95%d7%a8-%d7%99%d7%91%d7%a0%d7%94/",
+        "abbr": ""
+      },
+      "results": {
+        "0": {
+          "outcome": "תוֹצָאָה"
+        },
+        "166511": {
+          "points": 93,
+          "ot": 11,
+          "one": 16,
+          "two": 27,
+          "three": 21,
+          "four": 18,
+          "outcome": "win"
+        },
+        "168288": {
+          "points": 89,
+          "ot": 7,
+          "one": 26,
+          "two": 22,
+          "three": 20,
+          "four": 14,
+          "outcome": "loss"
+        }
+      }
+    }
+  },
+  {
+    "seasonKey": "2025-26",
+    "regular": true,
+    "sourceUrl": "https://ibasketball.co.il/match/741604/",
+    "capturedAt": "2026-10-06",
+    "event": {
+      "id": 1198672,
+      "date": "2025-11-21T13:00:00",
+      "format": "league",
+      "stage_id": 1,
+      "teams": [
+        167423,
+        166367
+      ],
+      "title": {
+        "rendered": "הפועל אסטרל אילת — מכבי מנדל פ&quot;ת"
+      },
+      "home": {
+        "team": "הפועל אסטרל אילת",
+        "points": 104,
+        "link": "https://ibasketball.co.il/team/1278-%d7%94%d7%a4%d7%95%d7%a2%d7%9c-%d7%90%d7%99%d7%9c%d7%aa/",
+        "abbr": ""
+      },
+      "away": {
+        "team": "מכבי מנדל פ&quot;ת",
+        "points": 89,
+        "link": "https://ibasketball.co.il/team/42-%d7%9e%d7%9b%d7%91%d7%99-%d7%a4%d7%aa%d7%97-%d7%aa%d7%a7%d7%95%d7%95%d7%94-%d7%9e%d7%a0%d7%93%d7%9c/",
+        "abbr": ""
+      },
+      "results": {
+        "0": {
+          "outcome": "תוֹצָאָה"
+        },
+        "166367": {
+          "points": 89,
+          "one": 15,
+          "two": 29,
+          "three": 25,
+          "four": 20,
+          "outcome": "loss"
+        },
+        "167423": {
+          "points": 104,
+          "one": 27,
+          "two": 21,
+          "three": 32,
+          "four": 24,
+          "outcome": "win"
+        }
+      }
+    }
+  },
+  {
+    "seasonKey": "2025-26",
+    "regular": false,
+    "sourceUrl": "https://ibasketball.co.il/match/778708/",
+    "capturedAt": "2026-10-06",
+    "event": {
+      "id": 1399085,
+      "date": "2026-05-03T18:00:00",
+      "format": "league",
+      "stage_id": 1,
+      "teams": [
+        166345,
+        166934
+      ],
+      "title": {
+        "rendered": "עירוני נהריה — א.ס רמה&quot;ש ירק השדה"
+      },
+      "home": {
+        "team": "עירוני נהריה",
+        "points": 90,
+        "link": "https://ibasketball.co.il/team/26-%d7%94%d7%a4%d7%95%d7%a2%d7%9c-%d7%a0%d7%94%d7%a8%d7%99%d7%94/",
+        "abbr": ""
+      },
+      "away": {
+        "team": "א.ס רמה&quot;ש ירק השדה",
+        "points": 60,
+        "link": "https://ibasketball.co.il/team/585-%d7%90-%d7%a1-%d7%a8%d7%9e%d7%94%d7%a9-%d7%99%d7%a8%d7%a7-%d7%94%d7%a9%d7%93%d7%94/",
+        "abbr": ""
+      },
+      "results": {
+        "0": {
+          "outcome": "תוֹצָאָה"
+        },
+        "166345": {
+          "points": 90,
+          "one": 30,
+          "two": 26,
+          "three": 15,
+          "four": 19,
+          "outcome": "win"
+        },
+        "166934": {
+          "points": 60,
+          "one": 15,
+          "two": 10,
+          "three": 17,
+          "four": 18,
+          "outcome": "loss"
+        }
+      }
+    }
+  },
+  {
+    "seasonKey": "2026-27",
+    "regular": true,
+    "sourceUrl": "https://ibasketball.co.il/match/779093/",
+    "capturedAt": "2026-10-06",
+    "event": {
+      "id": 1502015,
+      "date": "2026-10-13T18:30:00",
+      "format": "league",
+      "stage_id": 1,
+      "teams": [
+        168902,
+        167106
+      ],
+      "title": {
+        "rendered": "אליצור שומרון — אליצור נתניה"
+      },
+      "home": {
+        "team": "אליצור שומרון",
+        "points": null,
+        "link": "https://ibasketball.co.il/team/4083-%d7%90%d7%9c%d7%99%d7%a6%d7%95%d7%a8-%d7%a9%d7%95%d7%9e%d7%a8%d7%95%d7%9f-%d7%97%d7%9c%d7%a4/",
+        "abbr": ""
+      },
+      "away": {
+        "team": "אליצור נתניה",
+        "points": null,
+        "link": "https://ibasketball.co.il/team/788-%d7%90%d7%9c%d7%99%d7%a6%d7%95%d7%a8-%d7%a0%d7%aa%d7%a0%d7%99%d7%94-%d7%a2%d7%99%d7%a8%d7%95%d7%a0%d7%99/",
+        "abbr": ""
+      },
+      "results": {
+        "0": {
+          "one": "רבע 1",
+          "two": "רבע 2",
+          "three": "רבע 3",
+          "four": "רבע 4",
+          "ot": "הארכה",
+          "points": "תוצאה",
+          "outcome": "תוֹצָאָה"
+        },
+        "167106": {
+          "points": 0
+        },
+        "168902": {
+          "points": 0
+        }
+      }
+    }
+  },
+  {
+    "seasonKey": "2026-27",
+    "regular": true,
+    "sourceUrl": "https://ibasketball.co.il/match/779100/",
+    "capturedAt": "2026-10-06",
+    "event": {
+      "id": 1502029,
+      "date": "2026-10-20T19:00:00",
+      "format": "league",
+      "stage_id": 2,
+      "teams": [
+        168948,
+        167225
+      ],
+      "title": {
+        "rendered": "הפועל חיפה נווה שאנן שובל — עירוני אשקלון"
+      },
+      "home": {
+        "team": "הפועל חיפה נווה שאנן שובל",
+        "points": null,
+        "link": "https://ibasketball.co.il/team/4153-%d7%94%d7%a4%d7%95%d7%a2%d7%9c-%d7%97%d7%99%d7%a4%d7%94-%d7%a0%d7%95%d7%95%d7%94-%d7%a9%d7%90%d7%a0%d7%9f/",
+        "abbr": ""
+      },
+      "away": {
+        "team": "עירוני אשקלון",
+        "points": null,
+        "link": "https://ibasketball.co.il/team/920-%d7%a2%d7%99%d7%a8%d7%95%d7%a0%d7%99-%d7%90%d7%a9%d7%a7%d7%9c%d7%95%d7%9f/",
+        "abbr": ""
+      },
+      "results": {
+        "0": {
+          "one": "רבע 1",
+          "two": "רבע 2",
+          "three": "רבע 3",
+          "four": "רבע 4",
+          "ot": "הארכה",
+          "points": "תוצאה",
+          "outcome": "תוֹצָאָה"
+        },
+        "167225": {
+          "points": 0
+        },
+        "168948": {
+          "points": 0
+        }
+      }
+    }
+  },
+  {
+    "seasonKey": "2026-27",
+    "regular": true,
+    "sourceUrl": "https://ibasketball.co.il/match/779246/",
+    "capturedAt": "2026-10-06",
+    "event": {
+      "id": 1502248,
+      "date": "2027-02-02T18:30:00",
+      "format": "league",
+      "stage_id": 20,
+      "teams": [
+        166409,
+        167225
+      ],
+      "title": {
+        "rendered": "מכבי רחובות — עירוני אשקלון"
+      },
+      "home": {
+        "team": "מכבי רחובות",
+        "points": null,
+        "link": "https://ibasketball.co.il/team/75-%d7%9e%d7%9b%d7%91%d7%99-%d7%a8%d7%97%d7%95%d7%91%d7%95%d7%aa/",
+        "abbr": ""
+      },
+      "away": {
+        "team": "עירוני אשקלון",
+        "points": null,
+        "link": "https://ibasketball.co.il/team/920-%d7%a2%d7%99%d7%a8%d7%95%d7%a0%d7%99-%d7%90%d7%a9%d7%a7%d7%9c%d7%95%d7%9f/",
+        "abbr": ""
+      },
+      "results": {
+        "0": {
+          "one": "רבע 1",
+          "two": "רבע 2",
+          "three": "רבע 3",
+          "four": "רבע 4",
+          "ot": "הארכה",
+          "points": "תוצאה",
+          "outcome": "תוֹצָאָה"
+        },
+        "166409": {
+          "points": 0
+        },
+        "167225": {
+          "points": 0
+        }
+      }
+    }
+  }
+]

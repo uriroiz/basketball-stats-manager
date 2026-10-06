@@ -35,6 +35,16 @@ async function run() {
   assert.strictEqual(r.games.length,101);
   assert(urls.every(u=>u.includes('seasons=119888')&&u.includes('leagues=119894')));
   const future=a.convertToInternalFormat({id:1,teams:[10,20],date:'2026-10-13',title:{rendered:'Home — Away'},performance:''});
+  assert.strictEqual(future.roundVerified,false,'unknown round is never inferred');
+  assert.strictEqual(future.roundNumber,null);
+  assert.strictEqual(historical.convertToInternalFormat({...deletedTeamGame,format:'league',stage_id:1}).roundVerified,false,'parent league mixes later stages: round needs table filter');
+  const regular=a.convertToInternalFormat({id:4,teams:[10,20],date:'2026-10-13',format:'league',stage_id:2,title:{rendered:'Home — Away'},sp_teams:{10:{pbc:0}}});
+  assert.strictEqual(regular.roundNumber,2);
+  assert.strictEqual(regular.competitionPhase,'regular');
+  assert.strictEqual(regular.roundVerified,true);
+  const strange=a.convertToInternalFormat({id:4,teams:[10,20],format:'cup',stage_id:999,title:{rendered:'Home — Away'}});
+  assert.strictEqual(strange.roundVerified,false,'unverified competition cannot supply comparable round');
+  assert.ok(!future.availableMetrics.includes('pointsBench'),'missing advanced values are not evidence');
   assert.strictEqual(future.homeScore,null);
   assert.strictEqual(future.hasResult,false);
   assert.strictEqual(future.hasPlayerStats,false);
