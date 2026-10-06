@@ -7,7 +7,7 @@
   const evidence=game=>({seasonKey:game.seasonKey,gameId:game.gameId,sourceUrl:game.permalink,fields:['date','teams','results','stage_id']});
   const gameText=game=>`${game.teams[0].name} ${game.teams[0].score} — ${game.teams[1].score} ${game.teams[1].name}`;
   function make(type,season,teams,facts,text,games,extras={}) {
-    return {id:`${type}:${season}:${teams.join(',')}:${games.map(g=>g.gameId).join(',')}:${extras.playerRef||''}`,
+    return {id:`${type}:${season}:${teams.join(',')}:${games.map(g=>g.gameId).join(',')}:${extras.playerRef||''}:${extras.historicalTeam||''}`,
       type,category:type.includes('PLAYER')?'PLAYERS':type.includes('MEETING')||type.includes('H2H')?'H2H':type.includes('OFFICIAL')?'BACKGROUND':'ROUND',scope:'historical',seasonKeys:[season],teamIds:teams,
       playerRef:null,historicalTeam:null,roundWindow:null,sampleSize:games.length,facts,evidence:games.map(evidence),dataState:'ready',text,broadcastShort:text,priority:type==='LAST_HISTORICAL_MEETING'?95:75,...extras};
   }

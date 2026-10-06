@@ -24,6 +24,11 @@
           ]);
           const resultGames=unique(data.scheduleGames).filter(g=>g.seasonKey===season.key&&g.hasResult);
           const regularGames=unique(regular.scheduleGames).filter(g=>g.seasonKey===season.key&&g.roundVerified&&g.competitionPhase==='regular');
+          const regularById=new Map(regularGames.map(g=>[String(g.gameId),g]));
+          const statGames=resultGames.filter(g=>g.hasPlayerStats).map(g=>{
+            const verified=regularById.get(String(g.gameId));
+            return verified?{...g,roundNumber:verified.roundNumber,roundLabel:verified.roundLabel,roundVerified:true,competitionPhase:'regular'}:g;
+          });
           const comparable=match.roundVerified&&match.competitionPhase==='regular';
           const beforeRoundGames=comparable?regularGames.filter(g=>g.hasResult&&g.roundNumber<match.roundNumber):[];
           const sameRoundGames=comparable?regularGames.filter(g=>g.hasResult&&g.roundNumber===match.roundNumber):[];
@@ -33,7 +38,7 @@
           }));
           return {seasonKey:season.key,state:data.complete&&regular.complete?'ready':'partial',failedMonths:[...new Set([...(data.failedMonths||[]),...(regular.failedMonths||[])])],
             coverage:{transportComplete:data.complete&&regular.complete,roundWindowComplete:Boolean(complete),phaseVerified:Boolean(comparable&&regularGames.length)},
-            resultGames,statGames:resultGames.filter(g=>g.hasPlayerStats),sameRoundGames,beforeRoundGames,regularGames};
+            resultGames,statGames,sameRoundGames,beforeRoundGames,regularGames};
         }catch(error){return {seasonKey:season.key,state:'error',error:error.message,failedMonths:[],coverage:{transportComplete:false,roundWindowComplete:false,phaseVerified:false},resultGames:[],statGames:[],sameRoundGames:[],beforeRoundGames:[],regularGames:[]};}
       }));
       return {match,asOf,currentComplete:Boolean(current?.complete),

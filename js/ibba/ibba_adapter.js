@@ -321,12 +321,14 @@ class IBBAAdapter {
       teams: [
         {
           teamId: homeTeamId,
+          profileUrl: window.IBBATeamSummaries?.profile(ibbaGame.home?.link) || ibbaGame.home?.link || null,
           name: this.decodeHtmlEntities(homeTeamName),
           isHome: true,
           score: homeScore
         },
         {
           teamId: awayTeamId,
+          profileUrl: window.IBBATeamSummaries?.profile(ibbaGame.away?.link) || ibbaGame.away?.link || null,
           name: this.decodeHtmlEntities(awayTeamName),
           isHome: false,
           score: awayScore
@@ -367,7 +369,8 @@ class IBBAAdapter {
     // The official league table labels stage_id as מחזור. Only the documented
     // regular-season window is comparable; later stages are not inferred.
     const maximum = this.seasonKey === '2024-25' ? 26 : 30;
-    const phaseKnown = this.seasonKey === '2026-27' || this.regularOnly;
+    const definition=window.IBBASeasons?.getSeason(this.seasonKey);
+    const phaseKnown = Boolean(this.regularOnly&&definition?.regularTableId) || definition?.verifiedRegularRounds?.[event.id]===round;
     const verified = phaseKnown && event.format === 'league' && Number.isInteger(round) && round > 0 && round <= maximum;
     return {roundNumber:verified ? round : null, roundLabel:verified ? `מחזור ${round}` : null,
       roundVerified:verified, competitionPhase:verified ? 'regular' : 'unknown'};

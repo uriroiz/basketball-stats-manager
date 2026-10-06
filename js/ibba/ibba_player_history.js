@@ -98,6 +98,16 @@
         if(String(player.id)===String(id))this.registerPlayer(player);
       } catch(_) { /* An unresolved identity must never fall back to a name. */ }
     }
+    async resolveReference(ref) {
+      const key=this.identity(ref);if(!key)return;
+      if(key.startsWith('post:'))return this.resolvePlayer(key.slice(5));
+      const slug=key.slice('profile:/player/'.length);
+      try {
+        const adapter=new window.IBBAAdapter();
+        const players=await adapter.fetchJsonWithProxyFallback(`https://ibasketball.co.il/wp-json/sportspress/v2/players?slug=${encodeURIComponent(slug)}`);
+        for(const player of Array.isArray(players)?players:[])if(playerRef(player.link)===key)this.registerPlayer(player);
+      }catch(_){ /* A missing official bridge leaves game appearances unverified. */ }
+    }
     static insights(records) {
       const insights=records.map(r=>`${r.name}: בעונת ${r.seasonLabel} שיחק/ה ב${r.team || 'קבוצה שלא צוינה'}; ${r.games ?? '—'} משחקים${r.points == null ? '' : `, ${r.points} נקודות בממוצע לפי האיגוד`}.`);
       // Called for one verified player. Multiple team splits must not be compared as season totals.

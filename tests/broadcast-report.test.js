@@ -21,6 +21,8 @@ async function run(){
  const ready={...r,historicalInsights:[story('x')],topStories:[story('x')],historicalContext:{state:'ready',records:[],statuses:[]}};
  const rows=B.exportRows(ready);assert(rows.some(row=>row.includes('2025/26 story x')));assert(rows.some(row=>row.includes('https://ibasketball.co.il/league/2025-2/')));
  const before=JSON.stringify(ready);B.exportRows(ready);assert.strictEqual(JSON.stringify(ready),before,'export never mutates report snapshot');
+ const current=B.compose({...r,context:{...ctx,currentGames:[{gameId:8,seasonKey:match.seasonKey,teams:match.teams,permalink:'https://ibasketball.co.il/match/8'}]},currentSeason:{insightsV2:{TEAM:[{type:'TEST',text:'H won 1 game',teamName:'H'}]}}});
+ assert(current.topStories[0].evidence.length,'current broadcast story retains source evidence');
  const error=await B.build(match,{contextService:{load:async()=>({...ctx,currentGames:[{teams:match.teams}]} )},currentReportBuilder:async()=>{throw Error('standings offline');}});
  assert.strictEqual(error.currentSeason,null);assert(error.sourceStatuses.some(s=>s.state==='error'));
  console.log('broadcast report tests passed');

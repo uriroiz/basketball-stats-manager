@@ -53,6 +53,7 @@
         <thead><tr>${['שחקן','עונה','קבוצה בעונה','משחקים','דקות','נקודות','ריבאונדים','אסיסטים','מקור'].map(h=>`<th scope="col" class="p-3 text-right border-b">${h}</th>`).join('')}</tr></thead>
         <tbody>${records.map(r=>`<tr>${[r.name,r.seasonLabel,r.team,r.games,r.minutes,r.points,r.rebounds,r.assists].map(v=>`<td class="p-3 border-b">${escape(v??'—')}</td>`).join('')}<td class="p-3 border-b"><a class="text-blue-700 underline" href="${escape(r.sourceUrl)}" target="_blank" rel="noopener">איגוד הכדורסל</a></td></tr>`).join('')}</tbody></table></div>
         ${this.selected&&!loading?`<div class="mt-4"><h4 class="font-semibold">הקשר היסטורי לשידור</h4>${window.IBBAPlayerHistory.insights(records).map(t=>`<p class="my-2">${escape(t)}</p>`).join('')}</div>`:''}
+        ${this.selected&&window.IBBASeasons.canPrepareSeason(this.key)&&this.panel.id==='playerHistoryPrep'?'<button type="button" class="history-add-broadcast border rounded p-2 mt-3">הוסף שחקן להכנה לשידור</button>':''}
       </div>`;
       this.panel.querySelector('.history-search').addEventListener('input',event=>{
         this.query=event.target.value;
@@ -62,6 +63,7 @@
       });
       this.panel.querySelector('.history-player').addEventListener('change',event=>{this.selected=event.target.value||null;this.render();});
       this.panel.querySelector('.history-retry').addEventListener('click',()=>this.load(true));
+      this.panel.querySelector('.history-add-broadcast')?.addEventListener('click',()=>window.addPlayerToBroadcast?.(this.selected));
     }
   }
   window.IBBAHistoryView=IBBAHistoryView;

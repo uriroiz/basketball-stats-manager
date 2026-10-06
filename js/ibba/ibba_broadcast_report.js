@@ -26,7 +26,12 @@
     }
     static compose(report,playerRefs=[]) {
       const historicalInsights=window.IBBAHistoricalInsights.generate(report.context,{playerRefs});
-      const current=Object.values(report.currentSeason?.insightsV2||{}).flat().map(i=>({...i,scope:'current',seasonKeys:[report.seasonKey],text:`בעונת ${window.IBBASeasons.getSeason(report.seasonKey).label}: ${i.text}`}));
+      const current=Object.values(report.currentSeason?.insightsV2||{}).flat().map(i=>{
+        const games=report.context.currentGames.filter(g=>!i.teamName||g.teams?.some(t=>t.name===i.teamName));
+        return {...i,scope:'current',seasonKeys:[report.seasonKey],sampleSize:Number.isFinite(i.games)?i.games:null,sourceGameCount:games.length,
+          evidence:games.map(g=>({seasonKey:g.seasonKey,gameId:g.gameId,sourceUrl:g.permalink,fields:['results','performance']})),dataState:report.context.currentComplete?'ready':'partial',
+          text:`בעונת ${window.IBBASeasons.getSeason(report.seasonKey).label}: ${i.text}`};
+      });
       return {...report,historicalContext:report.context.playerSummaries,historicalInsights,topStories:this.selectTopStories([...current,...historicalInsights]),selectedPlayerRefs:[...playerRefs]};
     }
     static exportRows(report) {
@@ -34,7 +39,7 @@
       if(!report?.historicalInsights)return rows.concat([['ההקשר ההיסטורי טרם נטען']]);
       for(const [title,stories] of [['נקודות לשידור',report.topStories],['עבר רלוונטי למשחק ולמחזור',report.historicalInsights]]) {
         rows.push([title],['משפט לשידור','עונות','מחזורים','משחקים במדגם','מצב נתונים','מקור']);
-        for(const s of stories||[])rows.push([s.text,(s.seasonKeys||[]).map(k=>window.IBBASeasons.getSeason(k)?.label||k).join(', '),s.roundWindow?.join('–')||'—',s.sampleSize??'—',s.dataState||'ready',(s.evidence||[]).map(e=>e.sourceUrl||'מקור חסר').join('\n')]);
+        for(const s of stories||[])rows.push([s.text,(s.seasonKeys||[]).map(k=>window.IBBASeasons.getSeason(k)?.label||k).join(', '),s.roundWindow?.join('–')||'—',s.sampleSize??`${s.sourceGameCount??'—'} משחקי מקור; מדגם הגלאי לא צוין`,s.dataState||'ready',(s.evidence||[]).map(e=>e.sourceUrl||'מקור חסר').join('\n')]);
       }
       if(['idle','loading'].includes(report.historicalContext?.state)||!report.historicalContext)rows.push(['ההיסטוריה טרם נטענה']);
       for(const status of report.sourceStatuses||[])if(status.state!=='ready')rows.push([window.IBBASeasons.getSeason(status.seasonKey)?.label||status.seasonKey,status.state,status.error||status.failedMonths?.join(', ')||'נתונים חלקיים']);

@@ -26,3 +26,5 @@ assert(!partial.some(i=>i.text.includes('כל המפגשים')));
 const unknown=c.window.IBBAHistoricalInsights.generate({...context,match:{...match,roundVerified:false},priorSeasons:[{...season,sameRoundGames:[]}]});
 assert(!unknown.some(i=>i.type==='HISTORICAL_ROUND_RESULT'));
 console.log('historical insights tests passed');
+const split={...context,playerSummaries:{records:[...context.playerSummaries.records,{...context.playerSummaries.records[0],team:'second team'}]}};
+assert.strictEqual(c.window.IBBAHistoricalInsights.generate(split,{playerRefs:['post:7']}).filter(i=>i.type==='PLAYER_OFFICIAL_SEASON').length,2,'official team splits retain separate stories');

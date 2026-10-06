@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="he" dir="rtl">
 <head>
   <meta charset="utf-8">
@@ -830,6 +830,7 @@
   <script src="js/ibba/ibba_player_history.js?v=1"></script>
   <script src="js/ibba/ibba_history_view.js?v=1"></script>
   <script src="js/ibba/ibba_match_context.js"></script>
+  <script src="js/ibba/ibba_team_summaries.js"></script>
   <script src="js/ibba/ibba_historical_insights.js"></script>
   <script src="js/ibba/ibba_broadcast_report.js"></script>
   <script src="js/ibba/ibba_player_names.js?v=9" defer></script>
@@ -2293,10 +2294,6 @@
       gamePrepState.initialized = true;
       if (!prepEventsBound) { setupGamePrepEventListeners(); prepEventsBound = true; }
       window.historyView?.mount(document.getElementById('playerHistoryPrep'));
-      if(window.IBBABroadcastReport) {
-        await loadBroadcastPreparation(selectedGame,analysisVersion);
-        return;
-      }
       
       console.log('✅ Game Prep initialized');
     }
@@ -2479,6 +2476,10 @@
       }
       
       window.historyView?.mount(document.getElementById('playerHistoryPrep'));
+      if(window.IBBABroadcastReport) {
+        await loadBroadcastPreparation(selectedGame,analysisVersion);
+        return;
+      }
       if (!window.activeSeasonData?.complete || !allGames.some(g=>[g.homeTeam,g.awayTeam].includes(homeTeamName)) || !allGames.some(g=>[g.homeTeam,g.awayTeam].includes(awayTeamName))) {
         document.getElementById('gameAnalysis').classList.add('hidden');
         currentAdvancedReport = {seasonKey:window.appConfig.seasonKey, gameInfo:selectedGame, historicalContext:window.historyView?.context(), insightsV2:{}};
@@ -2510,7 +2511,7 @@
 
     function renderBroadcastReport(report) {
       const panel=document.getElementById('broadcastReport');
-      const storyCard=story=>`<article class="border rounded-lg p-3 my-2 bg-white"><p class="font-medium leading-relaxed">${safeText(story.text)}</p><p class="text-sm text-gray-600 mt-2">${safeText((story.seasonKeys||[]).map(k=>window.IBBASeasons.getSeason(k)?.label||k).join(', '))} · ${safeText(story.sampleSize??'לא צוין')} משחקים במדגם${story.dataState==='partial'?' · מידע חלקי':''}</p><details class="mt-2 text-sm"><summary class="cursor-pointer text-blue-700">מקורות וראיות</summary>${(story.evidence||[]).map(e=>{const url=broadcastSourceLink(e.sourceUrl);return url?`<a href="${safeText(url)}" target="_blank" rel="noopener" class="block underline py-1">${safeText(e.gameId?`משחק ${e.gameId}`:'סיכום רשמי של האיגוד')}</a>`:'<p>מקור ישיר אינו זמין</p>';}).join('')}</details></article>`;
+      const storyCard=story=>`<article class="border rounded-lg p-3 my-2 bg-white"><p class="font-medium leading-relaxed">${safeText(story.text)}</p><p class="text-sm text-gray-600 mt-2">${safeText((story.seasonKeys||[]).map(k=>window.IBBASeasons.getSeason(k)?.label||k).join(', '))} · ${story.sampleSize==null?`${safeText(story.sourceGameCount??'לא צוין')} משחקי מקור; מדגם הגלאי לא צוין`:`${safeText(story.sampleSize)} משחקים במדגם`}${story.dataState==='partial'?' · מידע חלקי':''}</p><details class="mt-2 text-sm"><summary class="cursor-pointer text-blue-700">מקורות וראיות</summary>${(story.evidence||[]).map(e=>{const url=broadcastSourceLink(e.sourceUrl);return url?`<a href="${safeText(url)}" target="_blank" rel="noopener" class="block underline py-1">${safeText(e.gameId?`משחק ${e.gameId}`:'סיכום רשמי של האיגוד')}</a>`:'<p>מקור ישיר אינו זמין</p>';}).join('')}</details></article>`;
       const history=report.historicalInsights||[];
       const sections=[['עבר רלוונטי למשחק',history.filter(i=>!['ROUND'].includes(i.category))],['הקשר למחזור',history.filter(i=>i.category==='ROUND')]];
       panel.innerHTML=`<h3 class="font-bold text-lg mb-2">נקודות לשידור</h3><p class="text-sm text-gray-600">עובדות מהמקורות שנבדקו. היסטוריה אינה מעידה על הסגל או הכושר הנוכחי.</p>${(report.topStories||[]).map(storyCard).join('')||'<p class="py-3">לא נמצאו עדיין סיפורים מאומתים למשחק במקורות הזמינים.</p>'}
@@ -2518,9 +2519,14 @@
         ${(report.sourceStatuses||[]).filter(s=>s.state!=='ready').map(s=>`<p role="status" class="text-amber-800 my-2">${safeText(window.IBBASeasons.getSeason(s.seasonKey)?.label||s.seasonKey)}: ${safeText(s.error||'נתונים חלקיים')} ${safeText((s.failedMonths||[]).join(', '))}</p>`).join('')}
         <p role="status" aria-live="polite" class="my-2">${['idle','loading'].includes(report.historicalContext?.state)?'סיכומי שחקנים ורקע קבוצתי עדיין נטענים…':''}</p>
         ${sections.map(([title,items])=>`<details class="border-t py-3" open><summary class="font-bold cursor-pointer">${title} (${items.length})</summary>${items.map(storyCard).join('')||'<p class="my-2">לא נמצא מידע מאומת במקורות שנבדקו.</p>'}</details>`).join('')}
-        ${(report.selectedPlayerRefs||[]).length?'<p class="text-sm my-2">שחקנים שנבחרו בידי השדרן — הבחירה אינה מאשרת סגל נוכחי.</p>':''}
+        ${(report.selectedPlayerRefs||[]).length?`<p class="text-sm my-2">שחקנים שנבחרו בידי השדרן — הבחירה אינה מאשרת סגל נוכחי.</p>${report.selectedPlayerRefs.map(ref=>`<button type="button" data-remove-player="${safeText(ref)}" class="border rounded px-3 py-2 m-1">הסר ${safeText(report.context?.playerSummaries?.records?.find(r=>report.context.identity(r.playerRef)===ref)?.name||ref)}</button>`).join('')}`:''}
         <button type="button" onclick="refreshBroadcastPreparation()" class="border rounded px-3 py-2 mt-3">נסה שוב / רענן מקורות</button>`;
       panel.classList.remove('hidden');
+      panel.querySelectorAll('[data-remove-player]').forEach(button=>button.addEventListener('click',()=>{
+        window.selectedBroadcastPlayers=(window.selectedBroadcastPlayers||[]).filter(ref=>ref!==button.dataset.removePlayer);
+        currentAdvancedReport=window.IBBABroadcastReport.compose(currentAdvancedReport,window.selectedBroadcastPlayers);
+        renderBroadcastReport(currentAdvancedReport);
+      }));
     }
 
     async function loadBroadcastPreparation(match,version=reportVersion,refresh=false) {
@@ -2531,7 +2537,15 @@
         if(version!==reportVersion)return false;
         currentAdvancedReport={...(report.currentSeason||{}),...report,insightsV2:report.currentSeason?.insightsV2||{}};
         renderBroadcastReport(currentAdvancedReport);document.getElementById('prepExport').disabled=false;
-        if(report.currentSeason){document.getElementById('gameAnalysis').classList.remove('hidden');displayAdvancedAnalysis(report.currentSeason);}
+        if(report.currentSeason){
+          const savedGames=allGames,savedAnalytics=window.ibbaAnalytics;
+          try {
+            allGames=report.context.currentGames;window.ibbaAnalytics=new window.IBBAAnalytics(allGames);
+            loadTeamAverages(match.homeTeam,match.awayTeam);loadLastFiveGames(match.homeTeam,match.awayTeam);
+            loadHeadToHeadHistory(match.homeTeam,match.awayTeam);loadPlayersForComparison(match.homeTeam,match.awayTeam);
+          }finally{allGames=savedGames;window.ibbaAnalytics=savedAnalytics;}
+          document.getElementById('gameAnalysis').classList.remove('hidden');displayAdvancedAnalysis(report.currentSeason);
+        }
         else document.getElementById('gameAnalysis').classList.add('hidden');
         return true;
       };
@@ -2562,8 +2576,11 @@
       return loadBroadcastPreparation(match,++reportVersion,true);
     }
 
-    window.addPlayerToBroadcast=function(ref) {
+    window.addPlayerToBroadcast=async function(ref) {
       if(!currentAdvancedReport?.context)return;
+      const version=reportVersion;
+      await window.historyView.service.resolveReference(ref);
+      if(version!==reportVersion||!currentAdvancedReport?.context)return;
       const identity=window.historyView.service.identity(ref);if(!identity)return;
       window.selectedBroadcastPlayers=[...new Set([...(window.selectedBroadcastPlayers||[]),identity])];
       const report=window.IBBABroadcastReport.compose(currentAdvancedReport,window.selectedBroadcastPlayers);
@@ -3609,6 +3626,7 @@
 
       Object.keys(insightsV2).forEach(category => {
         insightsV2[category].forEach(insight => {
+          if(insight.scope==='historical'||insight.type==='COMEBACK_KINGS')return;
           const mapping = insightTypeToTemplate[insight.type];
           if (mapping) {
             try {
@@ -3640,6 +3658,10 @@
       
       // Regenerate texts with new random template variations
       regenerateInsightTexts(currentAdvancedReport.insightsV2);
+      if(currentAdvancedReport.context&&window.IBBABroadcastReport) {
+        currentAdvancedReport=window.IBBABroadcastReport.compose(currentAdvancedReport,window.selectedBroadcastPlayers||[]);
+        renderBroadcastReport(currentAdvancedReport);
+      }
       
       // Display the updated insights
       displayInsightsV2(currentAdvancedReport.insightsV2);
@@ -3671,8 +3693,8 @@
         excelData.push(['מועד מתוכנן',new Date(match.date).toLocaleString('he-IL')]);
         excelData.push(['מקור המשחק',match.permalink||'לא זמין']);
       }
-      currentAdvancedReport.historicalContext = window.historyView.context();
-      excelData.push(...window.IBBAPlayerHistory.exportRows(currentAdvancedReport.historicalContext));
+      excelData.push(...window.IBBAPlayerHistory.exportRows(exportReport.historicalContext));
+      if(window.IBBABroadcastReport)excelData.push(...window.IBBABroadcastReport.exportRows(exportReport));
       
       // Get team names
       const homeTeamName = gamePrepState.homeTeamName || 'קבוצת בית';

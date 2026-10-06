@@ -33,5 +33,9 @@ async function run(){
  const exportData=H.exportRows({seasonKey:'2026-27',state:'loading',records:[],statuses:[]});
  assert(exportData.some(row=>row.includes('ההיסטוריה טרם נטענה')));
  console.log('player history tests passed');
+ const lookup=new H();c.window.IBBAAdapter=function(){this.fetchJsonWithProxyFallback=async()=>[{id:777,link:'https://ibasketball.co.il/player/verified/'},{id:888,link:'https://ibasketball.co.il/player/different/'}];};
+ await lookup.resolveReference('profile:/player/verified');
+ assert.strictEqual(lookup.identity({playerId:777}),'profile:/player/verified');
+ assert.strictEqual(lookup.identity({playerId:888}),'post:888','unrelated returned profile cannot become an alias');
 }
 run().catch(e=>{console.error(e);process.exit(1);});

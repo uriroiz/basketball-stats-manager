@@ -38,8 +38,9 @@ async function run() {
   assert.strictEqual(future.roundVerified,false,'unknown round is never inferred');
   assert.strictEqual(future.roundNumber,null);
   assert.strictEqual(historical.convertToInternalFormat({...deletedTeamGame,format:'league',stage_id:1}).roundVerified,false,'parent league mixes later stages: round needs table filter');
-  const regular=a.convertToInternalFormat({id:4,teams:[10,20],date:'2026-10-13',format:'league',stage_id:2,title:{rendered:'Home — Away'},sp_teams:{10:{pbc:0}}});
-  assert.strictEqual(regular.roundNumber,2);
+  assert.strictEqual(a.convertToInternalFormat({id:99999999,teams:[10,20],format:'league',stage_id:1}).roundVerified,false,'new later-stage events are not in audited regular schedule');
+  const regular=a.convertToInternalFormat({id:1502015,teams:[10,20],date:'2026-10-13',format:'league',stage_id:1,title:{rendered:'Home — Away'},sp_teams:{10:{pbc:0}}});
+  assert.strictEqual(regular.roundNumber,1);
   assert.strictEqual(regular.competitionPhase,'regular');
   assert.strictEqual(regular.roundVerified,true);
   const strange=a.convertToInternalFormat({id:4,teams:[10,20],format:'cup',stage_id:999,title:{rendered:'Home — Away'}});

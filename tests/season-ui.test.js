@@ -73,7 +73,7 @@ async function run(){
  let zipRelease,downloadName,exportRows;
  const zipPending=new Promise(r=>zipRelease=r);
  c.window.historyView={context:()=>({state:'loading',records:[],statuses:[]})};
- c.window.IBBAPlayerHistory={exportRows:()=>[['history loading']]};
+ c.window.IBBAPlayerHistory={exportRows:context=>{assert.strictEqual(context?.state,'loading','export uses report history snapshot');return [['history loading']];}};
  c.XLSX={utils:{book_new:()=>({SheetNames:['הכנה למשחק']}),aoa_to_sheet:rows=>{exportRows=rows;return{};},book_append_sheet(){}},write:()=>new Uint8Array()};
  c.JSZip={loadAsync:()=>zipPending};c.alert=message=>{throw new Error(message);};
  c.URL={createObjectURL:()=> 'blob:test',revokeObjectURL(){}};
@@ -81,7 +81,7 @@ async function run(){
  document.getElementById('homeTeamSelect').selectedOptions=[{text:'original home'}];
  document.getElementById('awayTeamSelect').selectedOptions=[{text:'original away'}];
  c.window.appConfig.seasonLabel='2026/27';
- vm.runInContext("currentAdvancedReport={gameInfo:{date:'2026-10-13',homeTeam:'original home',awayTeam:'original away',permalink:'https://ibasketball.co.il/match/source'},insightsV2:{}};",c);
+ vm.runInContext("currentAdvancedReport={historicalContext:{state:'loading',records:[],statuses:[]},gameInfo:{date:'2026-10-13',homeTeam:'original home',awayTeam:'original away',permalink:'https://ibasketball.co.il/match/source'},insightsV2:{}};",c);
  const exporting=vm.runInContext('exportInsightsToExcel()',c);
  document.getElementById('homeTeamSelect').selectedOptions=[{text:'new home'}];
  vm.runInContext('currentAdvancedReport=null',c);
@@ -128,5 +128,19 @@ async function run(){
  assert(document.getElementById('broadcastReport').innerHTML.includes('2025/26 official story'),'historical stories visible without current stats');
  assert(document.getElementById('broadcastReport').innerHTML.includes('https://ibasketball.co.il/match/1'),'story source visible');
  console.log('season UI tests passed');
+ c.window.loadUpcomingGames=async()=>{};
+ vm.runInContext("currentTab='gamePrep'",c);
+ await vm.runInContext('initGamePrep()',c);
+ let populated=0;for(const name of ['loadTeamAverages','loadLastFiveGames','loadHeadToHeadHistory','loadPlayersForComparison'])c[name]=()=>populated++;
+ c.window.IBBAAnalytics=function(games){this.games=games;};
+ c.displayAdvancedAnalysis=()=>{};
+ c.window.IBBABroadcastReport.build=async()=>({currentSeason:{insightsV2:{}},context:{currentGames:[{gameId:777}]},historicalInsights:[],topStories:[],sourceStatuses:[]});
+ delete c.window.matchContextService;
+ await vm.runInContext("loadBroadcastPreparation({homeTeam:'H',awayTeam:'A'},reportVersion)",c);
+ assert.strictEqual(populated,4,'current analysis retains all existing preparation panels');
+ c.window.IBBAInsightTemplates={getRandomText:()=> 'unsafe comeback wording'};
+ const comeback={type:'COMEBACK_KINGS',text:'verified quarter-end qualifier'};
+ c.regenerateInsightTexts({TEAM:[comeback]});
+ assert.strictEqual(comeback.text,'verified quarter-end qualifier','wording must preserve evidence-sensitive comeback qualifier');
 }
 run().catch(e=>{console.error(e);process.exit(1);});

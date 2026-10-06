@@ -12,3 +12,18 @@ assert.strictEqual(engine.detectBestQuarter('H',Array.from({length:6},()=>({...g
 const insights={PLAYERS:[{teamName:'H',importance:'high'},{teamName:'A',importance:'low'}]};
 assert.strictEqual(engine.getTopInsights(insights)[0].importance,'high');
 console.log('insights regression tests passed');
+vm.runInNewContext(fs.readFileSync('js/ibba/ibba_advanced.js','utf8'),c);
+assert.strictEqual(c.window.IBBAAdvanced.comparisonAdvantage(80,80,'H','A'),null,'ties have no advantage');
+assert.strictEqual(c.window.IBBAAdvanced.comparisonAdvantage(null,80,'H','A'),null,'missing value has no advantage');
+(async()=>{
+ c.window.IBBAInsightsV2=null;
+ c.sessionStorage={getItem:()=>null};
+ const advanced=new c.window.IBBAAdvanced({getTeamAverages:()=>[{teamName:'H',ppg:null,oppPpg:null},{teamName:'A',ppg:80,oppPpg:75}],getTeamHomeAwayRecords:()=>({})});
+ advanced.standingsLoaded=true;advanced.getAdvancedTeamMetrics=()=>({H:{tsPct:null,pace:null},A:{tsPct:50,pace:70}});
+ advanced.getTeamTrends=()=>({});advanced.getH2HHistory=()=>({});advanced.getLeagueStandings=()=>[];
+ advanced.generateInsights=()=>[];advanced.buildNarrative=()=>'';
+ const report=await advanced.buildMatchupReport('H','A');
+ assert.strictEqual(report.comparison.defense.advantage,null,'missing source cannot earn defensive advantage');
+ assert.strictEqual(report.comparison.offense.teamAPpg,null,'missing comparison input stays missing');
+ assert.strictEqual(report.comparison.pace.expectedPace,null,'missing pace is not averaged with zero');
+})().catch(error=>{console.error(error);process.exit(1)});

@@ -6,6 +6,10 @@
  */
 
 class IBBAAdvanced {
+  static comparisonAdvantage(a,b,teamA,teamB,lower=false) {
+    if(a==null||b==null||!Number.isFinite(a)||!Number.isFinite(b)||a===b)return null;
+    return (lower?a<b:a>b)?teamA:teamB;
+  }
   constructor(analytics) {
     const config = window.appConfig || {};
     this.analytics = analytics;
@@ -885,35 +889,36 @@ class IBBAAdvanced {
     const homeAwayA = homeAwayRecords[teamA] || null;
     const homeAwayB = homeAwayRecords[teamB] || null;
 
+    const metric=value=>value==null||value===''||!Number.isFinite(Number(value))?null:Number(value);
     // Build comparison
     const comparison = {
       offense: {
-        teamAPpg: parseFloat(teamAStats?.ppg || 0),
-        teamBPpg: parseFloat(teamBStats?.ppg || 0),
+        teamAPpg: metric(teamAStats?.ppg),
+        teamBPpg: metric(teamBStats?.ppg),
         advantage: null
       },
       defense: {
-        teamAOppPpg: parseFloat(teamAStats?.oppPpg || 0),
-        teamBOppPpg: parseFloat(teamBStats?.oppPpg || 0),
+        teamAOppPpg: metric(teamAStats?.oppPpg),
+        teamBOppPpg: metric(teamBStats?.oppPpg),
         advantage: null
       },
       efficiency: {
-        teamATS: parseFloat(teamAAdv?.tsPct || 0),
-        teamBTS: parseFloat(teamBAdv?.tsPct || 0),
+        teamATS: metric(teamAAdv?.tsPct),
+        teamBTS: metric(teamBAdv?.tsPct),
         advantage: null
       },
       pace: {
-        teamAPace: parseFloat(teamAAdv?.pace || 0),
-        teamBPace: parseFloat(teamBAdv?.pace || 0),
+        teamAPace: metric(teamAAdv?.pace),
+        teamBPace: metric(teamBAdv?.pace),
         expectedPace: 0
       }
     };
 
     // Calculate advantages
-    comparison.offense.advantage = comparison.offense.teamAPpg > comparison.offense.teamBPpg ? teamA : teamB;
-    comparison.defense.advantage = comparison.defense.teamAOppPpg < comparison.defense.teamBOppPpg ? teamA : teamB;
-    comparison.efficiency.advantage = comparison.efficiency.teamATS > comparison.efficiency.teamBTS ? teamA : teamB;
-    comparison.pace.expectedPace = ((comparison.pace.teamAPace + comparison.pace.teamBPace) / 2).toFixed(1);
+    comparison.offense.advantage = IBBAAdvanced.comparisonAdvantage(comparison.offense.teamAPpg,comparison.offense.teamBPpg,teamA,teamB);
+    comparison.defense.advantage = IBBAAdvanced.comparisonAdvantage(comparison.defense.teamAOppPpg,comparison.defense.teamBOppPpg,teamA,teamB,true);
+    comparison.efficiency.advantage = IBBAAdvanced.comparisonAdvantage(comparison.efficiency.teamATS,comparison.efficiency.teamBTS,teamA,teamB);
+    comparison.pace.expectedPace = comparison.pace.teamAPace==null||comparison.pace.teamBPace==null?null:((comparison.pace.teamAPace + comparison.pace.teamBPace) / 2).toFixed(1);
 
     // Generate insights - בדיקה אם יש מערכת Insights V2
     let insights = [];

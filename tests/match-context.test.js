@@ -30,5 +30,8 @@ async function run(){
  assert.strictEqual(service.sameTeam({teamId:1,name:'A'},{teamId:9,name:'A'}),false,'names never link identities');
  assert.strictEqual(service.sameTeam({teamId:1,name:'new'},{teamId:1,name:'old'}),true);
  console.log('match context tests passed');
+ const verified=new c.window.IBBAMatchContext({seasonData:{loadSeason:async(key,options)=>({complete:true,scheduleGames:[{...game(15,1),seasonKey:key,hasPlayerStats:true,roundVerified:Boolean(options.regularOnly),competitionPhase:options.regularOnly?'regular':'unknown'}]})}});
+ const joined=await verified.load(match);
+ assert(joined.priorSeasons[1].statGames[0].roundVerified,'official regular table verifies the same event in player stats');
 }
 run().catch(e=>{console.error(e);process.exit(1)});
