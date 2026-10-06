@@ -23,4 +23,5 @@ const observed=a.readObservedStats(official.performance,official.advanced);
 assert.strictEqual(observed.fieldGoalsMade,28);assert.strictEqual(observed.fieldGoalsAttempted,64);
 assert.strictEqual(observed.totalRebounds,29);assert.strictEqual(observed.pointsFastBreak,10);assert.strictEqual(observed.pointsFromTurnovers,20);assert.strictEqual(observed.pointsInPaint,36);assert.strictEqual(observed.pointsSecondChance,8);assert.strictEqual(observed.pointsBench,13);
 assert.strictEqual(A.parseMinutes(official.playerMinutes.min),20+31/60);
+assert(fs.readFileSync('index.html','utf8').includes('אחוזי שתיים (2PT%)'),'legacy two-point ratios must be labeled as two-point percentages');
 console.log('metric availability tests passed');

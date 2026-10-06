@@ -48,6 +48,10 @@ regression('metric-specific rival denominator',()=>{
  const available=Array.from({length:5},(_,i)=>game(i+1,'2026-27',80,{teamStats:{home:{offensiveRebounds:10},away:{offensiveRebounds:6,defensiveRebounds:20}},metricAvailability:{1:['offensiveRebounds'],2:i<2?['offensiveRebounds','defensiveRebounds']:['offensiveRebounds']}}));
  const s=R.generate(context(6,available)).find(s=>s.type==='MATCHUP_STYLE'&&s.teamIds[0]===1&&s.facts.metric==='offensiveRebounds');assert.strictEqual(s.samples[1].metric,'defensiveRebounds');assert.strictEqual(s.samples[1].gameCount,2);assert.strictEqual(s.dataState,'partial');
 });
+regression('derived player contribution readiness',()=>{
+ const ctx=context(11);ctx.priorSeasons[1].resultGames=Array.from({length:10},(_,i)=>({...playerGames[i%5],gameId:String(i+1),date:`2026-01-${String(i+1).padStart(2,'0')}`,playerObservations:playerGames[i%5].playerObservations.map(p=>({...p,stats:{...p.stats,points:i<5?12:20}}))}));
+ const contribution=R.generate(ctx,{playerRefs:['post:7']}).find(s=>s.type==='PLAYER_CONTRIBUTION_CHANGE');assert.strictEqual(contribution.dataState,'ready');assert.strictEqual(contribution.samples[0].gameCount,5);
+});
 if(reviewFailures.length){console.error(reviewFailures.join('\n'));process.exit(1);}
 console.log('rich insights tests passed');
 module.exports={c,context,game};

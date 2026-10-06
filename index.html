@@ -199,7 +199,7 @@
                   <span id="foulsHeader">עב'</span> <span id="sort-team-fpg" class="sort-indicator"></span>
                 </th>
                 <th class="pct sortable" onclick="sortTeams('fgPct')">
-                  FG% <span id="sort-team-fgPct" class="sort-indicator"></span>
+                  2PT% <span id="sort-team-fgPct" class="sort-indicator"></span>
                 </th>
                 <th class="pct sortable" onclick="sortTeams('threePtPct')">
                   3PT% <span id="sort-team-threePtPct" class="sort-indicator"></span>
@@ -308,7 +308,7 @@
                   <div class="th-inner"><span id="foulsDrawnHeaderPlayer">סחט'</span> <span id="sort-player-foulsDrawnPg" class="sort-indicator"></span></div>
                 </th>
                 <th class="num pct" data-sort-field="fgPct" onclick="sortPlayers('fgPct')" style="cursor: pointer;">
-                  <div class="th-inner">FG% <span id="sort-player-fgPct" class="sort-indicator"></span></div>
+                  <div class="th-inner">2PT% <span id="sort-player-fgPct" class="sort-indicator"></span></div>
                 </th>
                 <th class="num pct" data-sort-field="threePtPct" onclick="sortPlayers('threePtPct')" style="cursor: pointer;">
                   <div class="th-inner">3PT% <span id="sort-player-threePtPct" class="sort-indicator"></span></div>
@@ -503,7 +503,7 @@
           <!-- FG% Leaders -->
           <div class="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
             <div class="bg-gradient-to-r from-blue-800 to-blue-900 p-3">
-              <h3 class="text-white font-bold text-center">אחוזי שדה (FG%)</h3>
+              <h3 class="text-white font-bold text-center">אחוזי שתיים (2PT%)</h3>
             </div>
             <div class="p-3">
               <table class="w-full text-sm" id="leadersFG">
@@ -2543,12 +2543,21 @@
     }
 
     async function loadBroadcastPreparation(match,version=reportVersion,refresh=false) {
+      if(refresh&&window.historyView?.key===match.seasonKey){
+        window.historyView.version++;window.historyView.request=null;
+        window.historyView.data={seasonKey:match.seasonKey,state:'loading',records:[],statuses:[]};
+      }
       window.historyView?.setBroadcastSelection?.(window.selectedBroadcastPlayers||[],{ready:false});
       const panel=document.getElementById('broadcastReport');
       panel.innerHTML='<p role="status" aria-live="polite">טוען הקשר היסטורי למשחק…</p>';panel.classList.remove('hidden');
       if(!window.matchContextService)window.matchContextService=new window.IBBAMatchContext({seasonData,playerHistory:window.historyView?.service,teamSummaries:window.IBBATeamSummaries?new window.IBBATeamSummaries(window.historyView.service):null});
       const publish=report=>{
         if(version!==reportVersion)return false;
+        const summaries=report.context?.playerSummaries;
+        if(window.historyView?.key===report.seasonKey&&summaries&&!['idle','loading'].includes(summaries.state)){
+          if(window.historyView.request){window.historyView.version++;window.historyView.request=null;}
+          window.historyView.data=summaries;
+        }
         currentAdvancedReport={...(report.currentSeason||{}),...report,insightsV2:report.currentSeason?.insightsV2||{}};
         renderBroadcastReport(currentAdvancedReport);document.getElementById('prepExport').disabled=false;
         if(report.currentSeason){
@@ -2596,14 +2605,15 @@
       await window.historyView.service.resolveReference(ref);
       if(version!==reportVersion||!currentAdvancedReport?.context)return;
       const identity=window.historyView.service.identity(ref);if(!identity)return;
-      window.selectedBroadcastPlayers=[...new Set([...(window.selectedBroadcastPlayers||[]),identity])];
+      window.selectedBroadcastPlayers=[...new Set([...(window.selectedBroadcastPlayers||[]),identity].map(r=>window.historyView.service.identity(r)||r))];
       const report=window.IBBABroadcastReport.compose(currentAdvancedReport,window.selectedBroadcastPlayers);
       currentAdvancedReport={...report,insightsV2:report.currentSeason?.insightsV2||{}};renderBroadcastReport(currentAdvancedReport);
       window.historyView.message='השחקן נוסף לדוח';window.historyView.render?.();
     };
     window.removePlayerFromBroadcast=function(ref) {
       if(!currentAdvancedReport?.context)return;
-      window.selectedBroadcastPlayers=(window.selectedBroadcastPlayers||[]).filter(r=>r!==ref);
+      const identity=r=>window.historyView?.service?.identity(r)||r;
+      window.selectedBroadcastPlayers=(window.selectedBroadcastPlayers||[]).filter(r=>identity(r)!==identity(ref));
       currentAdvancedReport=window.IBBABroadcastReport.compose(currentAdvancedReport,window.selectedBroadcastPlayers);
       renderBroadcastReport(currentAdvancedReport);
       if(window.historyView){window.historyView.message='השחקן הוסר מהדוח';window.historyView.render?.();}

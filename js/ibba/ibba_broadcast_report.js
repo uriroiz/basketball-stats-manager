@@ -22,15 +22,19 @@
       return this.compose({seasonKey:match.seasonKey,gameInfo:match,generatedAt:new Date(now).toISOString(),currentSeason,sourceStatuses,context},selectedPlayerRefs);
     }
     static compose(report,playerRefs=[]) {
+      playerRefs=[...new Set(playerRefs.map(ref=>report.context.identity?.(ref)||ref).filter(Boolean))];
       const historicalInsights=window.IBBAHistoricalInsights.generate(report.context,{playerRefs});
       const current=Object.values(report.currentSeason?.insightsV2||{}).flat().map(i=>{
         const games=report.context.currentGames.filter(g=>!i.teamName||g.teams?.some(t=>t.name===i.teamName));
-        return {...i,scope:'current',seasonKeys:[report.seasonKey],sampleSize:Number.isFinite(i.games)?i.games:null,sourceGameCount:games.length,
+        const identity=i.id||`legacy:${report.seasonKey}:${JSON.stringify(Object.fromEntries(Object.entries(i).filter(([key])=>!['text','textShort','broadcastShort','importance','priority'].includes(key)).sort(([a],[b])=>a.localeCompare(b))))}`;
+        const facts=i.facts||Object.fromEntries(Object.entries(i).filter(([key])=>!['text','textShort','broadcastShort','importance','priority','category','id','icon','teamName','playerName'].includes(key)));
+        return {...i,id:identity,factKey:i.factKey||identity,facts,scope:'current',seasonKeys:[report.seasonKey],sampleSize:Number.isFinite(i.games)?i.games:null,sourceGameCount:games.length,
           evidence:games.map(g=>({seasonKey:g.seasonKey,gameId:g.gameId,sourceUrl:g.permalink,fields:['results','performance']})),dataState:report.context.currentComplete?'ready':'partial',
           text:`בעונת ${window.IBBASeasons.getSeason(report.seasonKey).label}: ${i.text}`};
       });
       const rich=(window.IBBARichInsights?.generate(report.context,{playerRefs})||[]).map(s=>{const text=window.IBBABroadcastCopy?.format(s,{variant:report.copyVariant||0})||s.text;return {...s,text,broadcastShort:text};});
-      const legacy=[...current,...historicalInsights].map(s=>({...s,family:s.family||({'H2H':'MATCHUP','BACKGROUND':'PROFILE'}[s.category]||s.category||'PROFILE'),factKey:s.factKey||s.id}));
+      const familyFor=s=>{const candidate=s.family||({'H2H':'MATCHUP','BACKGROUND':'PROFILE','QUARTERS':'DECIDING'}[s.category]||s.category);return ['ROUND','MOMENTUM','PROFILE','DECIDING','MATCHUP','PLAYERS'].includes(candidate)?candidate:'PROFILE';};
+      const legacy=[...current,...historicalInsights].map(s=>({...s,family:familyFor(s),factKey:s.factKey||s.id}));
       const allInsights=[...new Map([...rich,...legacy].map(s=>[s.factKey||s.id,s])).values()];
       const families=Object.fromEntries(['ROUND','MOMENTUM','PROFILE','DECIDING','MATCHUP','PLAYERS'].map(f=>[f,allInsights.filter(s=>s.family===f)]));
       return {...report,historicalContext:report.context.playerSummaries,historicalInsights,allInsights,families,topStories:this.selectTopStories(allInsights),selectedPlayerRefs:[...playerRefs]};

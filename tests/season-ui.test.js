@@ -155,5 +155,11 @@ async function run(){
  panelNode.querySelector=selector=>selector==='.broadcast-family-filter'?familyFilter:null;
  c.renderBroadcastReport({families:{ROUND:[{text:'round story'}]},allInsights:[{text:'round story'}],topStories:[],sourceStatuses:[]});
  assert.strictEqual(familyFilter.value,'ROUND','rephrasing/rerender retains the chosen story family');
+ const freshHistory={state:'partial',records:[{name:'fresh'}],statuses:[]};
+ c.window.historyView={key:'2026-27',data:{state:'ready',records:[{name:'old'}]},setBroadcastSelection(){}};
+ c.window.IBBABroadcastReport={build:async()=>({seasonKey:'2026-27',currentSeason:null,context:{currentGames:[],playerSummaries:{state:'idle'}},sourceStatuses:[],topStories:[],historicalInsights:[]}),compose:report=>report};
+ c.window.matchContextService={enrich:async context=>({...context,playerSummaries:freshHistory,teamSummaries:[]})};
+ await vm.runInContext("loadBroadcastPreparation({seasonKey:'2026-27'},reportVersion)",c);
+ assert.strictEqual(c.window.historyView.data,freshHistory,'history table and export report share the refreshed source snapshot');
 }
 run().catch(e=>{console.error(e);process.exit(1);});

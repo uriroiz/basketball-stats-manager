@@ -24,6 +24,12 @@ async function run(){
  const before=JSON.stringify(ready);B.exportRows(ready);assert.strictEqual(JSON.stringify(ready),before,'export never mutates report snapshot');
  const current=B.compose({...r,context:{...ctx,currentGames:[{gameId:8,seasonKey:match.seasonKey,teams:match.teams,permalink:'https://ibasketball.co.il/match/8'}]},currentSeason:{insightsV2:{TEAM:[{type:'TEST',text:'H won 1 game',teamName:'H'}]}}});
  assert(current.topStories[0].evidence.length,'current broadcast story retains source evidence');
+ const multiple=B.compose({...r,context:{...ctx,currentGames:[]},currentSeason:{insightsV2:{TEAM:[{type:'FIRST',text:'first',teamName:'H',value:10},{type:'SECOND',text:'second',teamName:'H'},{type:'QUARTER_DOMINANCE',category:'QUARTERS',text:'quarter',teamName:'H'}]}}});
+ assert.strictEqual(multiple.allInsights.length,3,'legacy stories without IDs must all survive deduplication');
+ assert.strictEqual(multiple.families.DECIDING.length,1,'existing quarter stories are accessible in a supported family');
+ assert.strictEqual(multiple.allInsights.find(s=>s.type==='FIRST').facts.value,10,'structured legacy values survive adaptation');
+ const bridged=B.compose({...r,context:{...ctx,identity:ref=>ref==='post:7'?'profile:/player/verified':ref}},['post:7','profile:/player/verified']);
+ assert.deepStrictEqual(Array.from(bridged.selectedPlayerRefs),['profile:/player/verified'],'late official aliases reconcile report selections');
  const error=await B.build(match,{contextService:{load:async()=>({...ctx,currentGames:[{teams:match.teams}]} )},currentReportBuilder:async()=>{throw Error('standings offline');}});
  assert.strictEqual(error.currentSeason,null);assert(error.sourceStatuses.some(s=>s.state==='error'));
  console.log('broadcast report tests passed');
