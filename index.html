@@ -48,6 +48,14 @@
       </div>
     </div>
     
+    <div class="card p-3 mb-3 flex flex-wrap items-center justify-center gap-3" dir="rtl">
+      <label for="seasonSelect" class="font-semibold">עונה:</label>
+      <select id="seasonSelect" class="border rounded px-3 py-2" onchange="selectSeason(this.value)">
+        <option value="2026-27">2026/27</option><option value="2025-26">2025/26</option><option value="2024-25">2024/25</option>
+      </select>
+      <button type="button" class="border rounded px-3 py-2" onclick="selectSeason(document.getElementById('seasonSelect').value, true)">רענן עונה</button>
+      <span id="seasonStatus" role="status" aria-live="polite"></span>
+    </div>
     <!-- Tabs Navigation -->
     <nav id="tabs" role="tablist" aria-label="תצוגות הדשבורד" class="flex flex-wrap items-center gap-2 justify-center mb-4">
       <button id="tab-games" role="tab" aria-selected="true" aria-controls="view-games" class="tab bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors" onclick="switchTab('games')">
@@ -810,11 +818,12 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.111.0"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-  <script src="js/config.js?v=3"></script>
-  <script src="js/ibba/ibba_adapter.js?v=9"></script>
+  <script src="js/ibba/ibba_seasons.js?v=1"></script>
+  <script src="js/config.js?v=4"></script>
+  <script src="js/ibba/ibba_adapter.js?v=10"></script>
   <script src="js/ibba/ibba_analytics.js?v=7"></script>
   <script src="js/ibba/ibba_player_names.js?v=9" defer></script>
-  <script src="js/app_upcoming_games_pure.js?v=3" defer></script>
+  <script src="js/app_upcoming_games_pure.js?v=4" defer></script>
   
   <!-- Insights V2 System -->
   <script src="js/ibba/ibba_insights_templates.js"></script>
@@ -830,6 +839,7 @@
     
     // Global state - Games Tab (expose as window.allGames for external scripts)
     window.allGames = [];
+    let scheduleGames = [];
     let allGames = window.allGames; // Local reference for convenience
     let filteredGames = [];
     let currentSort = { field: 'gameId', direction: 'desc' };
@@ -923,6 +933,12 @@
       if (section) {
         section.classList.remove('hidden');
         
+        section.querySelector('.season-empty')?.remove();
+        if (['teams','players','leaders'].includes(tabName) && allGames.length === 0) {
+          const message=document.createElement('p'); message.className='season-empty card p-4';
+          message.textContent='עדיין אין משחקים שהושלמו עם סטטיסטיקה בעונה זו'; section.prepend(message);
+          if (tabName === 'leaders') { document.querySelectorAll('#view-leaders .card').forEach(el=>{if(el!==message)el.classList.add('hidden');}); }
+        } else if (tabName === 'leaders') { document.querySelectorAll('#view-leaders .card').forEach(el=>el.classList.remove('hidden')); }
         // Initialize stats if switching to tab for the first time
         if (tabName === 'teams' && allTeamStats.length === 0) {
           initTeamStats();
@@ -930,7 +946,7 @@
         if (tabName === 'players' && allPlayerStats.length === 0) {
           initPlayerStats();
         }
-        if (tabName === 'leaders' && leaderStats === null) {
+        if (tabName === 'leaders' && allGames.length && leaderStats === null) {
           initLeaderStats();
         }
         if (tabName === 'gamePrep' && !gamePrepState.initialized) {
@@ -1543,166 +1559,78 @@
     // INITIALIZATION
     // ========================================
     
+    const seasonData = new window.IBBASeasonData();
+    const seasonController = new window.IBBASeasonController(seasonData);
+    let eventsBound = false;
+    let prepEventsBound = false;
+    let reportVersion = 0;
     async function init() {
+      if (!eventsBound) { setupEventListeners(); eventsBound = true; }
+      await selectSeason(window.appConfig.seasonKey);
+    }
+    async function selectSeason(key, refresh = false) {
+      const season = window.IBBASeasons.getSeason(key);
+      if (!season) return;
+      Object.assign(window.appConfig, season, {seasonKey:key, seasonLabel:season.label});
+      document.getElementById('seasonSelect').value = key;
+      try { localStorage.setItem('ibba_selected_season',key); } catch (_) {}
+      const url = new URL(location.href); url.searchParams.set('season',key);
+      history.replaceState(null,'',url);
+      reportVersion++;
+      currentAdvancedReport = null;
+      window.playerNamesLoader = null;
+      allGames = window.allGames = [];
+      scheduleGames = window.scheduleGames = [];
+      allTeamStats = []; filteredTeamStats = []; allPlayerStats = []; filteredPlayerStats = []; leaderStats = null;
+      gamePrepState.initialized = false;
+      gamePrepState.homeTeamName = gamePrepState.awayTeamName = null;
+      gamePrepState.selectedPlayer1 = gamePrepState.selectedPlayer2 = null;
+      gamePrepState.teamAveragesData = null;
+      gamePrepState.lastFiveGamesData = {homeTeam:[],awayTeam:[]}; gamePrepState.headToHeadData = [];
+      ['gameAnalysis','advancedAnalysis','tldrSection'].forEach(id=>document.getElementById(id)?.classList.add('hidden'));
+      ['cycleFilter','teamFilter','gamesSearch','homeTeamSelect','awayTeamSelect','player1Select','player2Select'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+      ['teamsTbody','playersTbody','upcomingGamesContainer'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='';});
+      document.querySelectorAll('section[id^="view-"]').forEach(el=>el.classList.add('hidden'));
+      window.resetUpcomingSeason?.();
+      window.historyView?.reset(key,refresh);
+      disableTabs();
+      document.getElementById('loadingProgress').classList.remove('hidden');
+      document.getElementById('seasonStatus').textContent = `טוען עונת ${season.label}…`;
+      updateProgress(10,`טוען עונת ${season.label}`, 'טוען משחקים מאיגוד הכדורסל…');
       try {
-        disableTabs(); // Disable tabs until data is loaded
-        updateProgress(0, 'מאתחל מודולים...', 'יוצר חיבור ל-API...');
-        
-        // Create adapter
-        const adapter = new window.IBBAAdapter();
-        console.log('✅ Adapter initialized');
-        
-        // Load games progressively
-        await loadGamesProgressive(adapter);
-        
-        // Initialize analytics
-        console.log('📊 Initializing analytics engine...');
-        window.ibbaAnalytics = new window.IBBAAnalytics(allGames);
-        console.log('✅ Analytics engine initialized');
-        
-        // === Initialize player names loader (AWAITED to ensure names are ready before enabling tabs) ===
-        if (window.IBBAPlayerNames) {
-          console.log('🎯 Initializing player names loader...');
-          updateProgress(95, '👥 טוען שמות שחקנים...', 'מסיים טעינה...');
-          
-          // Initialize Supabase if configured
-          let supabase = window.supabaseClient || null;
-          if (!supabase) console.warn('Supabase client is unavailable; player-name persistence is disabled');
-          
-          window.playerNamesLoader = new window.IBBAPlayerNames(supabase);
-          
-          // Progress callback for proxy attempts
-          const onProxyProgress = (progress) => {
-            if (progress.stage === 'proxy') {
-              updateProgress(96, '👥 טוען נתונים נוספים...', `מנסה שרת ${progress.proxy}/${progress.total}...`);
-            }
-          };
-          
-          // Check if we have cached names
-          if (window.playerNamesLoader.hasCachedNames()) {
-            console.log('✅ Player names loaded from cache (instant!)');
-          } else {
-            // Try loading from Supabase first (fastest!) - NOW AWAITED!
-            console.log('🔄 Loading player names from Supabase...');
-            
-            try {
-              const count = await window.playerNamesLoader.loadFromSupabase(onProxyProgress);
-              if (count > 0) {
-                console.log(`✅ Loaded ${count} names from Supabase!`);
-              } else {
-                // Fallback to API
-                console.log('ℹ️ No names in Supabase, loading from API...');
-                await window.playerNamesLoader.loadAllPlayerNames((progress) => {
-                  if (progress.stage === 'proxy') {
-                    updateProgress(96, '👥 טוען נתונים נוספים...', `מנסה שרת ${progress.proxy}/${progress.total}...`);
-                  } else if (progress.stage === 'fetching') {
-                    const statusDiv = document.getElementById('playerNamesStatus');
-                    if (statusDiv) {
-                      statusDiv.textContent = `⏳ ${progress.message || 'טוען מ-API...'}`;
-                      statusDiv.classList.add('animate-pulse');
-                      statusDiv.style.display = 'block';
-                    }
-                  }
-                });
-              }
-              console.log('✅ Player names ready');
-              // Hide status
-              const statusDiv = document.getElementById('playerNamesStatus');
-              if (statusDiv) statusDiv.style.display = 'none';
-            } catch (error) {
-              console.warn('⚠️ Player names load failed:', error);
-              console.log('➡️ Will continue with "Player #X" fallback');
-            }
+        await seasonController.select(key, async (result, isCurrent) => {
+          scheduleGames = window.scheduleGames = result.scheduleGames;
+          allGames = window.allGames = result.analyticsGames;
+          window.activeSeasonData = result;
+          window.ibbaAnalytics = new window.IBBAAnalytics(allGames);
+          processGames(); populateFilters(); applyFilters();
+          const loader = new window.IBBAPlayerNames(window.supabaseClient || null);
+          if (allGames.length) {
+            try { await loader.loadAllPlayerNames(); } catch(error) { console.warn('Names unavailable',error); }
+            if (!isCurrent()) return;
           }
-        } else {
-          console.warn('⚠️ Player names module not loaded');
-        }
-        // === END player names initialization ===
-        
-        updateProgress(100, '✅ הושלם!', 'כל הנתונים נטענו בהצלחה');
-        
-        // Setup UI
-        setupEventListeners();
-        
-        // Hide loading, show games tab (default)
-        document.getElementById('loadingProgress').classList.add('hidden');
-        document.getElementById('view-games').classList.remove('hidden');
-        enableTabs(); // Enable tabs now that ALL data is loaded (including player names)
-        
-        console.log('✅ Dashboard initialized successfully');
-        
-      } catch (error) {
-        console.error('❌ Initialization failed:', error);
-        showError(`שגיאה בטעינת הדשבורד: ${error.message}`);
+          window.playerNamesLoader = loader;
+          document.getElementById('seasonStatus').textContent = result.complete
+            ? `${season.label} · ${scheduleGames.length} משחקים · ${allGames.length} עם סטטיסטיקה`
+            : `${season.label} · נתונים חלקיים; טעינה נכשלה בחודשים: ${result.failedMonths.join(', ')}`;
+          document.getElementById('loadingProgress').classList.add('hidden');
+          enableTabs(); switchTab('games');
+        }, {refresh});
+      } catch(error) {
+        document.getElementById('seasonStatus').textContent = `טעינת ${season.label} נכשלה — ניתן לנסות רענון עונה`;
+        showError(error.message);
       }
     }
-    
-    // ========================================
-    // PROGRESSIVE LOADING
-    // ========================================
-    
-    async function loadGamesProgressive(adapter) {
-      console.log('📊 Starting progressive loading...');
-      
-      const now = new Date().toISOString();
-      
-      // Phase 1: Load 50 games preview
-      console.time('⏱️ Load 50 games');
-      updateProgress(10, '📡 טוען תצוגה מקדימה...', 'משיכת 50 משחקים ראשונים...');
-      
-      const rawGames50 = await adapter.fetchGames(50, now, null);
-      const games50 = rawGames50
-        .map(g => adapter.convertToInternalFormat(g))
-        .filter(g => g.players && g.players.length > 0);
-      
-      console.timeEnd('⏱️ Load 50 games');
-      console.log(`✅ Loaded ${games50.length} games (preview)`);
-      
-      // Show preview
-      window.allGames = games50;
-      allGames = window.allGames;
-      processGames();
-      populateFilters();
-      applyFilters();
-      document.getElementById('view-games').classList.remove('hidden');
-      enableTabs();
-      
-      updateProgress(40, `✅ נטענו ${games50.length} משחקים`, 'טוען משחקים נוספים ברקע...');
-      
-      // Phase 2: Load remaining games
-      console.time('⏱️ Load full dataset');
-      updateProgress(50, '📡 טוען מערך מלא...', 'משיכת עד 500 משחקים...');
-      
-      const rawGamesFull = await adapter.fetchGames(500, now, null);
-      const gamesFull = rawGamesFull
-        .map(g => adapter.convertToInternalFormat(g))
-        .filter(g => g.players && g.players.length > 0);
-      
-      console.timeEnd('⏱️ Load full dataset');
-      console.log(`✅ Loaded ${gamesFull.length} games (full dataset)`);
-      
-      // Update with full dataset
-      window.allGames = gamesFull;
-      allGames = window.allGames;
-      processGames();
-      populateFilters();
-      applyFilters();
-      
-      updateProgress(100, `✅ הושלם!`, `נטענו ${gamesFull.length} משחקים בהצלחה`);
-      
-      // Wait a bit before hiding loading UI
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
-    
+
     // ========================================
     // DATA PROCESSING
     // ========================================
     
     function processGames() {
-      console.log(`🔄 Processing ${allGames.length} games...`);
+      console.log(`🔄 Processing ${scheduleGames.length} games...`);
       
       // Add date object for sorting
-      allGames.forEach(game => {
+      scheduleGames.forEach(game => {
         // Create date object for sorting
         game.dateObj = new Date(game.date);
       });
@@ -1721,7 +1649,7 @@
       console.log('🔧 Populating filters...');
       
       // Populate round filter
-      const rounds = [...new Set(allGames.map(g => g.cycle).filter(c => c !== null && c !== undefined))];
+      const rounds = [...new Set(scheduleGames.map(g => g.cycle).filter(c => c !== null && c !== undefined))];
       rounds.sort((a, b) => a - b);
       
       const cycleFilter = document.getElementById('cycleFilter');
@@ -1735,7 +1663,7 @@
       
       // Populate team filter
       const teams = new Set();
-      allGames.forEach(g => {
+      scheduleGames.forEach(g => {
         if (g.homeTeam) teams.add(g.homeTeam);
         if (g.awayTeam) teams.add(g.awayTeam);
       });
@@ -1760,7 +1688,7 @@
       
       console.log('🔍 Applying filters:', { cycle: cycleValue, team: teamValue, search: searchValue });
       
-      filteredGames = allGames.filter(game => {
+      filteredGames = scheduleGames.filter(game => {
         // Round filter
         if (cycleValue && game.cycle != cycleValue) {
           return false;
@@ -1782,7 +1710,7 @@
         return true;
       });
       
-      console.log(`✅ Filtered: ${filteredGames.length} / ${allGames.length} games`);
+      console.log(`✅ Filtered: ${filteredGames.length} / ${scheduleGames.length} games`);
       renderGames();
     }
     
@@ -1808,10 +1736,10 @@
         currentSort.direction = 'asc';
       }
       
-      // Sort filteredGames if filters are active, otherwise sort allGames
+      // Sort filteredGames if filters are active, otherwise sort scheduleGames
       const gamesToSort = filteredGames.length > 0 || document.getElementById('cycleFilter').value || document.getElementById('teamFilter').value || document.getElementById('gamesSearch').value 
         ? filteredGames 
-        : allGames;
+        : scheduleGames;
       
       gamesToSort.sort((a, b) => {
         let valA, valB;
@@ -1863,7 +1791,7 @@
       const tbody = document.getElementById('gamesTbody');
       const gamesToRender = filteredGames.length > 0 || document.getElementById('cycleFilter').value || document.getElementById('teamFilter').value || document.getElementById('gamesSearch').value
         ? filteredGames
-        : allGames;
+        : scheduleGames;
       
       if (gamesToRender.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-gray-500">לא נמצאו משחקים התואמים לחיפוש</td></tr>';
@@ -1887,7 +1815,7 @@
             <td class="num">${dateStr}</td>
             <td class="col-team font-semibold">${safeText(game.homeTeam)} - ${safeText(game.awayTeam)}</td>
             <td class="col-team text-center font-bold">
-              ${safeText(game.awayScore)}-${safeText(game.homeScore)}
+              ${game.hasResult ? `${safeText(game.awayScore)}-${safeText(game.homeScore)}` : 'טרם התקיימה / תוצאה לא זמינה'}${game.hasResult && !game.hasPlayerStats ? '<div class="text-sm font-normal">סטטיסטיקה אישית לא זמינה</div>' : ''}
             </td>
           </tr>
         `;
@@ -1898,7 +1826,7 @@
     
     function updateCounts(displayed) {
       document.getElementById('displayedCount').textContent = displayed;
-      document.getElementById('totalCount').textContent = allGames.length;
+      document.getElementById('totalCount').textContent = scheduleGames.length;
     }
     
     // ========================================
@@ -2296,7 +2224,8 @@
       }
       
       // Setup event listeners
-      setupGamePrepEventListeners();
+      if (!prepEventsBound) { setupGamePrepEventListeners(); prepEventsBound = true; }
+      window.historyView?.mount(document.getElementById('playerHistoryPrep'));
       
       console.log('✅ Game Prep initialized');
     }
@@ -2368,14 +2297,14 @@
      * Populate team selection dropdowns
      */
     function populateTeamSelects() {
-      if (!allGames || allGames.length === 0) {
+      if (!scheduleGames || scheduleGames.length === 0) {
         console.warn('⚠️ No games loaded yet');
         return;
       }
       
       // Extract unique teams
       const teamsSet = new Set();
-      allGames.forEach(game => {
+      scheduleGames.forEach(game => {
         if (game.homeTeam) teamsSet.add(game.homeTeam);
         if (game.awayTeam) teamsSet.add(game.awayTeam);
       });
@@ -2454,6 +2383,7 @@
     async function analyzeGame(homeTeamName, awayTeamName) {
       console.log('📊 Analyzing game:', homeTeamName, 'vs', awayTeamName);
       
+      const analysisVersion = ++reportVersion;
       gamePrepState.homeTeamName = homeTeamName;
       gamePrepState.awayTeamName = awayTeamName;
       
@@ -2463,6 +2393,13 @@
         analysisSection.classList.remove('hidden');
       }
       
+      window.historyView?.mount(document.getElementById('playerHistoryPrep'));
+      if (!allGames.some(g=>[g.homeTeam,g.awayTeam].includes(homeTeamName)) || !allGames.some(g=>[g.homeTeam,g.awayTeam].includes(awayTeamName))) {
+        document.getElementById('gameAnalysis').classList.add('hidden');
+        currentAdvancedReport = {seasonKey:window.appConfig.seasonKey, gameInfo:findGameByTeams(homeTeamName,awayTeamName), historicalContext:window.historyView?.context(), insightsV2:{}};
+        document.getElementById('seasonStatus').textContent = 'עדיין אין משחקים שהושלמו עם סטטיסטיקה עבור שתי הקבוצות בעונה זו. ההיסטוריה זמינה בנפרד.';
+        return;
+      }
       // Load all analyses (existing functionality)
       loadTeamAverages(homeTeamName, awayTeamName);
       loadLastFiveGames(homeTeamName, awayTeamName);
@@ -2470,7 +2407,7 @@
       loadPlayersForComparison(homeTeamName, awayTeamName);
       
       // NEW: Perform advanced analysis with Insights V2
-      await performAdvancedAnalysis(homeTeamName, awayTeamName);
+      await performAdvancedAnalysis(homeTeamName, awayTeamName, analysisVersion);
       
       console.log('✅ Game analysis complete (including advanced insights)');
     }
@@ -3127,12 +3064,12 @@
      * Find game by team names
      */
     function findGameByTeams(homeTeam, awayTeam) {
-      if (!allGames || allGames.length === 0) {
+      if (!scheduleGames || scheduleGames.length === 0) {
         console.warn('⚠️ No games available to find match');
         return null;
       }
       
-      const game = allGames.find(g => 
+      const game = scheduleGames.find(g => 
         g.homeTeam === homeTeam && g.awayTeam === awayTeam
       );
       
@@ -3148,7 +3085,7 @@
     /**
      * Perform advanced analysis using Insights V2 system
      */
-    async function performAdvancedAnalysis(homeTeam, awayTeam) {
+    async function performAdvancedAnalysis(homeTeam, awayTeam, version = reportVersion) {
       console.log(`🔬 Performing advanced analysis: ${homeTeam} vs ${awayTeam}`);
       
       // Show advanced section and loading
@@ -3180,6 +3117,9 @@
         
         // Build matchup report (this will load standings from HTML)
         const report = await advanced.buildMatchupReport(homeTeam, awayTeam);
+        if (version !== reportVersion) return;
+        report.seasonKey = window.appConfig.seasonKey;
+        report.historicalContext = window.historyView?.context();
         currentAdvancedReport = report;
         
         // Find and save game info (including date) for export
@@ -3197,6 +3137,7 @@
         displayAdvancedAnalysis(report);
         
       } catch (error) {
+        if (version !== reportVersion) return;
         console.error('❌ Advanced analysis failed:', error);
         if (loadingDiv) {
           loadingDiv.innerHTML = `

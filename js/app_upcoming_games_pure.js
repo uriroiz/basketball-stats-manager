@@ -10,8 +10,8 @@ console.log('📅 Upcoming Games module loading (PURE API version)...');
 // ========================================
 
 const IBBA_API_URL = 'https://ibasketball.co.il/wp-json/sportspress/v2/events';
-const LEAGUE_ID = window.appConfig?.leagueId || 119474;
-const SEASON_ID = window.appConfig?.seasonId || 119472;
+
+
 
 // מטמון נתונים
 let cachedGames = null;
@@ -21,95 +21,27 @@ let cachedGamesByRound = null;
 // פונקציה ראשית: טעינת משחקים קרובים
 // ========================================
 
+let upcomingVersion = 0;
+window.resetUpcomingSeason = function() { upcomingVersion++; cachedGames = null; cachedGamesByRound = null; };
 async function loadUpcomingGames() {
-  console.log('📅 Loading upcoming games from IBBA API...');
-  
+  const version = ++upcomingVersion;
+  const seasonKey = window.appConfig?.seasonKey;
   try {
-    const apiUrl = `${IBBA_API_URL}?leagues=${LEAGUE_ID}&seasons=${SEASON_ID}&per_page=300`;
-    
-    console.log('📡 Fetching from:', apiUrl);
-    
-    // טעינה ישירה (עובד מ-localhost ומאתרים עם HTTPS)
-    let allGames = null;
-    
-    try {
-      console.log(`🔄 Loading games from API...`);
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 שניות timeout
-      
-      const response = await fetch(apiUrl, {
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      
-      // וידוא שהתשובה היא מערך
-      if (!Array.isArray(data)) {
-        throw new Error('התשובה מה-API אינה מערך תקין');
-      }
-      
-      allGames = data;
-      console.log(`✅ Successfully loaded ${data.length} games from API`);
-      
-    } catch (fetchError) {
-      console.warn('⚠️ Direct fetch failed, trying the first-party proxy:', fetchError.message);
-      const proxyBaseUrl = window.appConfig?.ibbaProxyUrl || '/api/ibba';
-      const response = await fetch(`${proxyBaseUrl}?url=${encodeURIComponent(apiUrl)}`);
-      if (!response.ok) throw new Error(`לא הצלחנו לטעון את המשחקים (${response.status})`);
-      const data = await response.json();
-      if (!Array.isArray(data)) throw new Error('התשובה מה-API אינה מערך תקין');
-      allGames = data;
+    let games;
+    if (Array.isArray(window.scheduleGames)) games = getFallbackGamesFromLoadedSeason();
+    else {
+      const adapter = new window.IBBAAdapter();
+      const raw = await adapter.fetchSeasonGames();
+      games = raw.games;
     }
-    
-    if (!allGames) {
-      throw new Error('לא התקבלו נתונים מה-API');
-    }
-    
-    console.log(`📊 Received ${allGames.length} total games from API`);
-    
-    // כל המשחקים רלוונטיים - ההחלטה לפי תאריך בלבד (לא לפי status שלא אמין)
-    let relevantGames = allGames;
-    
-    if (relevantGames.length === 0) {
-      relevantGames = getFallbackGamesFromLoadedSeason();
-      if (relevantGames.length > 0) {
-        console.log(`Using ${relevantGames.length} already-loaded season games as fallback`);
-      }
-    }
-    
-    console.log(`📊 Processing ${relevantGames.length} games from API`);
-    
-    // מיון לפי תאריך (הקרוב ביותר ראשון)
-    relevantGames.sort((a, b) => new Date(a.date) - new Date(b.date));
-    
-    // שמירה במטמון
-    cachedGames = relevantGames;
-    
-    // קיבוץ לפי מחזור
-    const gamesByRound = groupGamesByRound(relevantGames);
-    cachedGamesByRound = gamesByRound;
-    
-    // מציאת מחזור ברירת מחדל
-    const defaultRound = findDefaultRound(gamesByRound);
-    
-    console.log(`🎯 Default round selected: ${defaultRound}`);
-    
-    // הצגת הממשק
-    renderUpcomingGamesUI(gamesByRound, defaultRound);
-    
-    return relevantGames;
-    
-  } catch (error) {
-    console.error('❌ Error loading upcoming games:', error);
-    showErrorMessage(error.message);
-    throw error;
+    if (version !== upcomingVersion || seasonKey !== window.appConfig?.seasonKey) return [];
+    cachedGames = games;
+    cachedGamesByRound = groupGamesByRound(games);
+    renderUpcomingGamesUI(cachedGamesByRound,findDefaultRound(cachedGamesByRound));
+    return games;
+  } catch(error) {
+    if (version !== upcomingVersion) return [];
+    showErrorMessage(error.message); throw error;
   }
 }
 
@@ -136,11 +68,12 @@ function groupGamesByRound(games) {
 }
 
 function getFallbackGamesFromLoadedSeason() {
-  if (!Array.isArray(window.allGames) || window.allGames.length === 0) {
+  const loadedGames = window.scheduleGames || window.allGames;
+  if (!Array.isArray(loadedGames) || loadedGames.length === 0) {
     return [];
   }
   
-  return window.allGames
+  return loadedGames
     .filter(game => game && game.date && (game.homeTeam || game.home?.team) && (game.awayTeam || game.away?.team))
     .map((game, index) => ({
       id: game.gameId || game.gameSerial || game.id || `loaded-${index}`,
@@ -678,7 +611,7 @@ function showNoGamesMessage() {
 function showErrorMessage(message) {
   const container = document.getElementById('upcomingGamesContainer');
   if (container) {
-    const apiUrl = `${IBBA_API_URL}?leagues=${LEAGUE_ID}&seasons=${SEASON_ID}&per_page=300`;
+    const apiUrl = `${IBBA_API_URL}?leagues=${window.appConfig?.leagueId || 119474}&seasons=${window.appConfig?.seasonId || 119472}&per_page=300`;
     
     container.innerHTML = `
       <div class="text-center py-8">

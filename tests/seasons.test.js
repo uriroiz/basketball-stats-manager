@@ -42,6 +42,14 @@ async function run() {
   const b = gate.begin('2026-27');
   assert.strictEqual(gate.isCurrent(a),false);
   assert.strictEqual(gate.isCurrent(b),true);
+  const applied=[]; const pending={};
+  assert(context.window.IBBASeasonController,'season controller must guard asynchronous UI updates');
+  const controller=new context.window.IBBASeasonController({loadSeason:key=>new Promise(r=>pending[key]=r)});
+  const older=controller.select('2025-26',r=>applied.push(r.seasonKey));
+  const newer=controller.select('2026-27',r=>applied.push(r.seasonKey));
+  pending['2026-27']({seasonKey:'2026-27'}); await newer;
+  pending['2025-26']({seasonKey:'2025-26'}); await older;
+  assert.deepStrictEqual(applied,['2026-27']);
   console.log('season tests passed');
 }
 run().catch(e=>{console.error(e);process.exit(1);});

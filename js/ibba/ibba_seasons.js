@@ -54,4 +54,16 @@
   }
   window.IBBASeasons = {seasons, getSeason, resolveInitialSeason, SelectionGate};
   window.IBBASeasonData = IBBASeasonData;
+  window.IBBASeasonController = class {
+    constructor(data) { this.data = data; this.gate = new SelectionGate(); }
+    async select(key, apply, options = {}) {
+      const version = this.gate.begin(key);
+      try {
+        const result = await this.data.loadSeason(key, options);
+        if (this.gate.isCurrent(version)) await apply(result, () => this.gate.isCurrent(version));
+      } catch (error) {
+        if (this.gate.isCurrent(version)) throw error;
+      }
+    }
+  };
 })();
