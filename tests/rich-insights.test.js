@@ -19,5 +19,14 @@ assert(d.some(s=>s.type==='WINDOW_STYLE'&&s.facts.metric==='pointsBench'&&s.fact
 assert(!d.some(s=>s.facts.metric==='pointsInPaint'));
 const q=R.generate(context(2,[game(1,'2026-27',80,{quarters:{q1:{home:null,away:null},q4:{home:30,away:20}}})]));
 assert(q.some(s=>s.type==='QUARTER_WINDOW'&&s.facts.quarter===4));assert(!q.some(s=>s.type==='QUARTER_WINDOW'&&s.facts.quarter===1&&s.scope==='current'));
+const playerGames=Array.from({length:5},(_,i)=>game(i+1,'2025-26',80,{teams:[{teamId:3,name:'Old team',score:80},{teamId:2,name:'B',score:75}],playerObservations:[{playerId:7,teamId:3,teamName:'Old team',participation:'verified',availableMetrics:['points','totalRebounds','assists','steals','blocks'],stats:{points:12,totalRebounds:i<2?10:4,assists:3,steals:0,blocks:0}}]}));
+const pc=context(3);pc.priorSeasons[1].resultGames=[...playerGames,game(6,'2025-26')];pc.priorSeasons[1].regularGames=playerGames;pc.playerSummaries.records=[{playerRef:'post:7',name:'Player',team:'Old team',seasonKey:'2025-26'}];
+const ps=R.generate(pc,{playerRefs:['post:7']});const dd=ps.find(s=>s.type==='PLAYER_DOUBLE_DOUBLES');
+assert.strictEqual(dd.facts.count,2);assert.strictEqual(dd.facts.total,5);assert.strictEqual(dd.historicalTeam,'Old team');
+assert(ps.some(s=>s.type==='PLAYER_OPPONENT_PROFILE'&&s.playerRef==='post:7'));
+assert(!R.generate(pc,{playerRefs:['post:8']}).some(s=>s.type.startsWith('PLAYER_')));
+const missing=context(3);missing.priorSeasons[1].resultGames=playerGames.map(g=>({...g,playerObservations:g.playerObservations.map(p=>({...p,stats:{...p.stats,totalRebounds:null},availableMetrics:['points','assists']}))}));
+assert(!R.generate(missing,{playerRefs:['post:7']}).some(s=>s.type==='PLAYER_DOUBLE_DOUBLES'));
+assert(!ps.some(s=>s.type==='H2H_CHANGE'));
 console.log('rich insights tests passed');
 module.exports={c,context,game};

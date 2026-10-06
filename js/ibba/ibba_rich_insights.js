@@ -55,6 +55,57 @@
       const a=own.quarterMargins[3],b=first.quarterMargins[3];
       if(a.gameCount>=5&&b.gameCount>=5)add('LATE_GAME_CHANGE','DECIDING',team,[own,first],{metric:'quarterMargin',quarter:4,value:a.value,referenceValue:b.value,difference:a.value-b.value},{scope:'current'});
     }
+    static matchups({context,team,prior,current,snap,add,playerRefs}) {
+      const opponent=context.match.teams.find(t=>String(t.teamId)!==String(team.teamId));if(!opponent)return;
+      for(const season of [...prior,current]) {
+        const scope=season===current?'current':'historical';
+        const spec={phase:'any',mode:'recent',opponentId:opponent.teamId};
+        const h2h=snap(season,spec);if(!h2h.gamesPlayed)continue;
+        for(const metric of scoring)if(h2h.metrics[metric].value!=null)add('H2H_WINDOW_PROFILE','MATCHUP',team,[h2h],{metric,value:h2h.metrics[metric].value,wins:h2h.wins,losses:h2h.losses,total:h2h.gamesPlayed},{scope,referenceName:opponent.name});
+        for(const venue of ['home','away']){const at=snap(season,{...spec,venue});if(at.gamesPlayed)add('H2H_VENUE_PROFILE','MATCHUP',team,[at],{metric:'points',value:at.metrics.points.value,wins:at.wins,losses:at.losses,total:at.gamesPlayed,venue},{scope,referenceName:opponent.name});}
+        const ten=snap(season,{...spec,count:10}),last=W.team({...ten.window,resultGames:ten.window.resultGames.slice(-5)},team.teamId),before=W.team({...ten.window,resultGames:ten.window.resultGames.slice(0,-5)},team.teamId);
+        if(last.gamesPlayed>=5&&before.gamesPlayed>=5)add('H2H_CHANGE','MATCHUP',team,[last,before],{metric:'points',value:last.metrics.points.value,referenceValue:before.metrics.points.value,difference:last.metrics.points.value-before.metrics.points.value},{scope,referenceName:opponent.name});
+      }
+      const now=snap(current,{phase:'any',mode:'recent'}),meetings=prior.flatMap(s=>snap(s,{phase:'any',mode:'recent',opponentId:opponent.teamId}).entries).sort((a,b)=>+new Date(a.game.date)-+new Date(b.game.date));
+      if(now.entries.length&&meetings.length){const win=now.entries.at(-1).win;let count=0;for(let i=now.entries.length-1;i>=0&&now.entries[i].win===win;i--)count++;
+        if(count>=2){const old=meetings.at(-1),past=W.snapshot([old],String(team.teamId),W.selectGames([old.game],{phase:'any',mode:'recent'}));add('CURRENT_STREAK_HISTORICAL_MATCHUP','MATCHUP',team,[now,past],{count,win,previousWin:old.win,date:old.game.date,previousPoints:old.values.points,previousOpponentPoints:old.values.opponentPoints},{scope:'comparison',referenceName:opponent.name});}
+      }
+      // Selected identities are independent of the current roster. Generate them once, with each actual historical team retained.
+      if(String(team.teamId)!==String(context.match.teams[0].teamId))return;
+      for(const ref of [...new Set(playerRefs.map(r=>context.identity(r)).filter(Boolean))]) {
+        const name=context.playerSummaries?.records?.find(r=>context.identity(r.playerRef)===ref)?.name||`שחקן ${ref.replace(/^post:/,'')}`;
+        for(const season of [...prior,current]) {
+          const scope=season===current?'current':'historical';
+          const window=W.selectGames(season.resultGames||[],{phase:'any',mode:'recent',seasonKey:season.seasonKey,...(season===current?{asOf:context.asOf}:{})},{transportComplete:season.state==='ready'});
+          const p=W.player(window,ref,context.identity);if(!p.gamesPlayed)continue;
+          const historicalTeam=[...new Set(p.entries.map(e=>e.teamName))].join(', ');
+          const extra={playerRef:ref,playerName:name,historicalTeam,scope};
+          for(const rival of context.match.teams) {
+            const playerWindow={...window,resultGames:window.resultGames.filter(g=>g.teams.some(t=>String(t.teamId)===String(rival.teamId)))};
+            const against=W.player(playerWindow,ref,context.identity);
+            against.entries=against.entries.filter(e=>String(e.teamId)!==String(rival.teamId));
+            const verified=W.snapshot(against.entries,ref,playerWindow);
+            for(const metric of ['points','totalRebounds','assists'])if(verified.metrics[metric].value!=null)add('PLAYER_OPPONENT_PROFILE','PLAYERS',team,[verified],{metric,value:verified.metrics[metric].value},{...extra,referenceName:rival.name});
+          }
+          if(context.match.roundVerified&&context.match.competitionPhase==='regular') {
+            const roundWindow=W.selectGames(season.regularGames||[],{phase:'regular',mode:'rounds',seasonKey:season.seasonKey,fromRound:context.match.roundNumber,toRound:context.match.roundNumber,...(season===current?{asOf:context.asOf}:{})});
+            const at=W.player(roundWindow,ref,context.identity);
+            for(const metric of ['points','totalRebounds','assists'])if(at.metrics[metric].value!=null)add('PLAYER_ROUND_PROFILE','PLAYERS',team,[at],{metric,value:at.metrics[metric].value,round:context.match.roundNumber},extra);
+          }
+          const eligible=p.entries.filter(e=>['points','totalRebounds','assists','steals','blocks'].every(m=>e.values[m]!=null));
+          // Missing categories cannot prove the absence of a double double; two published qualifying categories can prove one.
+          const proven=p.entries.filter(e=>['points','totalRebounds','assists','steals','blocks'].filter(m=>e.values[m]!=null&&e.values[m]>=10).length>=2);
+          const evaluable=[...new Map([...eligible,...proven].map(e=>[e.id,e])).values()];
+          if(proven.length)add('PLAYER_DOUBLE_DOUBLES','PLAYERS',team,[p],{count:proven.length,total:evaluable.length},extra);
+          const known=p.entries.filter(e=>e.values.points!=null);if(known.length>=5){const threshold=10,count=known.filter(e=>e.values.points>=threshold).length;add('PLAYER_CONSISTENCY','PLAYERS',team,[p],{count,total:known.length,threshold},extra);}
+          const lastEntries=p.entries.slice(-5),previousEntries=p.entries.slice(-10,-5);
+          const a=W.snapshot(lastEntries,ref,window),b=W.snapshot(previousEntries,ref,window);
+          for(const metric of ['points','totalRebounds','assists'])if(a.metrics[metric].gameCount>=5&&b.metrics[metric].gameCount>=5)add('PLAYER_WINDOW_CHANGE','PLAYERS',team,[a,b],{metric,value:a.metrics[metric].value,referenceValue:b.metrics[metric].value,difference:a.metrics[metric].value-b.metrics[metric].value},extra);
+          const share=entries=>{const valid=entries.filter(e=>e.values.points!=null&&e.game.teams.find(t=>String(t.teamId)===String(e.teamId))?.score!=null);const total=valid.reduce((sum,e)=>sum+Number(e.game.teams.find(t=>String(t.teamId)===String(e.teamId)).score),0);return {count:valid.length,value:total>0?100*valid.reduce((sum,e)=>sum+e.values.points,0)/total:null};};
+          const sa=share(lastEntries),sb=share(previousEntries);if(sa.count>=5&&sb.count>=5&&sa.value!=null&&sb.value!=null)add('PLAYER_CONTRIBUTION_CHANGE','PLAYERS',team,[a,b],{metric:'contributionPercentage',value:sa.value,referenceValue:sb.value,difference:sa.value-sb.value},extra);
+        }
+      }
+    }
     static generate(context,{playerRefs=[]}={}) {
       const match=context.match,round=match.roundNumber,regular=match.roundVerified&&match.competitionPhase==='regular',stories=[];
       const prior=(context.priorSeasons||[]).filter(s=>s.seasonKey<match.seasonKey);
