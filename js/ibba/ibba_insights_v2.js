@@ -149,6 +149,13 @@ class IBBAInsightsV2 {
     ).sort((a, b) => new Date(b.date) - new Date(a.date));
   }
 
+  hasQuarterData(game) {
+    return ['q1','q2','q3','q4'].every(q=>['home','away'].every(side=>{
+      const value=game.quarters?.[q]?.[side];
+      return value!==null&&value!==undefined&&value!==''&&Number.isFinite(Number(value));
+    }));
+  }
+
   // ========== CATEGORY 1: STREAKS ==========
 
   /**
@@ -954,7 +961,7 @@ class IBBAInsightsV2 {
     const MAX_CV = 25; // Coefficient of Variation מקסימלי
     const MIN_AVG = 10; // נקודות מינימום בממוצע
     
-    const teamGames = this.getTeamGames(games, teamName).slice(-10);
+    const teamGames = this.getTeamGames(games, teamName).slice(0, 10);
     const playerPoints = {};
     
     teamGames.forEach(game => {
@@ -1018,7 +1025,7 @@ class IBBAInsightsV2 {
     const MIN_CV = 40; // Coefficient of Variation מינימלי
     const MIN_AVG = 10;
     
-    const teamGames = this.getTeamGames(games, teamName).slice(-10);
+    const teamGames = this.getTeamGames(games, teamName).slice(0, 10);
     const playerPoints = {};
     
     teamGames.forEach(game => {
@@ -1148,7 +1155,7 @@ class IBBAInsightsV2 {
     
     const playerPoints = {};
     
-    games.forEach((game, idx) => {
+    [...games].sort((a,b)=>new Date(a.date)-new Date(b.date)).forEach((game, idx) => {
       const team = this.getTeamFromGame(game, teamName);
       if (!team) return;
       
@@ -1276,7 +1283,7 @@ class IBBAInsightsV2 {
         teamName,
         value: twoPointPpg.toFixed(1),
         icon: '🏀',
-        text: `${teamName} שולטת בצבע - ${twoPointPpg.toFixed(1)} נק' למשחק מזריקות של 2 (${twoPointFGM} סלים למשחק, ${(twoPointPpg - leagueTwoPpg).toFixed(1)} מעל ממוצע הליגה)`,
+        text: `${teamName} קולעת מזריקות שתיים - ${twoPointPpg.toFixed(1)} נק' למשחק מזריקות של 2 (${twoPointFGM} סלים למשחק, ${(twoPointPpg - leagueTwoPpg).toFixed(1)} מעל ממוצע הליגה)`,
         textShort: `${twoPointPpg.toFixed(1)} נק' מזריקות 2`
       };
     }
@@ -2496,7 +2503,7 @@ class IBBAInsightsV2 {
     let halftimeDeficits = 0;
     
     teamGames.forEach(game => {
-      if (!game.quarters) return;
+      if (!this.hasQuarterData(game)) return;
       
       const teamData = this.getTeamFromGame(game, teamName);
       const oppData = this.getOpponentFromGame(game, teamName);
@@ -2552,7 +2559,7 @@ class IBBAInsightsV2 {
     let bigComebacks = 0;
     
     teamGames.forEach(game => {
-      if (!game.quarters) return;
+      if (!this.hasQuarterData(game)) return;
       
       const teamData = this.getTeamFromGame(game, teamName);
       const oppData = this.getOpponentFromGame(game, teamName);
@@ -2580,11 +2587,7 @@ class IBBAInsightsV2 {
     
     if (bigComebacks >= MIN_COMEBACKS) {
       // שימוש בטמפלט דינמי
-      const text = window.IBBAInsightTemplates?.getRandomText('team', 'COMEBACK_KINGS', {
-        teamName,
-        comebacks: bigComebacks,
-        deficitThreshold: DEFICIT_THRESHOLD
-      }) || `${teamName} מגיעה עם יכולת קאמבק חריגה – ${bigComebacks} ניצחונות אחרי פיגור של ${DEFICIT_THRESHOLD}+ נקודות`;
+      const text = `${teamName}: ${bigComebacks} ניצחונות בעונה אחרי פיגור של ${DEFICIT_THRESHOLD}+ נקודות בסיום אחד הרבעים הראשונים.`;
       
       return {
         type: 'COMEBACK_KINGS',
@@ -2608,12 +2611,12 @@ class IBBAInsightsV2 {
     const MIN_GAMES = 5;
     const THRESHOLD = 70; // 70%
     
-    const teamGames = this.getTeamGames(games, teamName).slice(-10);
+    const teamGames = this.getTeamGames(games, teamName).slice(0, 10);
     let q4Losses = 0;
     let gamesWithQ4Data = 0;
     
     teamGames.forEach(game => {
-      if (!game.quarters) return;
+      if (!this.hasQuarterData(game)) return;
       
       const teamData = this.getTeamFromGame(game, teamName);
       const oppData = this.getOpponentFromGame(game, teamName);
@@ -2664,11 +2667,11 @@ class IBBAInsightsV2 {
     const MIN_GAMES = 5;
     const MIN_DIFF = 2.5; // הפרש ממוצע מינימלי
     
-    const teamGames = this.getTeamGames(games, teamName).slice(-10);
+    const teamGames = this.getTeamGames(games, teamName).slice(0, 10);
     const quarterDiffs = { q1: [], q2: [], q3: [], q4: [] };
     
     teamGames.forEach(game => {
-      if (!game.quarters) return;
+      if (!this.hasQuarterData(game)) return;
       
       const teamData = this.getTeamFromGame(game, teamName);
       const oppData = this.getOpponentFromGame(game, teamName);
@@ -2734,12 +2737,12 @@ class IBBAInsightsV2 {
     const MIN_GAMES = 5;
     const THRESHOLD = 70; // 70%
     
-    const teamGames = this.getTeamGames(games, teamName).slice(-10);
+    const teamGames = this.getTeamGames(games, teamName).slice(0, 10);
     const quarterWins = { q1: 0, q2: 0, q3: 0, q4: 0 };
     const quarterGames = { q1: 0, q2: 0, q3: 0, q4: 0 };
     
     teamGames.forEach(game => {
-      if (!game.quarters) return;
+      if (!this.hasQuarterData(game)) return;
       
       const teamData = this.getTeamFromGame(game, teamName);
       const oppData = this.getOpponentFromGame(game, teamName);
@@ -2995,21 +2998,7 @@ class IBBAInsightsV2 {
     playerInsightsB.push(this.detectHomeCourtHero(teamB, games));
     playerInsightsB.push(this.detectRisingStar(teamB, games));
     
-    // הוסף רק את הראשון שנמצא לכל קבוצה (למנוע דופליקטים)
-    const insightA = playerInsightsA.find(i => i !== null);
-    if (insightA) insights.PLAYERS.push(insightA);
-    
-    const insightB = playerInsightsB.find(i => i !== null);
-    // אם זה אותו סוג כמו A, נסה למצוא אחר
-    if (insightB) {
-      if (!insightA || insightA.type !== insightB.type) {
-        insights.PLAYERS.push(insightB);
-      } else {
-        // מצא insight שונה לקבוצה B
-        const alternativeB = playerInsightsB.find(i => i !== null && i.type !== insightA.type);
-        if (alternativeB) insights.PLAYERS.push(alternativeB);
-      }
-    }
+    insights.PLAYERS.push(...playerInsightsA.filter(Boolean),...playerInsightsB.filter(Boolean));
 
     // OFFENSE - גיוון רחב
     const leagueAvgPpg = this.getLeagueAverage('ppg', allTeams);
@@ -3202,7 +3191,9 @@ class IBBAInsightsV2 {
     }
 
     // איזון בין קבוצות - וודא שכל קבוצה מקבלת לפחות כמה insights
-    this.balanceTeamInsights(insights, teamA, teamB, teamAData, teamBData, allTeams);
+    // Missing advanced source fields must not create zero-based narratives.
+    const required={FAST_BREAK_KINGS:'pointsFastBreak',PAINT_DOMINANCE:'pointsInPaint',BENCH_POWER:'pointsBench',STARTING_VS_BENCH:'pointsBench',TURNOVER_CAPITALIZATION:'pointsFromTurnovers',SECOND_CHANCE_MASTERS:'pointsSecondChance'};
+    for(const category of Object.keys(insights))insights[category]=insights[category].filter(i=>!required[i.type]||this.getTeamGames(games,i.teamName).every(g=>g.availableMetrics?.includes(required[i.type])));
 
     return insights;
   }
@@ -3340,4 +3331,3 @@ class IBBAInsightsV2 {
 window.IBBAInsightsV2 = IBBAInsightsV2;
 
 console.log('✅ IBBAInsightsV2 loaded successfully!');
-

@@ -1,0 +1,28 @@
+const assert=require('assert'),fs=require('fs'),vm=require('vm');const c={window:{},URLSearchParams,URL,Date,console};
+for(const name of ['ibba_seasons','ibba_historical_insights','ibba_broadcast_report'])if(fs.existsSync('js/ibba/'+name+'.js'))vm.runInNewContext(fs.readFileSync('js/ibba/'+name+'.js','utf8'),c);
+assert(c.window.IBBABroadcastReport,'broadcast report builder must exist');
+const B=c.window.IBBABroadcastReport;
+const story=(id,team=1)=>({id,type:'PLAYER_OFFICIAL_SEASON',scope:'historical',priority:80,teamIds:[team],seasonKeys:['2025-26'],sampleSize:3,text:'2025/26 story '+id,broadcastShort:'2025/26 story '+id,facts:{points:10},evidence:[{seasonKey:'2025-26',sourceUrl:'https://ibasketball.co.il/league/2025-2/'}]});
+const top=B.selectTopStories([story('a'),story('b',2),story('c')]);
+assert.strictEqual(top.length,3,'never pad short selection');
+assert(top.some(i=>i.id==='b'),'identical story type on other team must remain');
+assert.strictEqual(B.selectTopStories([story('a'),story('a')]).length,1);
+async function run(){
+ const match={seasonKey:'2026-27',gameId:1,date:'2026-10-13',teams:[{teamId:1,name:'H'},{teamId:2,name:'A'}]};
+ const ctx={match,currentGames:[],currentComplete:true,priorSeasons:[],playerSummaries:{state:'idle',records:[],statuses:[]},teamSummaries:[],identity:r=>r};
+ let calls=0;
+ const r=await B.build(match,{contextService:{load:async()=>ctx},currentReportBuilder:async()=>{calls++;throw Error('no stats');}});
+ assert.strictEqual(calls,0,'no current stats never invokes seasonal analysis');
+ assert.strictEqual(r.currentSeason,null);
+ assert.strictEqual(r.sourceStatuses.length,0);
+ assert(B.exportRows(r).some(row=>row.includes('ההיסטוריה טרם נטענה')));
+ const one=await B.build(match,{contextService:{load:async()=>({...ctx,currentGames:[{teams:[{teamId:1,name:'H'},{teamId:3,name:'C'}]}]})},currentReportBuilder:async()=>{calls++;return {};}});
+ assert.strictEqual(one.currentSeason,null,'missing other team is local empty state');
+ const ready={...r,historicalInsights:[story('x')],topStories:[story('x')],historicalContext:{state:'ready',records:[],statuses:[]}};
+ const rows=B.exportRows(ready);assert(rows.some(row=>row.includes('2025/26 story x')));assert(rows.some(row=>row.includes('https://ibasketball.co.il/league/2025-2/')));
+ const before=JSON.stringify(ready);B.exportRows(ready);assert.strictEqual(JSON.stringify(ready),before,'export never mutates report snapshot');
+ const error=await B.build(match,{contextService:{load:async()=>({...ctx,currentGames:[{teams:match.teams}]} )},currentReportBuilder:async()=>{throw Error('standings offline');}});
+ assert.strictEqual(error.currentSeason,null);assert(error.sourceStatuses.some(s=>s.state==='error'));
+ console.log('broadcast report tests passed');
+}
+run().catch(e=>{console.error(e);process.exit(1)});

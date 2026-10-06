@@ -115,6 +115,18 @@ async function run(){
  c.window.appConfig.seasonKey='2024-25';vm.runInContext("seasonController.gate.begin('2024-25')",c);
  upcomingRelease();await prepping;
  assert.strictEqual(mounts,0,'late prep initialization cannot reopen history after season change');
+ assert.strictEqual(typeof c.loadBroadcastPreparation,'function','scheduled game must load historical broadcast report');
+ let completeBroadcast;
+ c.window.IBBABroadcastReport={build:()=>new Promise(resolve=>completeBroadcast=resolve)};
+ c.window.IBBAMatchContext=function(){};
+ c.window.appConfig.seasonKey='2026-27';
+ const pendingBroadcast=vm.runInContext("loadBroadcastPreparation({gameId:44,seasonKey:'2026-27',date:'2099-01-01',teams:[]},reportVersion)",c);
+ vm.runInContext('resetPreparationReport()',c);
+ completeBroadcast({historicalInsights:[],topStories:[],sourceStatuses:[]});await pendingBroadcast;
+ assert.strictEqual(vm.runInContext('currentAdvancedReport',c),null,'late historical report cannot restore cleared prep');
+ c.renderBroadcastReport({historicalInsights:[{text:'2025/26 official story',sampleSize:1,seasonKeys:['2025-26'],evidence:[{sourceUrl:'https://ibasketball.co.il/match/1'}]}],topStories:[],sourceStatuses:[],historicalContext:{state:'loading'}});
+ assert(document.getElementById('broadcastReport').innerHTML.includes('2025/26 official story'),'historical stories visible without current stats');
+ assert(document.getElementById('broadcastReport').innerHTML.includes('https://ibasketball.co.il/match/1'),'story source visible');
  console.log('season UI tests passed');
 }
 run().catch(e=>{console.error(e);process.exit(1);});

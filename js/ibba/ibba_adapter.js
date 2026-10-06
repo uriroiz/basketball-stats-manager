@@ -395,12 +395,8 @@ class IBBAAdapter {
     const homeResults = ibbaGame.results?.[homeTeamId] || {};
     const awayResults = ibbaGame.results?.[awayTeamId] || {};
     
-    return {
-      q1: { home: homeResults.one || 0, away: awayResults.one || 0 },
-      q2: { home: homeResults.two || 0, away: awayResults.two || 0 },
-      q3: { home: homeResults.three || 0, away: awayResults.three || 0 },
-      q4: { home: homeResults.four || 0, away: awayResults.four || 0 }
-    };
+    const value=(result,key)=>result[key]==null||result[key]===''||!Number.isFinite(Number(result[key]))?null:Number(result[key]);
+    return Object.fromEntries(['one','two','three','four'].map((key,i)=>[`q${i+1}`,{home:value(homeResults,key),away:value(awayResults,key)}]));
   }
 
   /**
