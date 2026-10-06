@@ -831,6 +831,8 @@
   <script src="js/ibba/ibba_history_view.js?v=1"></script>
   <script src="js/ibba/ibba_match_context.js"></script>
   <script src="js/ibba/ibba_window_stats.js"></script>
+  <script src="js/ibba/ibba_rich_insights.js"></script>
+  <script src="js/ibba/ibba_broadcast_copy.js"></script>
   <script src="js/ibba/ibba_team_summaries.js"></script>
   <script src="js/ibba/ibba_historical_insights.js"></script>
   <script src="js/ibba/ibba_broadcast_report.js"></script>
@@ -3660,6 +3662,7 @@
       // Regenerate texts with new random template variations
       regenerateInsightTexts(currentAdvancedReport.insightsV2);
       if(currentAdvancedReport.context&&window.IBBABroadcastReport) {
+        currentAdvancedReport={...currentAdvancedReport,copyVariant:(currentAdvancedReport.copyVariant||0)+1};
         currentAdvancedReport=window.IBBABroadcastReport.compose(currentAdvancedReport,window.selectedBroadcastPlayers||[]);
         renderBroadcastReport(currentAdvancedReport);
       }

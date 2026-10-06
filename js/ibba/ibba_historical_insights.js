@@ -27,7 +27,7 @@
         if(meetings.length) {
           const team=selected[0],wins=meetings.filter(g=>{const t=g.teams.find(t=>same(t.teamId,team.teamId));return t.score>g.teams.find(t=>!same(t.teamId,team.teamId)).score;}).length;
           stories.push(make('HISTORICAL_H2H_RECORD',season.seasonKey,selected.map(t=>t.teamId),{wins,losses:meetings.length-wins},
-            `בעונת ${year}, ב־${meetings.length} המפגשים הזמינים במקור בין הקבוצות: ${team.name} עם ${wins} ניצחונות ו־${meetings.length-wins} הפסדים. סיכום תוצאות משחקי האיגוד.`,meetings,{dataState:season.state,priority:80}));
+            `בעונת ${year}, ב־${meetings.length} המפגשים הזמינים במקור בין הקבוצות: ${team.name} עם ${wins} ניצחונות ו־${meetings.length-wins} הפסדים.`,meetings,{dataState:season.state,priority:80}));
         }
         for(const team of selected) {
           if(match.roundVerified&&match.competitionPhase==='regular') {
@@ -42,7 +42,7 @@
                 const wins=games.filter(g=>{const t=g.teams.find(t=>same(t.teamId,team.teamId));return t.score>g.teams.find(t=>!same(t.teamId,team.teamId)).score;}).length;
                 const complete=season.coverage.roundWindowComplete;
                 stories.push(make('SAME_STAGE_RECORD',season.seasonKey,[team.teamId],{wins,losses:games.length-wins,from:1,to:match.roundNumber-1},
-                  `לפני מחזור ${match.roundNumber} בעונת ${year}, ${team.name} רשמה ${wins} ניצחונות ו־${games.length-wins} הפסדים ב־${games.length} משחקים ${complete?'שהושלמו':'הזמינים במקור'} ממחזורים 1–${match.roundNumber-1} של העונה הסדירה. סיכום תוצאות משחקי האיגוד${complete?'':'; החלון אינו מאומת כמלא'}.`,games,{roundWindow:[1,match.roundNumber-1],dataState:complete?'ready':'partial',priority:90}));
+                  `לפני מחזור ${match.roundNumber} בעונת ${year}, ${team.name} רשמה ${wins} ניצחונות ו־${games.length-wins} הפסדים ב־${games.length} משחקים ${complete?'שהושלמו':'הזמינים במקור'} ממחזורים 1–${match.roundNumber-1} של העונה הסדירה.${complete?'':'; החלון אינו מאומת כמלא'}.`,games,{roundWindow:[1,match.roundNumber-1],dataState:complete?'ready':'partial',priority:90}));
               }
             }
           }
@@ -50,7 +50,7 @@
         for(const ref of [...new Set(playerRefs.map(r=>context.identity(r)).filter(Boolean))]) {
           const rows=(context.playerSummaries?.records || []).filter(r=>r.seasonKey===season.seasonKey&&context.identity(r.playerRef)===ref);
           for(const r of rows) {
-            const text=`${r.name}: בעונת ${year}, ב${r.team||'קבוצה שלא צוינה'}, ${r.games??'מספר לא ידוע של'} משחקים${r.points==null?'':`, ${r.points} נקודות בממוצע לפי האיגוד`}. הבחירה אינה מאשרת סגל נוכחי.`;
+            const text=`${r.name}: בעונת ${year}, ב${r.team||'קבוצה שלא צוינה'}, ${r.games??'מספר לא ידוע של'} משחקים${r.points==null?'':`, ${r.points} נקודות בממוצע`}.`;
             stories.push(make('PLAYER_OFFICIAL_SEASON',season.seasonKey,[],{games:r.games,points:r.points},text,[],{playerRef:ref,historicalTeam:r.team,sampleSize:r.games,evidence:[{seasonKey:r.seasonKey,sourceUrl:r.sourceUrl,fields:['games','points','team']}],priority:88}));
           }
           const appearances=newest(season.statGames).flatMap(g=>(g.players||[]).filter(p=>context.identity({playerId:p.playerId})===ref).map(p=>({g,p})));
@@ -71,7 +71,7 @@
           const summaries=(context.teamSummaries||[]).find(s=>s.seasonKey===season.seasonKey);
           const record=summaries?.records?.find(r=>r.teamRef&&team.profileUrl===r.teamRef);
           if(record?.metrics?.points!=null)stories.push(make('TEAM_OFFICIAL_SEASON_BACKGROUND',season.seasonKey,[team.teamId],{points:record.metrics.points,games:record.games},
-            `בעונה הסדירה ${year}, ${record.name} רשמה ${record.metrics.points} נקודות בממוצע ב־${record.games??'מספר לא ידוע של'} משחקים לפי האיגוד. זהו סיכום העונה הקודמת, ולא נתון על הסגל או הכושר כיום.`,[],{sampleSize:record.games,evidence:[{seasonKey:season.seasonKey,sourceUrl:record.sourceUrl,fields:['points','games','teamRef']}],priority:60}));
+            `בעונה הסדירה ${year}, ${record.name} רשמה ${record.metrics.points} נקודות בממוצע ב־${record.games??'מספר לא ידוע של'} משחקים.`,[],{sampleSize:record.games,evidence:[{seasonKey:season.seasonKey,sourceUrl:record.sourceUrl,fields:['points','games','teamRef']}],priority:60}));
         }
       }
       return Array.from(new Map(stories.map(i=>[i.id,i])).values());
@@ -79,3 +79,4 @@
   }
   window.IBBAHistoricalInsights=IBBAHistoricalInsights;
 })();
+

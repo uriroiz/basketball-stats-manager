@@ -109,14 +109,14 @@
       }catch(_){ /* A missing official bridge leaves game appearances unverified. */ }
     }
     static insights(records) {
-      const insights=records.map(r=>`${r.name}: בעונת ${r.seasonLabel} שיחק/ה ב${r.team || 'קבוצה שלא צוינה'}; ${r.games ?? '—'} משחקים${r.points == null ? '' : `, ${r.points} נקודות בממוצע לפי האיגוד`}.`);
+      const insights=records.map(r=>`${r.name}: בעונת ${r.seasonLabel} שיחק/ה ב${r.team || 'קבוצה שלא צוינה'}; ${r.games ?? '—'} משחקים${r.points == null ? '' : `, ${r.points} נקודות בממוצע`}.`);
       // Called for one verified player. Multiple team splits must not be compared as season totals.
       const seasons=Array.from(new Set(records.map(r=>r.seasonKey))).sort();
       if(seasons.length===2) {
         const older=records.filter(r=>r.seasonKey===seasons[0]);const newer=records.filter(r=>r.seasonKey===seasons[1]);
         if(older.length===1&&newer.length===1&&older[0].points!=null&&newer[0].points!=null) {
           const a=older[0],b=newer[0];
-          insights.push(`לפי האיגוד: ${b.points} נקודות בממוצע בעונת ${b.seasonLabel} (${b.games??'—'} משחקים), לעומת ${a.points} בעונת ${a.seasonLabel} (${a.games??'—'} משחקים).`);
+          insights.push(`${b.points} נקודות בממוצע בעונת ${b.seasonLabel} (${b.games??'—'} משחקים), לעומת ${a.points} בעונת ${a.seasonLabel} (${a.games??'—'} משחקים).`);
         }
       }
       return insights;
@@ -134,3 +134,4 @@
   IBBAPlayerHistory.playerRef=playerRef;
   window.IBBAPlayerHistory=IBBAPlayerHistory;
 })();
+

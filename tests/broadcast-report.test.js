@@ -7,6 +7,7 @@ const top=B.selectTopStories([story('a'),story('b',2),story('c')]);
 assert.strictEqual(top.length,3,'never pad short selection');
 assert(top.some(i=>i.id==='b'),'identical story type on other team must remain');
 assert.strictEqual(B.selectTopStories([story('a'),story('a')]).length,1);
+assert.strictEqual(B.selectTopStories([{...story('a'),factKey:'same'},{...story('other'),factKey:'same'}]).length,1);
 async function run(){
  const match={seasonKey:'2026-27',gameId:1,date:'2026-10-13',teams:[{teamId:1,name:'H'},{teamId:2,name:'A'}]};
  const ctx={match,currentGames:[],currentComplete:true,priorSeasons:[],playerSummaries:{state:'idle',records:[],statuses:[]},teamSummaries:[],identity:r=>r};

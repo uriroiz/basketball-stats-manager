@@ -3,15 +3,12 @@
   class IBBABroadcastReport {
     static selectTopStories(candidates,{limit=8}={}) {
       const sorted=[...candidates].sort((a,b)=>(b.priority??({high:90,medium:65,low:40}[b.importance]||40))-(a.priority??({high:90,medium:65,low:40}[a.importance]||40))||String(a.id||a.type).localeCompare(String(b.id||b.type)));
-      const seen=new Set(),counts=new Map(),result=[];
-      for(const story of sorted) {
-        const key=story.id || `${story.type}:${story.teamName}:${story.playerName||''}:${story.text}`;
-        if(seen.has(key))continue;seen.add(key);
-        const group=`${story.teamIds?.[0]??story.teamName??'both'}:${story.category||story.type}`;
-        if((counts.get(group)||0)>=2)continue;
-        counts.set(group,(counts.get(group)||0)+1);result.push(story);
-        if(result.length===limit)break;
-      }
+      const seen=new Set(),result=[];
+      const distinct=sorted.filter(story=>{const key=story.factKey||story.id||`${story.type}:${story.teamName}:${story.text}`;if(seen.has(key))return false;seen.add(key);return true;});
+      const representedTeams=new Set(),representedFamilies=new Set();
+      const take=story=>{result.push(story);story.teamIds?.forEach(id=>representedTeams.add(String(id)));representedFamilies.add(story.family||story.category||story.type);};
+      for(const story of distinct)if(result.length<Math.min(limit,4)&&((story.teamIds||[]).some(id=>!representedTeams.has(String(id)))||!representedFamilies.has(story.family||story.category||story.type)))take(story);
+      for(const story of distinct)if(result.length<limit&&!result.includes(story))take(story);
       return result;
     }
     static async build(match,{contextService,currentReportBuilder,selectedPlayerRefs=[],now=new Date(),refresh=false}={}) {
@@ -32,7 +29,11 @@
           evidence:games.map(g=>({seasonKey:g.seasonKey,gameId:g.gameId,sourceUrl:g.permalink,fields:['results','performance']})),dataState:report.context.currentComplete?'ready':'partial',
           text:`בעונת ${window.IBBASeasons.getSeason(report.seasonKey).label}: ${i.text}`};
       });
-      return {...report,historicalContext:report.context.playerSummaries,historicalInsights,topStories:this.selectTopStories([...current,...historicalInsights]),selectedPlayerRefs:[...playerRefs]};
+      const rich=(window.IBBARichInsights?.generate(report.context,{playerRefs})||[]).map(s=>{const text=window.IBBABroadcastCopy?.format(s,{variant:report.copyVariant||0})||s.text;return {...s,text,broadcastShort:text};});
+      const legacy=[...current,...historicalInsights].map(s=>({...s,family:s.family||({'H2H':'MATCHUP','BACKGROUND':'PROFILE'}[s.category]||s.category||'PROFILE'),factKey:s.factKey||s.id}));
+      const allInsights=[...new Map([...rich,...legacy].map(s=>[s.factKey||s.id,s])).values()];
+      const families=Object.fromEntries(['ROUND','MOMENTUM','PROFILE','DECIDING','MATCHUP','PLAYERS'].map(f=>[f,allInsights.filter(s=>s.family===f)]));
+      return {...report,historicalContext:report.context.playerSummaries,historicalInsights,allInsights,families,topStories:this.selectTopStories(allInsights),selectedPlayerRefs:[...playerRefs]};
     }
     static exportRows(report) {
       const rows=[['=== נקודות לשידור ===']];
