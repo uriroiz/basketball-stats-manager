@@ -1,11 +1,12 @@
 const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
-function adapter(fetch) {
+function adapter(fetch, seasonKey = null) {
   const c = {window:{},fetch,console:{log(){},warn(){},error(){}},URL,Date,
-    document:{createElement:()=>({set innerHTML(v){this.textContent=v;},textContent:''})}};
+    document:{createElement:()=>({set innerHTML(v){this.value=v;},value:''})}};
   vm.runInNewContext(fs.readFileSync('js/ibba/ibba_adapter.js','utf8'),c);
-  return new c.window.IBBAAdapter({key:'2026-27',leagueId:119894,seasonId:119888,seasonMonths:['2026-10','2026-11']});
+  vm.runInNewContext(fs.readFileSync('js/ibba/ibba_seasons.js','utf8'),c);
+  return new c.window.IBBAAdapter(seasonKey ? c.window.IBBASeasons.getSeason(seasonKey) : {key:'2026-27',leagueId:119894,seasonId:119888,seasonMonths:['2026-10','2026-11']});
 }
 async function run() {
   const urls=[];
@@ -16,6 +17,21 @@ async function run() {
   });
   assert.strictEqual(a.leagueId,119894,'explicit season controls adapter');
   const r=await a.fetchSeasonGames();
+  const historical=adapter(async()=>{throw Error('no network needed');},'2024-25');
+  const deletedTeamGame={id:971291,teams:[166934,596704],date:'2024-10-01',title:{rendered:'Home — '},performance:''};
+  const recovered=historical.convertToInternalFormat(deletedTeamGame);
+  assert.strictEqual(recovered.awayTeam,'הפועל בני כפר קאסם');
+  assert.strictEqual(recovered.teams[1].name,recovered.awayTeam);
+  assert.strictEqual(recovered.teams[1].teamId,596704);
+  const homeDeleted=historical.convertToInternalFormat({...deletedTeamGame,teams:[596704,166934],title:{rendered:' — Away'}});
+  assert.strictEqual(homeDeleted.homeTeam,recovered.awayTeam);
+  assert.strictEqual(historical.convertToInternalFormat({...deletedTeamGame,title:{rendered:'Home — Published name'}}).awayTeam,'Published name');
+  assert.notStrictEqual(a.convertToInternalFormat(deletedTeamGame).awayTeam,recovered.awayTeam,'historical fallback never leaks to another season');
+  assert.ok(!a.convertToInternalFormat(deletedTeamGame).awayTeam.includes('Unknown'));
+  assert.ok(historical.convertToInternalFormat({...deletedTeamGame,teams:[166934,999999]}).awayTeam.includes('999999'),'another missing team keeps its own identity');
+  const stats=Object.fromEntries(['min','pts','fgm','fga','threepm','threepa','ftm','fta','off','def','ast','stl','blk','to','pf','rate'].map(key=>[key,'1']));
+  const withPlayers=historical.convertToInternalFormat({...deletedTeamGame,performance:{596704:{123:stats}},away:{team:''}});
+  assert.strictEqual(withPlayers.players[0].teamName,recovered.awayTeam,'player and game team labels agree');
   assert.strictEqual(r.games.length,101);
   assert(urls.every(u=>u.includes('seasons=119888')&&u.includes('leagues=119894')));
   const future=a.convertToInternalFormat({id:1,teams:[10,20],date:'2026-10-13',title:{rendered:'Home — Away'},performance:''});

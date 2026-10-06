@@ -8,6 +8,9 @@
   ];
   const seasons = definitions.map(([key, year, leagueId, seasonId, slug]) => Object.freeze({
     key, label: `${year}/${String(year + 1).slice(2)}`, leagueId, seasonId,
+    // Team 596704 lost its title upstream. Its official match permalink preserves
+    // the historical name: /match/705903-א-ס-רמהש-ירק-השדה-הפועל-בני-כפר-קאסם/.
+    historicalTeamNames: Object.freeze(key === '2024-25' ? {596704:'הפועל בני כפר קאסם'} : {}),
     playersPageUrl: `https://ibasketball.co.il/league/${slug}/`,
     seasonMonths: Object.freeze(Array.from({length:12}, (_, i) => {
       const month = i + 10;

@@ -9,6 +9,7 @@ class IBBAAdapter {
   constructor(season = null) {
     const config = season || window.appConfig || {};
     this.seasonKey = config.key || config.seasonKey || '2025-26';
+    this.historicalTeamNames = config.historicalTeamNames || {};
     this.baseURL = 'https://ibasketball.co.il/wp-json/wp/v2';
     this.sportspressURL = 'https://ibasketball.co.il/wp-json/sportspress/v2';
     this.leagueId = config.leagueId || 119474;
@@ -263,8 +264,8 @@ class IBBAAdapter {
     // חילוץ שמות קבוצות מה-title (פורמט: "קבוצה א — קבוצה ב")
     const title = ibbaGame.title?.rendered || '';
     const teamNames = title.split(/\s*[—–-]\s*/); // תומך במינוס, em-dash, en-dash
-    const homeTeamName = teamNames[0]?.trim() || 'Unknown';
-    const awayTeamName = teamNames[1]?.trim() || 'Unknown';
+    const homeTeamName = this.resolveTeamName(homeTeamId, teamNames[0]);
+    const awayTeamName = this.resolveTeamName(awayTeamId, teamNames[1]);
     
     // חילוץ ניקוד מ-performance data (אם קיים)
     const readScore = teamId => {
@@ -357,6 +358,12 @@ class IBBAAdapter {
     return game;
   }
 
+  resolveTeamName(teamId, sourceName) {
+    const name = String(sourceName || '').trim();
+    if (name && !/^unknown(?: team)?$/i.test(name)) return name;
+    return this.historicalTeamNames[teamId] || `קבוצה ללא שם (מזהה ${teamId ?? 'חסר'})`;
+  }
+
   /**
    * חילוץ רבעים
    */
@@ -390,7 +397,8 @@ class IBBAAdapter {
       if (!teamPerformance) return;
       
       const rawTeamName = teamId === homeTeamId ? ibbaGame.home?.team : ibbaGame.away?.team;
-      const teamName = this.decodeHtmlEntities(rawTeamName);
+      const titleNames = (ibbaGame.title?.rendered || '').split(/\s*[—–-]\s*/);
+      const teamName = this.decodeHtmlEntities(this.resolveTeamName(teamId, rawTeamName || titleNames[teamId === homeTeamId ? 0 : 1]));
       const isHome = teamId === homeTeamId;
       
       // עיבוד כל שחקן בקבוצה
