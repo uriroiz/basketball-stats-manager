@@ -6,6 +6,11 @@
     if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort().map(k => [k,order(value[k])]));
     return value;
   }
+  function factsOnly(value) {
+    if(Array.isArray(value))return value.map(factsOnly);
+    if(value && typeof value==='object')return Object.fromEntries(Object.entries(value).filter(([key])=>key!=='asOf').map(([key,v])=>[key,factsOnly(v)]));
+    return value;
+  }
   const family = s => s.family || s.category || s.type;
   class IBBABroadcastEditorial {
     static storyKey(s) {
@@ -21,7 +26,7 @@
     }
     static fingerprint(s) {
       const facts={...(s.facts || {})};delete facts.analysisScope;
-      return stable([facts,s.seasonKeys,s.analysisScope,s.samples,s.sampleSize,s.evidence]);
+      return stable(factsOnly([facts,s.seasonKeys,s.analysisScope,s.samples,s.sampleSize,s.evidence]));
     }
     static tier(s) {
       if (s.scope==='current' && (/CHANGE|STREAK|RISING_STAR|HOT_HAND|COLD_SPELL|POINT_DIFF_TREND/.test(s.type) || s.playerRef && /MATCHUP|KILLER_VS_TEAM/.test(s.type))) return 1;

@@ -6,7 +6,7 @@
 class VersionManager {
     constructor() {
         this.version = {
-            major: 1,
+            major: 2,
             minor: 3,
             patch: 0,
             build: this.generateBuildNumber()
@@ -31,11 +31,10 @@ class VersionManager {
     }
 
     /**
-     * Get full version string in SemVer format with build metadata
-     * Format: v1.0.0+20250117.1430
+     * Stable release version; build time remains diagnostic metadata.
      */
     getVersionString() {
-        return `v${this.version.major}.${this.version.minor}.${this.version.patch}+${this.version.build}`;
+        return `v${this.version.major}.${this.version.minor}.${this.version.patch}`;
     }
 
     /**

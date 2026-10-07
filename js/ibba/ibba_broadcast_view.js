@@ -60,7 +60,8 @@
       return `<details class="broadcast-comparison" data-broadcast-table="${escape(encodeURIComponent(title))}"><summary>${this.text(title)}</summary><div class="broadcast-table-wrap" role="region" aria-label="${escape(title)}" tabindex="0"><table class="broadcast-table"><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table></div></details>`;
     }
     static familySummary(stories,context) {
-      const sorted=[...stories].filter(s=>s.text).sort((a,b)=>String(b.seasonKeys?.at(-1)||'').localeCompare(String(a.seasonKeys?.at(-1)||'')));
+      const preferred=s=>['ROUND_TEAM_SUMMARY','POOLED_H2H_RECORD'].includes(s.type)?1:0;
+      const sorted=[...stories].filter(s=>s.text).sort((a,b)=>preferred(b)-preferred(a)||String(b.seasonKeys?.at(-1)||'').localeCompare(String(a.seasonKeys?.at(-1)||'')));
       const result=[];
       for(const team of context?.match?.teams||[]){const s=sorted.find(s=>s.teamIds?.some(id=>String(id)===String(team.teamId)));if(s&&!result.includes(s))result.push(s);}
       return result.length?result.slice(0,2):sorted.slice(0,1);
@@ -71,7 +72,7 @@
       return `<button type="button" class="workspace-table-add" data-compact="true" data-workspace-action="add" data-story-key="${key}" aria-label="${escape(`הוסף לדף שלי: ${story.text}`)}" title="הוסף לדף שלי">+</button>`;
     }
     static renderGroups(stories) {
-      return this.groups(stories).map(group=>{
+      return this.groups(stories.filter(s=>s.type!=='ROUND_TEAM_SUMMARY')).map(group=>{
         if(!group.numeric)return this.wrapTable(group.title,'<th scope="col">עונה</th><th scope="col">נקודה לשידור</th>',group.rows.map(({story,column})=>{
           const season=column.split('|').map(label).join(', ');
           const text=story.type==='SAME_STAGE_RECORD'?`${story.facts.wins} ${story.facts.wins===1?'ניצחון':'ניצחונות'} ב־${story.sampleSize} משחקים.`:String(story.text||'').replace(/^בעונ(?:ת|ות) [\d/, ו־-]+, /,'');

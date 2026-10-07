@@ -8,6 +8,7 @@ const s=story('WINDOW_STYLE'),reword={...s,text:'new wording'},changed={...s,fac
 assert.strictEqual(E.storyKey(s),E.storyKey(reword));
 assert.strictEqual(E.storyKey(s),E.storyKey(changed));
 assert.notStrictEqual(E.fingerprint(s),E.fingerprint(changed));
+assert.strictEqual(E.fingerprint(s),E.fingerprint({...s,analysisScope:{...scope,asOf:'2026-10-08',windows:scope.windows.map(w=>({...w,asOf:'2026-10-08'}))}}),'refresh cutoff alone is not a changed fact');
 assert.strictEqual(E.storyKey({...s,teamIds:[],teamName:'same name'}),null,'name alone never merges');
 const current=story('RECENT_WINDOW_CHANGE',1,{scope:'current',family:'MOMENTUM',seasonKeys:['2026-27'],facts:{metric:'points',difference:8,value:90,referenceValue:82}});
 const round=story('ROUND_TEAM_SUMMARY',2,{family:'ROUND',facts:{round:1,roundMetrics:{points:80,opponentPoints:70,margin:10}}});

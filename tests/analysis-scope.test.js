@@ -23,6 +23,11 @@ assert.strictEqual(S.groupKey(older), S.groupKey(scope), 'same relative window c
 const comparison = S.fromSnapshots([snapshot('2025-26'), snapshot('2024-25')], {facts:{metric:'ftPercentage'}});
 assert.strictEqual(comparison.windows.length, 2);
 assert.strictEqual(comparison.metricSamples.length, 2);
+const firstHalf=snapshot('2025-26'),secondHalf=snapshot('2025-26');
+firstHalf.window.resultGames=[game(1)];secondHalf.window.resultGames=[game(2)];secondHalf.window.spec={...secondHalf.window.spec,offset:5};
+const halves=S.fromSnapshots([firstHalf,secondHalf],{facts:{metric:'ftPercentage'}});
+assert.strictEqual(halves.windows[0].gameRefs.length,1,'each window keeps its own exact games');
+assert.strictEqual(halves.windows[1].gameRefs[0].gameId,'2');
 const unknown = S.fromGames([game(1)], {phase:'unknown',mode:'single'});
 assert.strictEqual(unknown.phase, 'unknown');
 assert(!S.label(unknown).includes('העונה הסדירה'));

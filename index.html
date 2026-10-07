@@ -43,6 +43,7 @@
     <div class="header-gradient rounded-lg p-3 mb-3 shadow-md">
       <h1 class="text-2xl font-bold mb-1 text-center">הכנה לשידורי כדורסל</h1>
       <p class="text-sm text-center text-blue-100">משחקים, סטטיסטיקות ונקודות לשידור</p>
+      <p class="text-sm text-center text-blue-100 mt-1">גרסה <bdi class="version-display">v2.3.0</bdi></p>
     </div>
     <div id="seasonError" role="alert" class="hidden card p-4 mb-4"></div>
     
@@ -634,7 +635,6 @@
         <div id="prepMatchSummary" role="status" aria-live="polite" class="hidden card p-4 flex-1" tabindex="-1"></div>
         <label for="prepExportMode">תוכן לייצוא</label>
         <select id="prepExportMode" onchange="syncBroadcastExport()" class="border rounded px-3 py-2">
-          <option value="personal" disabled>הדף שלי לשידור</option>
           <option value="recommended" selected disabled>נקודות מומלצות</option>
           <option value="full" disabled>הדוח המלא</option>
         </select>
@@ -837,6 +837,7 @@
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="js/ibba/ibba_seasons.js?v=1"></script>
+  <script src="js/app_version.js"></script>
   <script src="js/config.js?v=4"></script>
   <script src="js/ibba/ibba_adapter.js?v=10"></script>
   <script src="js/ibba/ibba_analytics.js?v=7"></script>
@@ -2566,9 +2567,12 @@
       const select=document.getElementById('prepExportMode');if(!select)return;
       const active=Boolean(result?.state?.items?.some(i=>i.status==='active'));
       const available={personal:active,recommended:Boolean(!currentAdvancedReport?.cachedOnly && currentAdvancedReport?.topStories?.length),full:Boolean(currentAdvancedReport && !currentAdvancedReport.cachedOnly)};
+      if(select.options?.length) {
+        select.options[0].value=active?'personal':'recommended';select.options[0].textContent=active?'הדף שלי לשידור':'נקודות מומלצות';
+      }
       for(const option of select.options || [])option.disabled=!available[option.value];
       if(active && select.dataset.hadPersonal!=='true')select.value='personal';
-      else if(!available[select.value])select.value=available.recommended?'recommended':available.personal?'personal':available.full?'full':'recommended';
+      else if(select.value!=='full' || !available.full)select.value=active?'personal':'recommended';
       select.dataset.hadPersonal=String(active);
       document.getElementById('prepExport').disabled=!available[select.value];
       document.getElementById('prepExportStatus').textContent=currentAdvancedReport?.cachedOnly?'זמין ייצוא של הדף השמור; הדוח המלא יהיה זמין לאחר טעינת הנתונים.':(!available[select.value]?'הייצוא יהיה זמין לאחר בחירת משחק וטעינת נקודות לשידור.':'');
@@ -3843,7 +3847,10 @@
         excelData.push(['משחק',match.homeTeam,match.awayTeam]);
         excelData.push(['מועד מתוכנן',new Date(match.date).toLocaleString('he-IL')]);
         excelData.push(['מקור המשחק',match.permalink||'לא זמין']);
+        if(match.roundVerified && match.competitionPhase==='regular')excelData.push(['מחזור בעונה הסדירה',match.roundNumber]);
       }
+      if(captured)excelData.push(['מועד יצירת הקובץ',captured.capturedAt]);
+      if(exportReport.context?.asOf)excelData.push(['נתונים עד',exportReport.context.asOf]);
       const selectedHistory={...(exportReport.context?.playerSummaries||exportReport.historicalContext),records:(exportReport.context?.playerSummaries?.records||exportReport.historicalContext?.records||[]).filter(r=>(exportReport.selectedPlayerRefs||[]).includes(exportReport.context?.identity?.(r.playerRef)||r.playerRef))};
       if(!window.IBBABroadcastReport)excelData.push(...window.IBBAPlayerHistory.exportRows(selectedHistory));
       if(window.IBBABroadcastReport)excelData.push(...(captured?.rows || window.IBBABroadcastReport.exportRows(exportReport,{mode})));

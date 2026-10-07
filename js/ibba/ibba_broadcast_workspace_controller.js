@@ -38,11 +38,17 @@
     }
     captureFocus() {
       const active=document.activeElement;
-      if(!active?.id || !this.root.contains?.(active))return null;
-      return {id:active.id,start:active.selectionStart,end:active.selectionEnd};
+      if(!active || !this.root.contains?.(active))return null;
+      return {id:active.id,action:active.dataset?.workspaceAction,key:active.dataset?.storyKey,start:active.selectionStart,end:active.selectionEnd};
     }
     restoreFocus(focus) {
-      if(!focus)return;const node=document.getElementById(focus.id);node?.focus?.({preventScroll:true});
+      if(!focus)return;
+      let node=focus.id?document.getElementById(focus.id):null;
+      if(!node && focus.action) {
+        const sameStory=Array.from(this.root.querySelectorAll?.('[data-workspace-action]') || []).filter(n=>n.dataset.storyKey===focus.key);
+        node=sameStory.find(n=>n.dataset.workspaceAction===focus.action && !n.disabled) || sameStory.find(n=>!n.disabled);
+      }
+      node?.focus?.({preventScroll:true});
       if(typeof focus.start==='number')node?.setSelectionRange?.(focus.start,focus.end);
     }
     render() {

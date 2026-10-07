@@ -11,9 +11,9 @@
         windows:[{...selection,phase:phase(selectedPhase),mode,asOf,gameRefs:refs(games)}],metricSamples:[]};
     }
     static fromSnapshots(snapshots, {facts={}, requestedSeasonKeys, asOf=null, recordGameIds}={}) {
-      const windows = snapshots.flatMap(s => s.window.spec.mode === 'pool' ? s.window.spec.windows : [s.window.spec]).map(w => ({...w,
+      const windows = snapshots.flatMap(s => (s.window.spec.mode === 'pool' ? s.window.spec.windows : [s.window.spec]).map(w => ({...w,
         phase:phase(w.phase),mode:w.mode === 'recent' && w.count == null ? (w.opponentId != null ? 'meetings' : 'season') : w.mode,
-        gameRefs:refs(snapshots.flatMap(s => s.window.resultGames).filter(g => !w.seasonKey || g.seasonKey === w.seasonKey))}));
+        gameRefs:refs(s.window.resultGames.filter(g => !w.seasonKey || g.seasonKey === w.seasonKey))})));
       const phases = unique(windows.map(w => w.phase));
       const metricSamples = snapshots.map((s, index) => {
         const metric = index && facts.referenceMetric ? facts.referenceMetric : facts.metric;

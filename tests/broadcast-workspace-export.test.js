@@ -22,6 +22,7 @@ assert(full.some(r=>r.includes('ההיסטוריה טרם נטענה')));
 assert.throws(()=>B.captureExport({...report,cachedOnly:true},ws,{mode:'full'}),/מלא/);
 assert.throws(()=>B.captureExport(report,ws,{mode:'invalid'}),/ייצוא/);
 const html=fs.readFileSync('index.html','utf8');assert(html.includes('id="prepExportMode"'),'labelled export choices in active page');
+assert.strictEqual((html.match(/<select id="prepExportMode"[\s\S]*?<\/select>/)[0].match(/<option/g)||[]).length,2,'two contextual export choices match the approved specification');
 const nodes=new Map(),doc={readyState:'loading',addEventListener(){},getElementById:id=>{if(!nodes.has(id))nodes.set(id,{value:'',disabled:false,options:[{value:'personal'},{value:'recommended'},{value:'full'}],dataset:{},classList:{},style:{}});return nodes.get(id);}};
 const ui=load(['ibba_seasons','ibba_analysis_scope','ibba_broadcast_report'],{document:doc,setTimeout(){},window:{appConfig:{seasonKey:'2026-27',seasonLabel:'2026/27'}},console:{log(){},warn(){},error(){}}});
 vm.runInContext([...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].find(m=>m[1].includes('async function selectSeason'))[1],ui);

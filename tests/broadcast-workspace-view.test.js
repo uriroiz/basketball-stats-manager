@@ -18,4 +18,7 @@ html=V.render(null,{state,notice:'',writable:true});assert(html.includes('נקו
 assert(!html.split('נקודות לבדיקה')[0].includes('A:'),'changed facts stay out of active points');
 html=V.render(null,{state,notice:'כשל שמירה',writable:false,conflict:{remote:{}}});
 assert(html.includes('keepLocal')&&html.includes('acceptRemote')&&html.includes('reset'));
+const detail={...story,type:'ROUND_SCORING',teamIds:[1],facts:{metric:'margin',value:-5}},summary={...detail,type:'ROUND_TEAM_SUMMARY',text:'actual wins and losses',facts:{...detail.facts,roundMetrics:{points:80,opponentPoints:85,margin:-5}}};
+assert.strictEqual(c.window.IBBABroadcastView.familySummary([detail,summary],{match:{teams:[{teamId:1}]}})[0].type,'ROUND_TEAM_SUMMARY','family brief uses combined outcomes');
+assert.strictEqual((c.window.IBBABroadcastView.renderGroups([detail,summary]).match(/<bdi dir="ltr">-5<\/bdi>/g)||[]).length,1,'summary does not duplicate its margin cell');
 console.log('broadcast workspace view tests passed');

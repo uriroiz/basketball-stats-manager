@@ -79,8 +79,11 @@
         case 'note': if(item)item.note=String(command.note ?? '');break;
         case 'used': if(item)item.used=Boolean(command.used);break;
         case 'move': {
-          const index=this.state.items.indexOf(item),target=index+command.direction;
-          if (index>=0 && [-1,1].includes(command.direction) && target>=0 && target<this.state.items.length) [this.state.items[index],this.state.items[target]]=[this.state.items[target],this.state.items[index]];break;
+          const active=this.state.items.filter(i=>i.status==='active'),position=active.indexOf(item),neighbor=active[position+command.direction];
+          if(position>=0 && [-1,1].includes(command.direction) && neighbor) {
+            const index=this.state.items.indexOf(item),target=this.state.items.indexOf(neighbor);
+            [this.state.items[index],this.state.items[target]]=[this.state.items[target],this.state.items[index]];
+          }break;
         }
         case 'remove': if(item){this.undo={item:copy(item),index:this.state.items.indexOf(item)};this.state.items=this.state.items.filter(i=>i!==item);}break;
         case 'undo': if(this.undo){if(!this.state.items.some(i=>i.storyKey===this.undo.item.storyKey))this.state.items.splice(this.undo.index,0,this.undo.item);this.undo=null;}break;
