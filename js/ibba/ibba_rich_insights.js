@@ -14,7 +14,9 @@
       const samples=snapshots.map((s,index)=>({entityRef:s.entityRef,seasonKeys:s.seasonKeys,metric:sampleMetrics[index].name,gameCount:sampleMetrics[index].count,metricGameCounts:Object.fromEntries(Object.entries(s.metrics).map(([m,v])=>[m,v.gameCount]))}));
       const small=samples.some(s=>s.gameCount<5);
       return {id:`${type}:${factKey}`,factKey,type,family,category:family,teamIds:team.teamId==null?[]:[team.teamId],teamName:team.name,
-        seasonKeys,scope:extras.scope||'historical',facts,windows,metricDefinitions:{[facts.metric||'record']:{unit:facts.metric?.includes('Percentage')?'percent':'perGame'}},
+        seasonKeys,scope:extras.scope||'historical',facts,windows,
+        analysisScope:window.IBBAAnalysisScope?.fromSnapshots(snapshots,{facts,recordGameIds:extras.recordGameIds,requestedSeasonKeys:extras.requestedSeasonKeys}),
+        metricDefinitions:{[facts.metric||'record']:{unit:facts.metric?.includes('Percentage')?'percent':'perGame'}},
         samples,
         coverage:snapshots.map(s=>s.coverage),evidence:snapshots.flatMap(s=>s.evidence),sampleSize:samples[0]?.gameCount||0,
         dataState:snapshots.every(s=>s.coverage.complete)&&sampleMetrics.every(s=>!s.name||s.metric?.dataState==='ready')?'ready':'partial',

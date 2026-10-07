@@ -1166,7 +1166,7 @@ class IBBAInsightsV2 {
         if (!playerPoints[pid]) {
           playerPoints[pid] = { playerId: pid, jersey: player.jersey, points: [] };
         }
-        playerPoints[pid].points.push({ idx, points: player.stats?.points || 0 });
+        playerPoints[pid].points.push({ idx, points: player.stats?.points || 0, gameId:game.gameId,seasonKey:game.seasonKey,date:game.date });
       });
     });
     
@@ -1200,6 +1200,13 @@ class IBBAInsightsV2 {
       const playerName = this.getPlayerDisplayName(star.playerId, star.jersey, teamName);
       return {
         type: 'RISING_STAR',
+        playerId: star.playerId,
+        analysisScope: (()=>{
+          const mid=Math.floor(star.points.length/2),first=star.points.slice(0,mid),second=star.points.slice(mid);
+          const a=window.IBBAAnalysisScope?.fromGames(first,{phase:'all',mode:'recent',count:first.length,offset:second.length});
+          const b=window.IBBAAnalysisScope?.fromGames(second,{phase:'all',mode:'recent',count:second.length,offset:0});
+          return a&&b?{...a,windows:[...a.windows,...b.windows],metricSamples:[first,second].map((list,index)=>({metric:'points',entityRef:`wp:${star.playerId}`,seasonKey:list[0]?.seasonKey,unit:'perGame',gameCount:list.length,numerator:list.reduce((n,g)=>n+g.points,0),denominator:list.length,gameRefs:(index?b:a).windows[0].gameRefs}))}:undefined;
+        })(),
         category: 'PLAYERS',
         importance: 'high',
         teamName,
@@ -3195,6 +3202,9 @@ class IBBAInsightsV2 {
     const required={FAST_BREAK_KINGS:'pointsFastBreak',PAINT_DOMINANCE:'pointsInPaint',BENCH_POWER:'pointsBench',STARTING_VS_BENCH:'pointsBench',TURNOVER_CAPITALIZATION:'pointsFromTurnovers',SECOND_CHANCE_MASTERS:'pointsSecondChance'};
     for(const category of Object.keys(insights))insights[category]=insights[category].filter(i=>!required[i.type]||this.getTeamGames(games,i.teamName).every(g=>g.availableMetrics?.includes(required[i.type])));
 
+    for(const list of Object.values(insights))for(const insight of list) {
+      insight.analysisScope ||= window.IBBAAnalysisScope?.fromGames([],{phase:'unknown',requestedSeasonKeys:[...new Set(games.map(g=>g.seasonKey).filter(Boolean))]});
+    }
     return insights;
   }
 

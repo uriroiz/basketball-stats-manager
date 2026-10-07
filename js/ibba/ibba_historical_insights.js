@@ -9,7 +9,9 @@
   function make(type,season,teams,facts,text,games,extras={}) {
     return {id:`${type}:${season}:${teams.join(',')}:${games.map(g=>g.gameId).join(',')}:${extras.playerRef||''}:${extras.historicalTeam||''}`,
       type,category:type.includes('PLAYER')?'PLAYERS':type.includes('MEETING')||type.includes('H2H')?'H2H':type.includes('OFFICIAL')?'BACKGROUND':'ROUND',scope:'historical',seasonKeys:[season],teamIds:teams,
-      playerRef:null,historicalTeam:null,roundWindow:null,sampleSize:games.length,facts,evidence:games.map(evidence),dataState:'ready',text,broadcastShort:text,priority:type==='LAST_HISTORICAL_MEETING'?95:75,...extras};
+      playerRef:null,historicalTeam:null,roundWindow:null,sampleSize:games.length,facts,evidence:games.map(evidence),dataState:'ready',text,broadcastShort:text,priority:type==='LAST_HISTORICAL_MEETING'?95:75,
+      analysisScope:type.includes('OFFICIAL') ? window.IBBAAnalysisScope?.forOfficialSummary({games:extras.sampleSize,points:facts.points},{seasonKey:season,entityRef:extras.playerRef||String(teams[0])})
+        : window.IBBAAnalysisScope?.fromGames(games,{phase:extras.roundWindow?'regular':'all',mode:extras.roundWindow?'rounds':type.includes('H2H')?'meetings':'single',requestedSeasonKeys:[season],fromRound:extras.roundWindow?.[0],toRound:extras.roundWindow?.[1]}),...extras};
   }
   class IBBAHistoricalInsights {
     static generate(context,{playerRefs=[]}={}) {

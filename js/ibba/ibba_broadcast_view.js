@@ -28,12 +28,14 @@
     }
     static groups(stories) {
       const groups=new Map();
-      for(const story of stories) {
+      for(const [storyIndex,story] of stories.entries()) {
         const f=story.facts||{},numeric=f.metric&&f.value!=null&&f.referenceValue==null;
         const entity=story.playerName||story.teamName||'רקע למשחק';
         const windowLabel=this.window(story),venue=f.venue?f.venue==='home'?'בבית':'בחוץ':'';
-        const title=[entity,story.historicalTeam,windowLabel,venue,story.referenceName?`מול ${story.referenceName}`:''].filter(Boolean).join(' · ');
-        const key=JSON.stringify([numeric,story.playerRef||(story.teamIds?.length?story.teamIds:entity),story.historicalTeam,windowLabel,venue,story.referenceName,story.scope==='comparison'?'comparison':'',numeric?'':story.type]);
+        const scopeLabel=window.IBBAAnalysisScope?.label(story.analysisScope);
+        const title=[entity,story.historicalTeam,scopeLabel||windowLabel,venue,story.referenceName?`מול ${story.referenceName}`:''].filter(Boolean).join(' · ');
+        const key=JSON.stringify([numeric,story.playerRef||(story.teamIds?.length?story.teamIds:entity),story.historicalTeam,windowLabel,venue,story.referenceName,story.scope==='comparison'?'comparison':'',numeric?'':story.type,
+          window.IBBAAnalysisScope?.groupKey(story.analysisScope),story.analysisScope?.phase==='unknown'?storyIndex:'']);
         if(!groups.has(key))groups.set(key,{title,numeric,rows:[],columns:[]});
         const group=groups.get(key),column=(story.seasonKeys||[]).join('|')||'current';
         if(!group.columns.includes(column))group.columns.push(column);
@@ -64,11 +66,12 @@
           const text=story.type==='SAME_STAGE_RECORD'?`${story.facts.wins} ${story.facts.wins===1?'ניצחון':'ניצחונות'} ב־${story.sampleSize} משחקים.`:String(story.text||'').replace(/^בעונ(?:ת|ות) [\d/, ו־-]+, /,'');
           return `<tr><th scope="row">${this.text(season)}</th><td>${this.text(text)}</td></tr>`;
         }).join(''));
-        const header=`<th scope="col">מדד</th>${group.columns.map(column=>`<th scope="col">${this.text(column.split('|').map(label).join(', '))}</th>`).join('')}`;
+        const commonCounts=Object.fromEntries(group.columns.map(column=>{const counts=[...new Set(group.rows.flatMap(row=>(row.cells[column]||[]).map(s=>s.sampleSize)))];return [column,counts.length===1?counts[0]:null];}));
+        const header=`<th scope="col">מדד</th>${group.columns.map(column=>`<th scope="col">${this.text(column.split('|').map(label).join(', '))}${commonCounts[column]!=null?`<span class="broadcast-count">${this.text(this.count(commonCounts[column]))}</span>`:''}</th>`).join('')}`;
         const body=group.rows.map(row=>`<tr><th scope="row">${escape(row.key==='margin:'&&Object.values(row.cells).flat().every(s=>s.sampleSize===1)?'הפרש':row.label)}</th>${group.columns.map(column=>`<td>${(row.cells[column]||[]).map(story=>{
           if(row.key==='record')return `<div>${this.text(`${story.facts.wins} מתוך ${story.facts.total}`)}</div>`;
           const value=window.IBBABroadcastCopy.formatNumber(story.facts.value,{percent:story.facts.metric.includes('Percentage')});
-          return `<div>${this.text(value)}${story.sampleSize!=null?`<span class="broadcast-count">${this.text(this.count(story.sampleSize))}</span>`:''}</div>`;
+          return `<div>${this.text(value)}${story.sampleSize!=null&&commonCounts[column]==null?`<span class="broadcast-count">${this.text(this.count(story.sampleSize))}</span>`:''}</div>`;
         }).join('')||'—'}</td>`).join('')}</tr>`).join('');
         return this.wrapTable(group.title,header,body);
       }).join('');
