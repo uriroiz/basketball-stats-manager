@@ -11,4 +11,17 @@ assert(!C.format(profile).includes('במשחקים שנבדקו'));
 assert(C.format({...profile,facts:{metric:'ftPercentage',value:66.5}}).includes('קלעה 66.5% מהעונשין'));
 assert(!C.format({...profile,type:'CLOSE_GAME_RECORD',facts:{wins:3,total:9,losses:6}}).includes('הפסדים'));
 assert(C.format({...story,facts:{metric:'contributionPercentage',value:15.4}}).includes('15.4% מנקודות הקבוצה'),'percentage text does not repeat the word percent');
+const round={type:'ROUND_TEAM_SUMMARY',teamName:'א.ס. אשקלון/קרית גת',seasonKeys:['2025-26'],scope:'historical',sampleSize:1,facts:{metric:'margin',value:-7,round:1,roundMetrics:{points:87,opponentPoints:94,margin:-7}}};
+for(const variant of [0,1]) {
+ const text=C.format(round,{variant});
+ assert(!text.includes('ממוצע')&&text.includes('87')&&text.includes('94')&&text.includes('7 נקודות'),'single game is an actual score/margin, not an average');
+ assert(text.includes('הפסידה'),'negative single-game margin describes a loss');
+}
+assert(C.format({...round,facts:{...round.facts,value:7,roundMetrics:{points:94,opponentPoints:87,margin:7}}}).includes('ניצחה'),'positive single-game margin describes a win');
+assert(C.format({...round,sampleSize:3}).includes('ממוצע'),'multiple games retain average wording');
+assert(C.format({...profile,type:'CLOSE_GAME_RECORD',facts:{wins:3,total:9}}).includes('עד 5 נקודות'),'close-game threshold uses digits');
+assert(C.format(story).includes('ב־5 המשחקים האחרונים'),'recent-window quantities use digits consistently');
+const reversal=C.format({...profile,type:'LEAD_REVERSAL',facts:{count:7,total:36}});
+assert(reversal.includes('פיגרה בסיום לפחות רבע אחד')&&reversal.includes('ניצחה בסיום המשחק')&&reversal.includes('7 מתוך 36'),'comeback wording makes numerator and result explicit');
+assert(!reversal.includes('נתוני ארבעת הרבעים'),'source eligibility is not technical broadcast prose');
 console.log('broadcast copy tests passed');

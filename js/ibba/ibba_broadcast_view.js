@@ -65,7 +65,7 @@
           return `<tr><th scope="row">${this.text(season)}</th><td>${this.text(text)}</td></tr>`;
         }).join(''));
         const header=`<th scope="col">מדד</th>${group.columns.map(column=>`<th scope="col">${this.text(column.split('|').map(label).join(', '))}</th>`).join('')}`;
-        const body=group.rows.map(row=>`<tr><th scope="row">${escape(row.label)}</th>${group.columns.map(column=>`<td>${(row.cells[column]||[]).map(story=>{
+        const body=group.rows.map(row=>`<tr><th scope="row">${escape(row.key==='margin:'&&Object.values(row.cells).flat().every(s=>s.sampleSize===1)?'הפרש':row.label)}</th>${group.columns.map(column=>`<td>${(row.cells[column]||[]).map(story=>{
           if(row.key==='record')return `<div>${this.text(`${story.facts.wins} מתוך ${story.facts.total}`)}</div>`;
           const value=window.IBBABroadcastCopy.formatNumber(story.facts.value,{percent:story.facts.metric.includes('Percentage')});
           return `<div>${this.text(value)}${story.sampleSize!=null?`<span class="broadcast-count">${this.text(this.count(story.sampleSize))}</span>`:''}</div>`;

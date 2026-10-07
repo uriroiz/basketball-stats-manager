@@ -19,15 +19,21 @@
       const allMeetings=newest([...context.priorSeasons.flatMap(s=>s.resultGames),...(context.currentResultGames||[])].filter(inMatch));
       if(allMeetings.length) {
         const g=allMeetings[0];
+        const [winner,loser]=[...g.teams].sort((a,b)=>Number(b.score)-Number(a.score));
+        const resultText=Number(winner.score)>Number(loser.score)?`${winner.name} ניצחה את ${loser.name} ${winner.score}:${loser.score}`:gameText(g);
         stories.push(make('LAST_HISTORICAL_MEETING',g.seasonKey,selected.map(t=>t.teamId),{score:g.teams.map(t=>t.score),date:g.date},
-          `במפגש האחרון, בעונת ${label(g.seasonKey)} (${new Date(g.date).toLocaleDateString('he-IL')}): ${gameText(g)}${g.roundVerified&&g.competitionPhase==='regular'?`, במחזור ${g.roundNumber} של העונה הסדירה`:''}.`,[g],{scope:g.seasonKey===match.seasonKey?'current':'historical'}));
+          `במפגש האחרון, בעונת ${label(g.seasonKey)} (${new Date(g.date).toLocaleDateString('he-IL')}), ${resultText}${g.roundVerified&&g.competitionPhase==='regular'?`, במחזור ${g.roundNumber} של העונה הסדירה`:''}.`,[g],{scope:g.seasonKey===match.seasonKey?'current':'historical'}));
       }
       for(const season of context.priorSeasons) {
         const year=label(season.seasonKey),meetings=unique(season.resultGames.filter(inMatch));
         if(meetings.length) {
-          const team=selected[0],wins=meetings.filter(g=>{const t=g.teams.find(t=>same(t.teamId,team.teamId));return t.score>g.teams.find(t=>!same(t.teamId,team.teamId)).score;}).length;
-          stories.push(make('HISTORICAL_H2H_RECORD',season.seasonKey,selected.map(t=>t.teamId),{wins,losses:meetings.length-wins,total:meetings.length},
-            `בעונת ${year}, ${team.name} ניצחה ב־${wins} מתוך ${meetings.length} המפגשים מול ${selected[1].name}.`,meetings,{dataState:season.state,priority:80}));
+          const records=selected.map(team=>({team,wins:meetings.filter(g=>{const own=g.teams.find(t=>same(t.teamId,team.teamId)),rival=g.teams.find(t=>!same(t.teamId,team.teamId));return Number(own.score)>Number(rival.score);}).length}));
+          const leader=records[0].wins===records[1].wins?null:records.reduce((a,b)=>a.wins>b.wins?a:b);
+          const text=leader
+            ? `${leader.team.name} ניצחה ב־${leader.wins} מתוך ${meetings.length} המפגשים מול ${selected.find(t=>!same(t.teamId,leader.team.teamId)).name}.`
+            : `במפגשים בין ${selected[0].name} ל־${selected[1].name}, כל קבוצה ניצחה ${records[0].wins===1?'מפגש אחד':`ב־${records[0].wins} מפגשים`}.`;
+          stories.push(make('HISTORICAL_H2H_RECORD',season.seasonKey,selected.map(t=>t.teamId),{wins:records[0].wins,losses:records[1].wins,total:meetings.length,winnerTeamId:leader?.team.teamId??null,winsByTeam:records.map(r=>({teamId:r.team.teamId,wins:r.wins}))},
+            `בעונת ${year}, ${text}`,meetings,{dataState:season.state,priority:80}));
         }
         for(const team of selected) {
           if(match.roundVerified&&match.competitionPhase==='regular') {

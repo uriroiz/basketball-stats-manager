@@ -15,20 +15,26 @@
       const past=story.scope!=='current';
       const statement=f.metric==='points'?`${name} ${story.playerName?'קלע':past?'קלעה':'קולעת'} ${value} נקודות בממוצע למשחק`:f.metric==='opponentPoints'?`${name} ${past?'ספגה':'סופגת'} ${value} נקודות בממוצע למשחק`:f.metric==='margin'?`${name} עם הפרש ממוצע של ${value} נקודות למשחק`:f.metric==='threePointsAttempted'?`${name} ${past?'זרקה':'זורקת'} ${value} פעמים לשלוש בממוצע למשחק`:['ftPercentage','fgPercentage','threePointPercentage'].includes(f.metric)?`${name} ${past?'קלעה':'קולעת'} ${value} ${f.metric==='ftPercentage'?'מהעונשין':f.metric==='fgPercentage'?'מהשדה':'לשלוש'}`:`${name}: ${value} ${metric}${unit}`;
       const range=story.windows?.find(w=>w.mode==='rounds');
-      const windowLabel=range?range.fromRound===range.toRound?`במחזור ${range.fromRound}`:`במחזורים ${range.fromRound}–${range.toRound}`:story.windows?.some(w=>w.count===5)?'בחמשת המשחקים האחרונים':'';
+      const windowLabel=range?range.fromRound===range.toRound?`במחזור ${range.fromRound}`:`במחזורים ${range.fromRound}–${range.toRound}`:story.windows?.some(w=>w.count===5)?'ב־5 המשחקים האחרונים':'';
       let body;
       if(f.referenceValue!=null&&story.type!=='MATCHUP_STYLE') {
         const referenceYears=(story.samples?.[1]?.seasonKeys||[]).map(k=>window.IBBASeasons.getSeason(k)?.label||k).join(' ו־');
-        const reference=story.type==='WINDOW_VS_LEAGUE'?'נקודות למשחק לקבוצה בליגה':story.scope==='comparison'?`בחלון המקביל${referenceYears?` בעונת ${referenceYears}`:''}`:'בחמשת המשחקים הקודמים';
+        const reference=story.type==='WINDOW_VS_LEAGUE'?'נקודות למשחק לקבוצה בליגה':story.scope==='comparison'?`בחלון המקביל${referenceYears?` בעונת ${referenceYears}`:''}`:'ב־5 המשחקים הקודמים';
         const rounded=f.difference==null?0:Number(f.difference.toFixed(1));
         const direction=story.type==='WINDOW_VS_LEAGUE'?'פער':rounded>0?'עלייה':rounded<0?'ירידה':'ללא שינוי';
         body=`${statement} ${windowLabel}, לעומת ${this.formatNumber(f.referenceValue,{percent:f.metric?.includes('Percentage')})} ${reference}; ${direction}${rounded?` של ${n(Math.abs(f.difference))}${f.metric?.includes('Percentage')?' נקודות אחוז':''}`:''}.`;
       }else switch(story.type) {
-        case 'ROUND_TEAM_SUMMARY':body=`${statement} במחזור ${f.round}. ${name} ${past?'קלעה':'קולעת'} ${n(f.roundMetrics.points)} וספגה ${n(f.roundMetrics.opponentPoints)} נקודות בממוצע (${story.sampleSize} ${story.sampleSize===1?'משחק':'משחקים'}).`;break;
+        case 'ROUND_TEAM_SUMMARY': {
+          const scores=f.roundMetrics;
+          body=story.sampleSize===1
+            ? `${name} ${scores.margin>0?'ניצחה':scores.margin<0?'הפסידה':'סיימה בשוויון'} ${n(scores.points)}:${n(scores.opponentPoints)} במחזור ${f.round}${scores.margin?`, בהפרש ${n(Math.abs(scores.margin))} נקודות`:''}.`
+            : `${statement} במחזור ${f.round}. ${name} ${past?'קלעה':'קולעת'} ${n(scores.points)} וספגה ${n(scores.opponentPoints)} נקודות בממוצע (${story.sampleSize} משחקים).`;
+          break;
+        }
         case 'ROUND_SCORING': case 'PLAYER_ROUND_PROFILE':body=`${statement} במחזור ${f.round}.`;break;
-        case 'CLOSE_GAME_RECORD':body=`${name} ניצחה ב־${f.wins} מתוך ${f.total} משחקים שהסתיימו בהפרש של עד חמש נקודות.`;break;
+        case 'CLOSE_GAME_RECORD':body=`${name} ניצחה ב־${f.wins} מתוך ${f.total} משחקים שהסתיימו בהפרש של עד 5 נקודות.`;break;
         case 'HALFTIME_RECORD':body=`${name} ניצחה ב־${f.wins} מתוך ${f.total} משחקים שבהם ${f.position==='leading'?'הובילה':'פיגרה'} במחצית.`;break;
-        case 'LEAD_REVERSAL':body=`${name} חזרה מפיגור בסיום רבע לניצחון ב־${f.count} מתוך ${f.total} משחקים עם נתוני ארבעת הרבעים.`;break;
+        case 'LEAD_REVERSAL':body=`ב־${f.count} מתוך ${f.total} משחקים, ${name} פיגרה בסיום לפחות רבע אחד, אך ניצחה בסיום המשחק.`;break;
         case 'QUARTER_WINDOW':body=`${name}: הפרש ממוצע של ${value} נקודות ברבע ${f.quarter}.`;break;
         case 'WINS_MILESTONE':body=`${name} עם ${f.wins} ניצחונות ו־${f.losses} הפסדים ${windowLabel}.${f.referenceRecords?.filter(r=>r.total).map(r=>` באותו שלב ב־${window.IBBASeasons.getSeason(r.seasonKey)?.label||r.seasonKey}: ${r.wins} ניצחונות ו־${r.losses} הפסדים ב־${r.total} משחקים.`).join('')||''}`;break;
         case 'STREAK_REFERENCE':body=`${name} מגיעה עם ${f.count} ${f.win?'ניצחונות':'הפסדים'} רצופים בעונה הנוכחית.`;break;

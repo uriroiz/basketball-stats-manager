@@ -29,4 +29,5 @@ assert(notices[0].includes('2023/24')&&!notices[0].includes('upstream'),'actiona
 const matchup=V.renderGroups(['points','margin'].map(metric=>s('2025-26',metric,84,{type:'H2H_WINDOW_PROFILE',facts:{metric,value:84,wins:1,total:2}})));
 assert.strictEqual(matchup.split('ניצחונות מתוך המפגשים').length-1,1,'record appears once alongside matchup averages');
 assert(matchup.includes('1</bdi> מתוך <bdi dir="ltr">2'),'record facts survive numeric presentation');
+assert(!V.renderGroups([s('2025-26','margin',-7,{sampleSize:1})]).includes('הפרש ממוצע'),'single-game comparison labels margin without average');
 console.log('broadcast view tests passed');
