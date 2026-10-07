@@ -632,7 +632,14 @@
 
       <div class="flex flex-wrap items-center justify-between gap-3 mt-4 mb-3">
         <div id="prepMatchSummary" role="status" aria-live="polite" class="hidden card p-4 flex-1" tabindex="-1"></div>
-        <button id="prepExport" type="button" disabled class="border rounded px-3 py-2 bg-white disabled:opacity-50" onclick="handleExcelExport()">ייצוא הכנה לשידור ל־Excel</button>
+        <label for="prepExportMode">תוכן לייצוא</label>
+        <select id="prepExportMode" onchange="syncBroadcastExport()" class="border rounded px-3 py-2">
+          <option value="personal" disabled>הדף שלי לשידור</option>
+          <option value="recommended" selected disabled>נקודות מומלצות</option>
+          <option value="full" disabled>הדוח המלא</option>
+        </select>
+        <button id="prepExport" type="button" disabled class="border rounded px-3 py-2 bg-white disabled:opacity-50" onclick="handleExcelExport()">ייצוא ל־Excel</button>
+        <p id="prepExportStatus" class="text-sm text-slate-600" role="status"></p>
       </div>
       <div id="broadcastPersonal" class="hidden mb-4" dir="rtl"></div>
       <div id="broadcastReport" class="hidden card p-4 mb-4" dir="rtl"></div>
@@ -2552,7 +2559,19 @@
         const key=decodeURIComponent(button.dataset.storyKey||'');button.disabled=!key||saved.has(key)||controller?.readOnly;
         if(button.dataset.compact!=='true')button.textContent=saved.has(key)?'נוסף לדף שלי':'הוסף לדף שלי';
       });
-      if(result.state.items.some(i=>i.status==='active'))document.getElementById('prepExport').disabled=false;
+      syncBroadcastExport(result);
+    }
+
+    function syncBroadcastExport(result=window.broadcastWorkspaceController?.snapshot()) {
+      const select=document.getElementById('prepExportMode');if(!select)return;
+      const active=Boolean(result?.state?.items?.some(i=>i.status==='active'));
+      const available={personal:active,recommended:Boolean(!currentAdvancedReport?.cachedOnly && currentAdvancedReport?.topStories?.length),full:Boolean(currentAdvancedReport && !currentAdvancedReport.cachedOnly)};
+      for(const option of select.options || [])option.disabled=!available[option.value];
+      if(active && select.dataset.hadPersonal!=='true')select.value='personal';
+      else if(!available[select.value])select.value=available.recommended?'recommended':available.personal?'personal':available.full?'full':'recommended';
+      select.dataset.hadPersonal=String(active);
+      document.getElementById('prepExport').disabled=!available[select.value];
+      document.getElementById('prepExportStatus').textContent=currentAdvancedReport?.cachedOnly?'זמין ייצוא של הדף השמור; הדוח המלא יהיה זמין לאחר טעינת הנתונים.':(!available[select.value]?'הייצוא יהיה זמין לאחר בחירת משחק וטעינת נקודות לשידור.':'');
     }
 
     function openBroadcastWorkspace(match,{readOnly=false}={}) {
@@ -3801,13 +3820,13 @@
      */
     // Wrapper function for proper async error handling
     function handleExcelExport() {
-      exportInsightsToExcel().catch(error => {
+      exportInsightsToExcel({mode:document.getElementById('prepExportMode')?.value || 'full'}).catch(error => {
         console.error('❌ Unhandled error in Excel export:', error);
         alert('שגיאה לא צפויה ביצירת קובץ Excel: ' + error.message);
       });
     }
 
-    async function exportInsightsToExcel() {
+    async function exportInsightsToExcel({mode='full'}={}) {
       if (!currentAdvancedReport) {
         alert('אין תובנות לייצוא. אנא בחר משחק ובצע ניתוח תחילה.');
         return;
@@ -3815,8 +3834,11 @@
 
       // Prepare data for Excel (array of arrays)
       const exportReport = currentAdvancedReport;
-      const excelData = [['עונה',window.appConfig.seasonLabel]];
-      const match=exportReport.gameInfo;
+      const captured=window.IBBABroadcastReport?.captureExport?.(exportReport,window.broadcastWorkspaceController?.snapshot(),{mode});
+      const prepSnapshot=JSON.parse(JSON.stringify({homeTeamName:gamePrepState.homeTeamName,awayTeamName:gamePrepState.awayTeamName,teamAveragesData:gamePrepState.teamAveragesData,lastFiveGamesData:gamePrepState.lastFiveGamesData,headToHeadData:gamePrepState.headToHeadData}));
+      const seasonLabel=window.IBBASeasons.getSeason(captured?.seasonKey || exportReport.seasonKey || exportReport.gameInfo?.seasonKey)?.label || window.appConfig.seasonLabel;
+      const excelData = [['עונה',seasonLabel]];
+      const match=captured?.match || exportReport.gameInfo;
       if(match) {
         excelData.push(['משחק',match.homeTeam,match.awayTeam]);
         excelData.push(['מועד מתוכנן',new Date(match.date).toLocaleString('he-IL')]);
@@ -3824,19 +3846,20 @@
       }
       const selectedHistory={...(exportReport.context?.playerSummaries||exportReport.historicalContext),records:(exportReport.context?.playerSummaries?.records||exportReport.historicalContext?.records||[]).filter(r=>(exportReport.selectedPlayerRefs||[]).includes(exportReport.context?.identity?.(r.playerRef)||r.playerRef))};
       if(!window.IBBABroadcastReport)excelData.push(...window.IBBAPlayerHistory.exportRows(selectedHistory));
-      if(window.IBBABroadcastReport)excelData.push(...window.IBBABroadcastReport.exportRows(exportReport));
+      if(window.IBBABroadcastReport)excelData.push(...(captured?.rows || window.IBBABroadcastReport.exportRows(exportReport,{mode})));
       
       // Get team names
-      const homeTeamName = gamePrepState.homeTeamName || 'קבוצת בית';
-      const awayTeamName = gamePrepState.awayTeamName || 'קבוצת חוץ';
+      const homeTeamName = prepSnapshot.homeTeamName || 'קבוצת בית';
+      const awayTeamName = prepSnapshot.awayTeamName || 'קבוצת חוץ';
       const exportHomeTeam = match?.homeTeam || homeTeamName;
       const exportAwayTeam = match?.awayTeam || awayTeamName;
+      if(mode==='full') {
       
       // ========================================
       // SECTION 1: TEAM AVERAGES AND RANKINGS
       // ========================================
-      if (gamePrepState.teamAveragesData) {
-        const { homeStats, awayStats } = gamePrepState.teamAveragesData;
+      if (prepSnapshot.teamAveragesData) {
+        const { homeStats, awayStats } = prepSnapshot.teamAveragesData;
         
         excelData.push(['']); // Empty row
         excelData.push(['=== ממוצעים ודירוגים ===']);
@@ -3857,8 +3880,8 @@
       // ========================================
       // SECTION 2: LAST 5 GAMES
       // ========================================
-      if (gamePrepState.lastFiveGamesData) {
-        const { homeTeam: homeGames, awayTeam: awayGames } = gamePrepState.lastFiveGamesData;
+      if (prepSnapshot.lastFiveGamesData) {
+        const { homeTeam: homeGames, awayTeam: awayGames } = prepSnapshot.lastFiveGamesData;
         
         // Home team last 5 games
         excelData.push(['']); // Empty row
@@ -3914,8 +3937,8 @@
       excelData.push(['=== מפגשים ישירים בעונה ===']);
       excelData.push(['']); // Empty row
       
-      if (gamePrepState.headToHeadData && gamePrepState.headToHeadData.length > 0) {
-        const h2hGames = gamePrepState.headToHeadData;
+      if (prepSnapshot.headToHeadData && prepSnapshot.headToHeadData.length > 0) {
+        const h2hGames = prepSnapshot.headToHeadData;
         
         // Calculate records
         let homeWins = 0, awayWins = 0;
@@ -3942,13 +3965,13 @@
       // ========================================
       // SECTION 4: QUICK SUMMARY (TL;DR)
       // ========================================
-      if (currentAdvancedReport.narrative && currentAdvancedReport.narrative.tldr) {
+      if (exportReport.narrative && exportReport.narrative.tldr) {
         excelData.push(['']); // Empty row
         excelData.push(['']); // Empty row
         excelData.push(['=== סיכום מהיר לשדרן ===']);
         excelData.push(['']); // Empty row
         
-        currentAdvancedReport.narrative.tldr.forEach(item => {
+        exportReport.narrative.tldr.forEach(item => {
           excelData.push([`• ${item}`]);
         });
       }
@@ -3956,7 +3979,7 @@
       // ========================================
       // SECTION 5: KEY INSIGHTS
       // ========================================
-      const insightsV2 = currentAdvancedReport.insightsV2 || {};
+      const insightsV2 = exportReport.insightsV2 || {};
       
       excelData.push(['']); // Empty row
       excelData.push(['']); // Empty row
@@ -4000,6 +4023,7 @@
           });
         }
       });
+      }
 
       // Check if there's any data to export
       if (excelData.length === 0) {
@@ -4061,9 +4085,8 @@
         
         // Format date as DDMMYYYY (use game date if available)
         let dateToUse;
-        if (exportReport.gameInfo && exportReport.gameInfo.date) {
-          dateToUse = new Date(exportReport.gameInfo.date);
-          console.log('📅 Using game date:', exportReport.gameInfo.date);
+        if (match?.date) {
+          dateToUse = new Date(match.date);
         } else {
           dateToUse = new Date();
           console.log('📅 Using current date (no game date found)');

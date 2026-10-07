@@ -64,13 +64,31 @@
       const families=Object.fromEntries(['ROUND','MOMENTUM','PROFILE','DECIDING','MATCHUP','PLAYERS'].map(f=>[f,allInsights.filter(s=>s.family===f)]));
       return {...report,historicalContext:report.context.playerSummaries,historicalInsights,allInsights,families,topStories:editorial?.topStories||this.selectTopStories(allInsights,{variant:report.copyVariant||0}),selectedPlayerRefs:[...playerRefs]};
     }
-    static exportRows(report) {
+    static captureExport(report,workspaceResult,{mode='full'}={}) {
+      if(!['personal','recommended','full'].includes(mode))throw new Error('מצב ייצוא לא מוכר');
+      const ref=workspaceResult?.state?.matchRef,match=report?.gameInfo || workspaceResult?.state?.matchSnapshot;
+      if(ref && (!match || ref.seasonKey!==(match.seasonKey || report?.seasonKey) || String(ref.gameId)!==String(match.gameId)))throw new Error('הדוח והדף האישי שייכים למשחק אחר');
+      if(mode==='full' && report?.cachedOnly)throw new Error('ייצוא מלא דורש דוח מעודכן');
+      const clone=value=>JSON.parse(JSON.stringify(value));
+      return clone({mode,match,seasonKey:report?.seasonKey || ref?.seasonKey,rows:this.exportRows(report,{mode,workspace:workspaceResult}),capturedAt:new Date().toISOString()});
+    }
+    static exportRows(report,{mode='full',workspace=null}={}) {
+      if(mode==='personal') {
+        const rows=[['=== הדף שלי לשידור ===']];
+        if(workspace?.cached)rows.push(['עותק שמור — הנתונים לא עודכנו',workspace.state?.updatedAt || '']);
+        rows.push(['משפט לשידור','הערה לשידור','נאמר בשידור','היקף הנתונים','מועד שמירה']);
+        for(const item of workspace?.state?.items || [])if(item.status==='active')rows.push([item.storySnapshot.text,item.note || '',item.used?'כן':'לא',window.IBBAAnalysisScope?.label(item.storySnapshot.analysisScope) || 'היקף לא צוין',workspace.state.updatedAt || '']);
+        if(!workspace?.state?.items?.some(i=>i.status==='active'))rows.push(['אין נקודות פעילות בדף האישי']);
+        return rows;
+      }
       const rows=[['=== נקודות לשידור ===']];
       if(!report?.historicalInsights)return rows.concat([['ההקשר ההיסטורי טרם נטען']]);
-      for(const [title,stories] of [['נקודות לשידור',report.topStories],['כל התובנות',report.allInsights||report.historicalInsights]]) {
-        rows.push([title],['משפט לשידור','עונות','חלונות','משחקים במדגם','מצב נתונים','מקור','משפחה','עובדות','מדגמי ההשוואה','כיסוי','שחקן']);
-        for(const s of stories||[])rows.push([s.text,(s.seasonKeys||[]).map(k=>window.IBBASeasons.getSeason(k)?.label||k).join(', '),s.windows?JSON.stringify(s.windows):s.roundWindow?.join('–')||'—',s.sampleSize??`${s.sourceGameCount??'—'} משחקי מקור; מדגם הגלאי לא צוין`,s.dataState||'ready',(s.evidence||[]).map(e=>e.sourceUrl||'מקור חסר').join('\n'),s.family||s.category,JSON.stringify(s.facts||{}),JSON.stringify(s.samples||[]),JSON.stringify(s.coverage||[]),s.playerRef||'']);
+      const sections=mode==='recommended'?[['נקודות מומלצות לשידור',report.topStories]]:[['נקודות לשידור',report.topStories],['כל התובנות',report.allInsights||report.historicalInsights]];
+      for(const [title,stories] of sections) {
+        rows.push([title],['משפט לשידור','עונות','חלונות','משחקים במדגם','מצב נתונים','מקור','משפחה','עובדות','מדגמי ההשוואה','כיסוי','שחקן','היקף הנתונים']);
+        for(const s of stories||[])rows.push([s.text,(s.seasonKeys||[]).map(k=>window.IBBASeasons.getSeason(k)?.label||k).join(', '),s.windows?JSON.stringify(s.windows):s.roundWindow?.join('–')||'—',s.sampleSize??`${s.sourceGameCount??'—'} משחקי מקור; מדגם הגלאי לא צוין`,s.dataState||'ready',(s.evidence||[]).map(e=>e.sourceUrl||'מקור חסר').join('\n'),s.family||s.category,JSON.stringify(s.facts||{}),JSON.stringify(s.samples||[]),JSON.stringify(s.coverage||[]),s.playerRef||'',JSON.stringify(s.analysisScope||null)]);
       }
+      if(mode==='recommended')return rows;
       const records=(report.context?.playerSummaries?.records||[]).filter(r=>(report.selectedPlayerRefs||[]).includes(report.context.identity(r.playerRef)));
       if(records.length&&window.IBBAPlayerHistory)rows.push(...window.IBBAPlayerHistory.exportRows({...report.context.playerSummaries,records}));
       if(['idle','loading'].includes(report.historicalContext?.state)||!report.historicalContext)rows.push(['ההיסטוריה טרם נטענה']);
