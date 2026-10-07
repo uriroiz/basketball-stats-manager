@@ -849,6 +849,30 @@ body {
     }
 /* Broadcast reading flow: a short briefing, then comparisons across seasons. */
 .broadcast-highlights { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.workspace-personal { background:#fff; border:1px solid #cbd5e1; border-radius:12px; padding:20px; min-width:0; }
+.workspace-heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+.workspace-heading h3 { font-size:1.25rem; font-weight:700; color:#172554; }
+.workspace-points { display:grid; gap:16px; }
+.workspace-item { border:1px solid #dbe3ef; border-inline-start:4px solid #2563eb; border-radius:8px; padding:16px; min-width:0; }
+.workspace-story { font-weight:600; line-height:1.7; margin-bottom:12px; overflow-wrap:anywhere; }
+.workspace-item textarea,.workspace-manual-copy textarea { display:block; width:100%; font:inherit; min-height:72px; border:1px solid #94a3b8; border-radius:6px; padding:10px; margin:6px 0 12px; resize:vertical; }
+.workspace-actions { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:12px 0; }
+[data-workspace-action]:not(textarea):not(input) { border:1px solid #94a3b8; border-radius:6px; background:#f8fafc; color:#1e3a8a; padding:7px 12px; font:inherit; cursor:pointer; }
+[data-workspace-action]:disabled { cursor:default; color:#64748b; background:#f1f5f9; }
+[data-workspace-action]:focus-visible,.workspace-personal summary:focus-visible,.broadcast-comparison summary:focus-visible { outline:3px solid #2563eb; outline-offset:3px; }
+.workspace-used-control { display:flex; align-items:center; gap:7px; padding:7px; }
+.workspace-used { border-inline-start-color:#15803d; background:#f0fdf4; }
+.workspace-status { min-height:24px; color:#475569; margin:8px 0; }
+.workspace-empty { padding:20px 0; line-height:1.8; }
+.workspace-review,.workspace-conflict { margin-top:16px; padding:12px; background:#fffbeb; border:1px solid #fde68a; border-radius:8px; }
+.workspace-review-label { font-weight:600; margin:8px 0; }
+.broadcast-facts { display:grid; grid-template-columns:minmax(110px,auto) 1fr; gap:8px 16px; padding:12px 0; }
+.broadcast-facts dt { color:#475569; }.broadcast-facts dd { margin:0; }
+.broadcast-comparison>summary { padding:12px; font-weight:600; cursor:pointer; }
+.broadcast-family-brief { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:12px 0; }
+.workspace-table-add { margin-inline-start:8px; }
+#prepWorkspace,#broadcastReport,#broadcastPersonal { min-width:0; }
+@media(max-width:640px) { .workspace-personal { padding:12px; }.workspace-item { padding:12px; }.broadcast-family-brief { grid-template-columns:1fr; }.workspace-actions button { min-height:44px; } }
 .broadcast-highlight { padding:16px; border:1px solid #dbe3ef; border-inline-start:4px solid #2563eb; border-radius:8px; background:#f8fafc; line-height:1.7; }
 .broadcast-highlight > p:first-child { font-weight:600; }
 .broadcast-count { display:block; font-size:0.875rem; color:#64748b; margin-top:4px; font-weight:400; }

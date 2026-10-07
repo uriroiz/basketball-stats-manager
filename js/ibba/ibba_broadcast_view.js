@@ -57,21 +57,32 @@
       return [...groups.values()];
     }
     static wrapTable(title,header,body) {
-      return `<section class="broadcast-comparison"><h5>${this.text(title)}</h5><div class="broadcast-table-wrap" role="region" aria-label="${escape(title)}" tabindex="0"><table class="broadcast-table"><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table></div></section>`;
+      return `<details class="broadcast-comparison" data-broadcast-table="${escape(encodeURIComponent(title))}"><summary>${this.text(title)}</summary><div class="broadcast-table-wrap" role="region" aria-label="${escape(title)}" tabindex="0"><table class="broadcast-table"><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table></div></details>`;
+    }
+    static familySummary(stories,context) {
+      const sorted=[...stories].filter(s=>s.text).sort((a,b)=>String(b.seasonKeys?.at(-1)||'').localeCompare(String(a.seasonKeys?.at(-1)||'')));
+      const result=[];
+      for(const team of context?.match?.teams||[]){const s=sorted.find(s=>s.teamIds?.some(id=>String(id)===String(team.teamId)));if(s&&!result.includes(s))result.push(s);}
+      return result.length?result.slice(0,2):sorted.slice(0,1);
+    }
+    static actions(story) {
+      if(!window.IBBABroadcastWorkspaceView || !story.storyKey)return '';
+      const key=escape(encodeURIComponent(story.storyKey));
+      return `<button type="button" class="workspace-table-add" data-compact="true" data-workspace-action="add" data-story-key="${key}" aria-label="${escape(`הוסף לדף שלי: ${story.text}`)}" title="הוסף לדף שלי">+</button>`;
     }
     static renderGroups(stories) {
       return this.groups(stories).map(group=>{
         if(!group.numeric)return this.wrapTable(group.title,'<th scope="col">עונה</th><th scope="col">נקודה לשידור</th>',group.rows.map(({story,column})=>{
           const season=column.split('|').map(label).join(', ');
           const text=story.type==='SAME_STAGE_RECORD'?`${story.facts.wins} ${story.facts.wins===1?'ניצחון':'ניצחונות'} ב־${story.sampleSize} משחקים.`:String(story.text||'').replace(/^בעונ(?:ת|ות) [\d/, ו־-]+, /,'');
-          return `<tr><th scope="row">${this.text(season)}</th><td>${this.text(text)}</td></tr>`;
+          return `<tr><th scope="row">${this.text(season)}</th><td>${this.text(text)}${this.actions(story)}</td></tr>`;
         }).join(''));
         const commonCounts=Object.fromEntries(group.columns.map(column=>{const counts=[...new Set(group.rows.flatMap(row=>(row.cells[column]||[]).map(s=>s.sampleSize)))];return [column,counts.length===1?counts[0]:null];}));
         const header=`<th scope="col">מדד</th>${group.columns.map(column=>`<th scope="col">${this.text(column.split('|').map(label).join(', '))}${commonCounts[column]!=null?`<span class="broadcast-count">${this.text(this.count(commonCounts[column]))}</span>`:''}</th>`).join('')}`;
         const body=group.rows.map(row=>`<tr><th scope="row">${escape(row.key==='margin:'&&Object.values(row.cells).flat().every(s=>s.sampleSize===1)?'הפרש':row.label)}</th>${group.columns.map(column=>`<td>${(row.cells[column]||[]).map(story=>{
           if(row.key==='record')return `<div>${this.text(`${story.facts.wins} מתוך ${story.facts.total}`)}</div>`;
           const value=window.IBBABroadcastCopy.formatNumber(story.facts.value,{percent:story.facts.metric.includes('Percentage')});
-          return `<div>${this.text(value)}${story.sampleSize!=null&&commonCounts[column]==null?`<span class="broadcast-count">${this.text(this.count(story.sampleSize))}</span>`:''}</div>`;
+          return `<div>${this.text(value)}${story.sampleSize!=null&&commonCounts[column]==null?`<span class="broadcast-count">${this.text(this.count(story.sampleSize))}</span>`:''}${this.actions(story)}</div>`;
         }).join('')||'—'}</td>`).join('')}</tr>`).join('');
         return this.wrapTable(group.title,header,body);
       }).join('');
