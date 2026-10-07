@@ -1,0 +1,64 @@
+const assert=require('assert'),load=require('./helpers/broadcast');
+const c=load(['ibba_analysis_scope','ibba_broadcast_editorial','ibba_broadcast_workspace']);
+const W=c.window.IBBABroadcastWorkspace;assert(W,'workspace service exists');
+const store=new Map();let writes=0;
+const storage={getItem:k=>store.get(k)??null,setItem:(k,v)=>{writes++;store.set(k,v);}};
+const ref={seasonKey:'2026-27',gameId:44},ref2={...ref,gameId:45};
+const now=()=>new Date('2026-10-07T12:00:00Z');
+const story={storyKey:'s',factFingerprint:'f1',type:'WINDOW_STYLE',text:'נוסח שמור',seasonKeys:['2025-26'],
+ analysisScope:{basis:'gameCalculation',requestedSeasonKeys:['2025-26']},facts:{value:80},evidence:[{seasonKey:'2025-26',gameId:1}]};
+const report=(stories=[story], state='ready')=>({seasonKey:ref.seasonKey,gameInfo:{...ref,homeTeam:'A',awayTeam:'B'},allInsights:stories,
+ context:{currentComplete:true,priorSeasons:[{seasonKey:'2025-26',state}],playerSummaries:{state:'error',statuses:[{seasonKey:'2025-26',state:'error'}]}},selectedPlayerRefs:[]});
+const ws=new W({storage,now,writerId:'one'});ws.load(ref);
+const cmd=(type,extras={})=>ws.apply({type,matchRef:ref,...extras});
+cmd('add',{story});cmd('add',{story});assert.strictEqual(ws.snapshot().state.items.length,1);
+cmd('note',{storyKey:'s',note:'לפתיחה'});cmd('used',{storyKey:'s',used:true});
+ws.reconcile(report([{...story,text:'ניסוח חדש'}]));
+assert.strictEqual(ws.snapshot().state.items[0].storySnapshot.text,'נוסח שמור');
+const loaded=new W({storage,now,writerId:'two'});loaded.load(ref);
+assert.strictEqual(loaded.snapshot().state.items[0].note,'לפתיחה');
+assert.strictEqual(loaded.snapshot().state.items[0].used,true);
+assert.strictEqual(loaded.snapshot().state.items[0].status,'active','failed player summary does not invalidate game story');
+cmd('add',{story:{...story,storyKey:'other',text:'נקודה נוספת'}});
+cmd('move',{storyKey:'other',direction:-1});assert.strictEqual(ws.snapshot().state.items[0].storyKey,'other');
+cmd('move',{storyKey:'other',direction:-1});assert.strictEqual(ws.snapshot().state.items[0].storyKey,'other');
+cmd('remove',{storyKey:'other'});assert.strictEqual(ws.snapshot().state.items.length,1);
+cmd('undo');assert.strictEqual(ws.snapshot().state.items[0].storyKey,'other');
+cmd('remove',{storyKey:'other'});
+ws.reconcile(report([{...story,factFingerprint:'f2',facts:{value:85},text:'85 נקודות'}]));
+let item=ws.snapshot().state.items[0];assert.strictEqual(item.status,'changed');assert.strictEqual(item.note,'לפתיחה');assert(item.pendingStory);
+cmd('update',{storyKey:'s'});item=ws.snapshot().state.items[0];assert.strictEqual(item.status,'active');assert.strictEqual(item.storySnapshot.text,'85 נקודות');assert(item.used);
+ws.reconcile(report([], 'error'));assert.strictEqual(ws.snapshot().state.items[0].status,'active','failed source does not remove a saved point');
+ws.reconcile(report([]));assert.strictEqual(ws.snapshot().state.items[0].status,'missing');assert.strictEqual(ws.snapshot().state.items[0].note,'לפתיחה');
+const isolated=new W({storage,now});isolated.load(ref2);assert.strictEqual(isolated.snapshot().state.items.length,0);
+isolated.load({...ref,seasonKey:'2025-26'});assert.strictEqual(isolated.snapshot().state.items.length,0);
+assert.throws(()=>cmd('note',{matchRef:ref2,storyKey:'s',note:'wrong game'}));
+const detached=ws.snapshot();detached.state.items[0].note='changed outside';assert.strictEqual(ws.snapshot().state.items[0].note,'לפתיחה');
+const corruptKey='ibba_broadcast_workspace_v1:2026-27:99';store.set(corruptKey,'{broken');
+const bad=new W({storage,now});const before=writes;bad.load({...ref,gameId:99});
+bad.apply({type:'add',matchRef:{...ref,gameId:99},story});assert.strictEqual(writes,before,'corrupt input is not automatically overwritten');
+assert.strictEqual(bad.snapshot().writable,false);
+bad.apply({type:'reset',matchRef:{...ref,gameId:99}});assert(writes>before,'explicit reset permits replacement');
+const broken=new W({storage:{getItem:()=>{throw Error('blocked');},setItem:()=>{throw Error('quota');}},now});
+broken.load(ref);const failed=broken.apply({type:'add',matchRef:ref,story});
+assert.strictEqual(failed.state.items.length,1);assert(failed.notice.includes('לא ניתן לשמור במכשיר כרגע'));assert(!failed.notice.includes('נשמר במכשיר'));
+// External writes preserve local note until an explicit conflict decision.
+const a=new W({storage,now,writerId:'a'}),b=new W({storage,now,writerId:'b'});a.load(ref2);a.apply({type:'add',matchRef:ref2,story});b.load(ref2);
+a.apply({type:'note',matchRef:ref2,storyKey:'s',note:'local A'});
+const conflict=b.apply({type:'note',matchRef:ref2,storyKey:'s',note:'local B'});
+assert(conflict.conflict);assert.strictEqual(conflict.state.items[0].note,'local B');
+assert(JSON.parse(store.get('ibba_broadcast_workspace_v1:2026-27:45')).items[0].note==='local A');
+b.apply({type:'keepLocal',matchRef:ref2});
+a.receiveExternal({key:'ibba_broadcast_workspace_v1:2026-27:45',newValue:store.get('ibba_broadcast_workspace_v1:2026-27:45')});
+assert(a.snapshot().conflict,'external update after local write is detected');assert.strictEqual(a.snapshot().state.items[0].note,'local A');
+a.apply({type:'acceptRemote',matchRef:ref2});assert.strictEqual(a.snapshot().state.items[0].note,'local B');
+const raw=JSON.parse(store.get('ibba_broadcast_workspace_v1:2026-27:45'));
+for(const mutation of [x=>x.schemaVersion=2,x=>x.items.push({...x.items[0]}),x=>x.matchRef.gameId=888,x=>x.items[0].used='yes',x=>{x.items[0].status='changed';x.items[0].pendingStory='bad';}]) {
+ const invalid=JSON.parse(JSON.stringify(raw));mutation(invalid);store.set('ibba_broadcast_workspace_v1:2026-27:45',JSON.stringify(invalid));
+ const result=new W({storage,now}).load(ref2);assert.strictEqual(result.writable,false,'invalid or mismatched schema rejected');
+}
+const undo=new W({storage:{getItem:()=>null,setItem(){}},now});undo.load(ref);
+undo.apply({type:'add',matchRef:ref,story});undo.apply({type:'remove',matchRef:ref,storyKey:'s'});
+undo.apply({type:'add',matchRef:ref,story});undo.apply({type:'undo',matchRef:ref});
+assert.strictEqual(undo.snapshot().state.items.length,1,'undo cannot reintroduce a duplicate story');
+console.log('broadcast workspace tests passed');
