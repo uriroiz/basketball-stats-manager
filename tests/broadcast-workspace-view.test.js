@@ -5,6 +5,7 @@ const story={storyKey:'safe',text:'A: -5 נקודות',seasonKeys:['2025-26'],sa
 const state={matchRef:{seasonKey:'2026-27',gameId:'44'},items:[],updatedAt:'2026-10-07T12:00:00Z',selectedPlayerRefs:[]};
 let html=V.render(null,{state,notice:'',writable:true});assert(html.includes('הדף שלי לשידור')&&html.includes('הוסף לדף שלי'));
 assert(V.card(story).includes('data-workspace-action="add"'));
+assert(V.card(story).includes('data-workspace-action="copy-current"'),'recommendation copy declares its current-report source');
 assert(V.card(story).includes('<bdi dir="ltr">-5</bdi>'));
 state.items=[{storyKey:'safe',storySnapshot:story,note:'<img src=x onerror=1>',used:true,status:'active'}];
 html=V.render(null,{state,notice:'נשמר במכשיר',writable:true,canUndo:true});

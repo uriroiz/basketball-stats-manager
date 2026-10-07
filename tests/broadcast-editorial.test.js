@@ -22,6 +22,10 @@ assert(result.topStories.findIndex(x=>x.facts.total===27)<result.topStories.find
 assert.deepStrictEqual(Array.from(E.prepare([...candidates].reverse(),{match:{teams:[{teamId:1},{teamId:2}]}}).topStories,x=>x.storyKey),Array.from(result.topStories,x=>x.storyKey));
 assert.strictEqual(E.prepare([s,s],{}).topStories.length,1);
 assert.strictEqual(E.prepare([s],{}).topStories.length,1,'no padding');
+const unresolved={...s,teamIds:[],playerRef:null,id:'unresolved',text:'unresolved identity'};
+const detailed=E.prepare([unresolved],{});
+assert.strictEqual(detailed.allStories.length,1,'unresolved stories remain in detailed results');
+assert.strictEqual(detailed.topStories.length,0,'unresolved identities never become unsaveable recommendations');
 const game=(id,key,winner=1)=>({gameId:id,seasonKey:key,hasResult:true,date:`${key.slice(0,4)}-12-01`,teams:[{teamId:1,name:'A',score:winner===1?85:82},{teamId:2,name:'B',score:winner===2?85:82}]});
 const context={match:{seasonKey:'2026-27',teams:[{teamId:1,name:'A'},{teamId:2,name:'B'}]},priorSeasons:[
  {seasonKey:'2024-25',state:'ready',resultGames:[game(1,'2024-25'),game(2,'2024-25'),game(2,'2024-25')]},
@@ -40,4 +44,18 @@ const metrics=['points','opponentPoints','margin'].map((metric,index)=>story('RO
 const merged=E.prepare(metrics,{}).topStories;
 assert.strictEqual(merged.length,1);
 assert(merged[0].text.includes('30')&&merged[0].text.includes('28'),'actual outcomes survive merge');
+const actual=load(['ibba_seasons','ibba_window_stats','ibba_analysis_scope','ibba_rich_insights','ibba_broadcast_copy','ibba_broadcast_editorial','ibba_broadcast_workspace']);
+const opponentGames=[1,2].map(id=>({gameId:String(id),seasonKey:'2025-26',date:`2026-01-0${id}`,hasResult:true,roundVerified:true,competitionPhase:'regular',roundNumber:id,
+ teams:[{teamId:3,name:'Old club',score:80},{teamId:id,name:id===1?'A':'B',score:70}],playerObservations:[{playerId:7,teamId:3,teamName:'Old club',participation:'verified',availableMetrics:['points'],stats:{points:id*10}}]}));
+const playerContext={match:{seasonKey:'2026-27',gameId:44,teams:[{teamId:1,name:'A'},{teamId:2,name:'B'}]},asOf:'2026-10-07',currentComplete:true,currentResultGames:[],currentRegularGames:[],
+ identity:r=>typeof r==='object'?`post:${r.playerId}`:r,playerSummaries:{records:[]},priorSeasons:[{seasonKey:'2025-26',state:'ready',resultGames:opponentGames,regularGames:opponentGames}]};
+const profiles=actual.window.IBBABroadcastEditorial.prepare(actual.window.IBBARichInsights.generate(playerContext,{playerRefs:['post:7']}),playerContext).allStories.filter(s=>s.type==='PLAYER_OPPONENT_PROFILE'&&s.facts.metric==='points');
+assert.strictEqual(profiles.length,2);
+assert.notStrictEqual(profiles[0].storyKey,profiles[1].storyKey,'official opposing teams produce distinct player story keys');
+assert.deepStrictEqual(Array.from(profiles,s=>String(s.analysisScope.windows[0].opponentId)).sort(),['1','2']);
+const workspace=new actual.window.IBBABroadcastWorkspace({storage:{getItem:()=>null,setItem(){}}});workspace.load(playerContext.match);
+for(const story of profiles)workspace.apply({type:'add',matchRef:playerContext.match,story});
+workspace.reconcile({gameInfo:playerContext.match,allInsights:profiles,context:playerContext});
+assert.strictEqual(workspace.snapshot().state.items.length,2,'both opponent stories save independently');
+assert(workspace.snapshot().state.items.every(i=>i.status==='active'),'unchanged report never swaps the opposing team');
 console.log('broadcast editorial tests passed');

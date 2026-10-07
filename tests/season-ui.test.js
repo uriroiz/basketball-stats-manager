@@ -1,6 +1,6 @@
 const assert=require('assert');const fs=require('fs');const vm=require('vm');
 const nodes=new Map();
-const element=()=>({value:'',innerHTML:'',textContent:'',disabled:false,style:{},options:[],events:{},
+const element=()=>({value:'',innerHTML:'',textContent:'',disabled:false,style:{},options:[],events:{},dataset:{},
   classList:{add(){},remove(){},toggle(){},contains(){return false;}},addEventListener(name,fn){this.events[name]=fn;},setAttribute(){},scrollIntoView(){this.scrolled=true;},closest(){return null;},querySelectorAll(){return[];},querySelector(){return null;}});
 const document={readyState:'loading',addEventListener(){},querySelectorAll:()=>[],getElementById:id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);}};
 const c=vm.createContext({window:{appConfig:{seasonKey:'2026-27'}},document,URL,URLSearchParams,console:{log(){},warn(){},error(){}},setTimeout:()=>1,clearTimeout(){},Map,Promise});

@@ -44,6 +44,12 @@ async function run(){
  assert.strictEqual(multiple.allInsights.length,3,'legacy stories without IDs must all survive deduplication');
  assert.strictEqual(multiple.families.DECIDING.length,1,'existing quarter stories are accessible in a supported family');
  assert.strictEqual(multiple.allInsights.find(s=>s.type==='FIRST').facts.value,10,'structured legacy values survive adaptation');
+ const flipGames=played.slice(0,6).map((g,i)=>({...g,homeTeam:'H',awayTeam:'A',teams:[{teamId:1,name:'H',score:i<3?80:70},{teamId:2,name:'A',score:i<3?70:80}]}));
+ const pairDetector=new c.window.IBBAInsightsV2({getTeamAverages:()=>[]});
+ const pair=B.compose({...r,context:{...ctx,currentGames:flipGames},currentSeason:{insightsV2:{H2H:[pairDetector.detectH2HFlip('H','A',flipGames)]}}});
+ const flip=pair.allInsights.find(s=>s.type==='H2H_FLIP');
+ assert.deepStrictEqual(Array.from(flip.teamIds).sort(),[1,2],'pair detectors resolve both official match identities');
+ assert(flip.storyKey&&pair.topStories.some(s=>s.storyKey===flip.storyKey),'verified current pair stories remain saveable recommendations');
  const bridged=B.compose({...r,context:{...ctx,identity:ref=>ref==='post:7'?'profile:/player/verified':ref}},['post:7','profile:/player/verified']);
  assert.deepStrictEqual(Array.from(bridged.selectedPlayerRefs),['profile:/player/verified'],'late official aliases reconcile report selections');
  const error=await B.build(match,{contextService:{load:async()=>({...ctx,currentGames:[{teams:match.teams}]} )},currentReportBuilder:async()=>{throw Error('standings offline');}});

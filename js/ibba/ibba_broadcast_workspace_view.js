@@ -12,7 +12,7 @@
       return `<details data-workspace-details="${key(s)}"><summary>פרטים</summary><dl class="broadcast-facts">${scope?`<dt>טווח הנתונים</dt><dd>${text(scope)}</dd>`:''}${s.sampleSize!=null?`<dt>משחקים</dt><dd>${text(s.sampleSize)}</dd>`:''}${values}</dl></details>`;
     }
     static card(s,{saved=false,readOnly=false}={}) {
-      return `<article class="broadcast-highlight"><p>${text(s.text)}</p><div class="workspace-actions">${button('add',saved?'נוסף לדף שלי':'הוסף לדף שלי',s,saved||readOnly||!s.storyKey)}${button('copy','העתק',s)}</div>${this.details(s)}</article>`;
+      return `<article class="broadcast-highlight"><p>${text(s.text)}</p><div class="workspace-actions">${button('add',saved?'נוסף לדף שלי':'הוסף לדף שלי',s,saved||readOnly||!s.storyKey)}${button('copy-current','העתק',s)}</div>${this.details(s)}</article>`;
     }
     static item(item,index,total,{readOnly=false,review=false}={}) {
       const s=item.storySnapshot,id=`ws-note-${encodeURIComponent(item.storyKey)}`;

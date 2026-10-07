@@ -998,6 +998,7 @@
           const available=window.IBBASeasons.canPrepareSeason(window.appConfig.seasonKey);
           document.getElementById('prepWorkspace').classList.toggle('hidden',!available);
           document.getElementById('prepUnavailable').classList.toggle('hidden',available);
+          document.getElementById('prepGameChooser').classList.toggle('hidden',!available);
           if(available) {
             if (!gamePrepState.initialized) initGamePrep();
             else window.historyView?.mount(document.getElementById('playerHistoryPrep'));
@@ -2677,7 +2678,7 @@
           window.historyView.data=summaries;
         }
         currentAdvancedReport={...(report.currentSeason||{}),...report,insightsV2:report.currentSeason?.insightsV2||{}};
-        renderBroadcastReport(currentAdvancedReport);document.getElementById('prepExport').disabled=false;
+        renderBroadcastReport(currentAdvancedReport);syncBroadcastExport();
         if(report.currentSeason){
           const savedGames=allGames,savedAnalytics=window.ibbaAnalytics;
           try {

@@ -61,13 +61,16 @@
     }
     refreshStarted() {this.loading=true;this.render();}
     showSourceError() {this.loading=false;this.sourceError=true;this.render();}
-    findStory(key) {return this.workspace.state.items.find(i=>i.storyKey===key)?.storySnapshot || this.report?.allInsights?.find(s=>s.storyKey===key) || this.report?.topStories?.find(s=>s.storyKey===key);}
+    findStory(key,{current=false}={}) {
+      const reportStory=this.report?.allInsights?.find(s=>s.storyKey===key) || this.report?.topStories?.find(s=>s.storyKey===key);
+      return current?reportStory:this.workspace.state.items.find(i=>i.storyKey===key)?.storySnapshot || reportStory;
+    }
     async dispatch(action,key,value) {
       if(!this.match)return;
       this.feedback='';
       if(action==='close-copy'){this.manualCopy=null;this.render();return;}
-      if(action==='copy'||action==='recovery') {
-        const ref=this.match,text=action==='recovery'?this.workspace.snapshot().recoveryText:this.findStory(key)?.text;
+      if(action==='copy'||action==='copy-current'||action==='recovery') {
+        const ref=this.match,text=action==='recovery'?this.workspace.snapshot().recoveryText:this.findStory(key,{current:action==='copy-current'})?.text;
         if(text==null)return;
         try {await this.clipboard?.writeText(text);if(!this.clipboard?.writeText)throw Error('Clipboard unavailable');if(!same(ref,this.match))return;this.feedback='הועתק';}
         catch(_){if(!same(ref,this.match))return;this.manualCopy=text;}

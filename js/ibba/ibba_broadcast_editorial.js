@@ -73,7 +73,7 @@
         s.broadcastShort=s.broadcastShort || s.text;s.storyKey=this.storyKey(s);s.factFingerprint=this.fingerprint(s);return s;
       });
       const hasRound=allStories.some(s=>s.type==='ROUND_SCORING');
-      const eligible=allStories.filter(s=>s.text && s.dataState!=='unavailable' && !(summaries.length && s.type==='ROUND_SCORING')
+      const eligible=allStories.filter(s=>s.storyKey && s.text && s.dataState!=='unavailable' && !(summaries.length && s.type==='ROUND_SCORING')
         && !(hasRound && s.type==='HISTORICAL_ROUND_RESULT') && !(pooled && s.type==='HISTORICAL_H2H_RECORD'));
       const priority=s=>s.priority ?? ({high:90,medium:65,low:40}[s.importance] || 40);
       const compare=(a,b)=>this.tier(a)-this.tier(b) || priority(b)-priority(a)

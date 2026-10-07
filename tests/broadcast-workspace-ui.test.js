@@ -37,4 +37,15 @@ ctrl.open(a);ctrl.publish(report);ctrl.dispatch('add','s');ctrl.showSourceError(
 assert.strictEqual(ctrl.snapshot().state.items[0].storySnapshot.text,'נקודה');assert(ctrl.snapshot().cached);
 ctrl.open(a,{readOnly:true});ctrl.dispatch('remove','s');assert.strictEqual(ctrl.snapshot().state.items.length,1);
 ctrl.detach();assert.strictEqual(events.click.length,0);assert.strictEqual(windowEvents.storage.length,0);
-console.log('broadcast workspace UI tests passed');
+async function copySurfaces(){
+ const copied=[];ctrl.clipboard={writeText:async text=>copied.push(text)};
+ ctrl.open(a);ctrl.publish({...report,allInsights:[{...s,text:'current displayed sentence'}],topStories:[{...s,text:'current displayed sentence'}]});
+ const click=action=>ctrl.click({target:{closest:()=>({disabled:false,dataset:{workspaceAction:action,storyKey:'s'}})}});
+ click('copy-current');await Promise.resolve();assert.strictEqual(copied.at(-1),'current displayed sentence','recommendation copies its visible current wording');
+ click('copy');await Promise.resolve();assert.strictEqual(copied.at(-1),'נקודה','personal point copies its saved wording');
+ ctrl.publish({...report,allInsights:[{...s,text:'new facts',factFingerprint:'f2'}]});
+ click('copy-current');await Promise.resolve();assert.strictEqual(copied.at(-1),'new facts','changed facts copy from the current recommendation');
+ click('copy');await Promise.resolve();assert.strictEqual(copied.at(-1),'נקודה','changed personal point retains saved copy until accepted');
+ ctrl.detach();console.log('broadcast workspace UI tests passed');
+}
+copySurfaces().catch(error=>{console.error(error);process.exit(1);});

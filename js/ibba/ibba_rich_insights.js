@@ -87,7 +87,7 @@
           const historicalTeam=[...new Set(p.entries.map(e=>e.teamName))].join(', ');
           const extra={playerRef:ref,playerName:name,historicalTeam,scope};
           for(const rival of context.match.teams) {
-            const playerWindow={...window,resultGames:window.resultGames.filter(g=>g.teams.some(t=>String(t.teamId)===String(rival.teamId)))};
+            const playerWindow={...window,spec:{...window.spec,opponentId:rival.teamId},resultGames:window.resultGames.filter(g=>g.teams.some(t=>String(t.teamId)===String(rival.teamId)))};
             const against=W.player(playerWindow,ref,context.identity);
             against.entries=against.entries.filter(e=>String(e.teamId)!==String(rival.teamId));
             const verified=W.snapshot(against.entries,ref,playerWindow);

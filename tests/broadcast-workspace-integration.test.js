@@ -1,8 +1,8 @@
 const assert=require('assert'),fs=require('fs'),vm=require('vm'),load=require('./helpers/broadcast');
 const nodes=new Map();
-const node=id=>({id,innerHTML:'',value:'',textContent:'',disabled:false,style:{},dataset:{},events:{},
- classList:{add(){},remove(){},toggle(){},contains(){return false;}},addEventListener(n,f){this.events[n]=f;},removeEventListener(n){delete this.events[n];},setAttribute(){},scrollIntoView(){},focus(){},contains(){return false;},
- querySelector(s){return id==='prepWorkspace'&&s==='#broadcastPersonal'?document.getElementById('broadcastPersonal'):null;},querySelectorAll(){return[];}});
+const node=id=>{const classes=new Set();return {id,innerHTML:'',value:'',textContent:'',disabled:false,options:[],style:{},dataset:{},events:{},
+ classList:{add(v){classes.add(v);},remove(v){classes.delete(v);},toggle(v,on){const enabled=on??!classes.has(v);enabled?classes.add(v):classes.delete(v);},contains(v){return classes.has(v);}},addEventListener(n,f){this.events[n]=f;},removeEventListener(n){delete this.events[n];},setAttribute(){},scrollIntoView(){},focus(){},contains(){return false;},
+ querySelector(s){return id==='prepWorkspace'&&s==='#broadcastPersonal'?document.getElementById('broadcastPersonal'):null;},querySelectorAll(){return[];}};};
 const document={readyState:'loading',activeElement:null,addEventListener(){},querySelectorAll:()=>[],getElementById:id=>{if(!nodes.has(id))nodes.set(id,node(id));return nodes.get(id);}};
 const stored=new Map(),storage={getItem:k=>stored.get(k)??null,setItem:(k,v)=>stored.set(k,v)};
 const location={href:'http://localhost/?season=2026-27&view=gamePrep&game=44&keep=value'};
@@ -12,6 +12,7 @@ const html=fs.readFileSync('index.html','utf8'),script=Array.from(html.matchAll(
 vm.runInContext(script,c);
 assert.strictEqual(typeof c.restorePreparationFromUrl,'function','active page restores game deep links');
 async function run(){
+ const realSwitch=c.switchTab,realLoad=c.loadBroadcastPreparation;
  vm.runInContext('allGames=[{}]',c);c.initTeamStats=()=>{};c.switchTab('teams');
  assert(location.href.includes('view=teams'),'switching panels updates the restorable URL');
  assert(!location.href.includes('game='),'leaving preparation clears the game deep link');
@@ -38,6 +39,15 @@ async function run(){
  location.href='http://localhost/?season=2026-27&view=gamePrep&game=999';
  await c.restorePreparationFromUrl({seasonKey:'2026-27',scheduleGames:[match],isCurrent:()=>true,complete:true});
  assert.strictEqual(calls,1);assert(document.getElementById('seasonStatus').textContent.includes('לא נמצא'));
+ const oldMatch={...match,seasonKey:'2025-26',date:'2026-01-01',hasResult:true};
+ location.href='http://localhost/?season=2025-26&view=gamePrep&game=44';c.window.appConfig.seasonKey='2025-26';
+ await c.restorePreparationFromUrl({seasonKey:'2025-26',scheduleGames:[oldMatch],complete:true});
+ assert(document.getElementById('prepGameChooser').classList.contains('hidden'));
+ c.resetPreparationReport();c.window.appConfig.seasonKey='2026-27';realSwitch('gamePrep');
+ assert(!document.getElementById('prepGameChooser').classList.contains('hidden'),'returning to active season restores the upcoming-match chooser');
+ c.window.matchContextService={};c.window.IBBABroadcastReport={build:async()=>({seasonKey:match.seasonKey,gameInfo:match,currentSeason:null,topStories:[],allInsights:[],historicalInsights:[],families:{},selectedPlayerRefs:[],sourceStatuses:[],historicalContext:{state:'ready'},context:{match,priorSeasons:[],playerSummaries:{state:'ready',records:[],statuses:[]}}})};
+ await realLoad(match);
+ assert(document.getElementById('prepExport').disabled,'actual empty report publication preserves recommended-export availability');
  console.log('broadcast workspace integration tests passed');
 }
 run().catch(e=>{console.error(e);process.exit(1);});

@@ -49,7 +49,9 @@
         const games=report.context.currentGames.filter(g=>!i.teamName||g.teams?.some(t=>t.name===i.teamName));
         const identity=i.id||`legacy:${report.seasonKey}:${JSON.stringify(Object.fromEntries(Object.entries(i).filter(([key])=>!['text','textShort','broadcastShort','importance','priority'].includes(key)).sort(([a],[b])=>a.localeCompare(b))))}`;
         const facts=i.facts||Object.fromEntries(Object.entries(i).filter(([key])=>!['text','textShort','broadcastShort','importance','priority','category','id','icon','teamName','playerName'].includes(key)));
-        const teamIds=(report.context.match.teams||[]).filter(t=>t.name===i.teamName).map(t=>t.teamId);
+        const entityNames=[i.teamName,i.teamA,i.teamB].filter(Boolean),matchTeams=report.context.match.teams||[];
+        const teamIds=entityNames.length && entityNames.every(name=>matchTeams.some(t=>t.name===name))
+          ? matchTeams.filter(t=>entityNames.includes(t.name)).map(t=>t.teamId) : [];
         const analysisScope=i.analysisScope||window.IBBAAnalysisScope?.fromGames([],{phase:'unknown',requestedSeasonKeys:[report.seasonKey],asOf:report.context.asOf});
         return {...i,id:identity,factKey:i.factKey||identity,facts,analysisScope,teamIds,playerRef:i.playerId!=null?report.context.identity?.({playerId:i.playerId})||`wp:${i.playerId}`:i.playerRef,scope:'current',seasonKeys:[report.seasonKey],sampleSize:Number.isFinite(i.games)?i.games:null,sourceGameCount:games.length,
           evidence:games.map(g=>({seasonKey:g.seasonKey,gameId:g.gameId,sourceUrl:g.permalink,fields:['results','performance']})),dataState:report.context.currentComplete?'ready':'partial',
@@ -69,6 +71,7 @@
       const ref=workspaceResult?.state?.matchRef,match=report?.gameInfo || workspaceResult?.state?.matchSnapshot;
       if(ref && (!match || ref.seasonKey!==(match.seasonKey || report?.seasonKey) || String(ref.gameId)!==String(match.gameId)))throw new Error('הדוח והדף האישי שייכים למשחק אחר');
       if(mode==='full' && report?.cachedOnly)throw new Error('ייצוא מלא דורש דוח מעודכן');
+      if(mode==='recommended' && !report?.topStories?.length)throw new Error('אין נקודות מומלצות לייצוא למשחק זה');
       const clone=value=>JSON.parse(JSON.stringify(value));
       return clone({mode,match,seasonKey:report?.seasonKey || ref?.seasonKey,rows:this.exportRows(report,{mode,workspace:workspaceResult}),capturedAt:new Date().toISOString()});
     }
