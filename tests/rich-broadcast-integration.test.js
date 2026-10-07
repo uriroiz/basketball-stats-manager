@@ -11,4 +11,11 @@ const rows=B.exportRows(report);assert(rows.some(row=>row.includes(report.topSto
 const rich=report.allInsights.find(s=>s.type==='ROUND_SCORING');assert(rows.some(row=>row.includes(JSON.stringify(rich.facts))),'export carries structured facts');
 for(const round of [2,10,25]){const ctx={...context,match:{...match,roundNumber:round},currentResultGames:[game(1,'2026-27',90)],currentRegularGames:[game(1,'2026-27',90)]};const r=B.compose({...report,context:ctx},['post:7']);assert(r.allInsights.some(s=>s.type==='SAME_STAGE_COMPARISON'));if(round===25)assert(r.allInsights.some(s=>s.dataState==='partial'));}
 const changed=B.compose({...report,copyVariant:1},['post:7']);const changedRich=changed.allInsights.find(s=>s.id===rich.id);assert.notStrictEqual(changedRich.text,rich.text);assert.deepStrictEqual(changedRich.facts,rich.facts);
+const splitContext={...context,priorSeasons:[prior('2024-25'),prior('2025-26')]};
+splitContext.priorSeasons.forEach((s,i)=>{s.resultGames=s.regularGames=s.sameRoundGames=[game(1,s.seasonKey,i?42:100)];});
+const split=B.compose({...report,context:splitContext},[]);
+const briefing=split.topStories.find(s=>s.type==='ROUND_TEAM_SUMMARY'&&s.teamIds[0]===1);
+assert(briefing.text.includes('ניצחון ב־30 נקודות')&&briefing.text.includes('הפסד ב־28 נקודות'),'actual round outcomes survive highlight composition');
+assert(B.exportRows(split).some(row=>row.includes(briefing.text)),'export includes the same clarified briefing');
+assert.strictEqual(briefing.facts.roundResults.length,2,'highlight retains both underlying games');
 console.log('rich broadcast integration tests passed');

@@ -26,9 +26,15 @@
       }else switch(story.type) {
         case 'ROUND_TEAM_SUMMARY': {
           const scores=f.roundMetrics;
+          const pointsUnit=v=>Math.abs(v)===1?'נקודה':'נקודות';
           body=story.sampleSize===1
-            ? `${name} ${scores.margin>0?'ניצחה':scores.margin<0?'הפסידה':'סיימה בשוויון'} ${n(scores.points)}:${n(scores.opponentPoints)} במחזור ${f.round}${scores.margin?`, בהפרש ${n(Math.abs(scores.margin))} נקודות`:''}.`
+            ? `${name} ${scores.margin>0?'ניצחה':scores.margin<0?'הפסידה':'סיימה בשוויון'} ${n(scores.points)}:${n(scores.opponentPoints)} במחזור ${f.round}${scores.margin?`, בהפרש ${n(Math.abs(scores.margin))} ${pointsUnit(scores.margin)}`:''}.`
             : `${statement} במחזור ${f.round}. ${name} ${past?'קלעה':'קולעת'} ${n(scores.points)} וספגה ${n(scores.opponentPoints)} נקודות בממוצע (${story.sampleSize} משחקים).`;
+          if(story.sampleSize>1&&f.roundResults?.length===story.sampleSize&&f.roundResults.every(r=>Number.isFinite(r.margin))) {
+            const outcomes=f.roundResults.map(r=>r.margin===0?'שוויון':`${r.margin>0?'ניצחון':'הפסד'} ב־${n(Math.abs(r.margin))} ${pointsUnit(r.margin)}`);
+            const results=`${outcomes.slice(0,-1).join(', ')} ו${outcomes.at(-1)}`;
+            body=`${name} במחזור ${f.round}: ${results}. בממוצע למשחק ${past?'קלעה':'קולעת'} ${n(scores.points)} וספגה ${n(scores.opponentPoints)} נקודות, עם הפרש ממוצע של ${n(Math.abs(scores.margin))} ${pointsUnit(scores.margin)}${scores.margin>0?' לזכותה':scores.margin<0?' לחובתה':''} (${story.sampleSize} משחקים).`;
+          }
           break;
         }
         case 'ROUND_SCORING': case 'PLAYER_ROUND_PROFILE':body=`${statement} במחזור ${f.round}.`;break;

@@ -123,7 +123,8 @@
         const snap=(season,spec)=>this.snapshot(season,team,{...spec,...(season===current?{asOf:context.asOf}:{})});
         if(regular) {
           const historicalRound=W.pool(prior.map(s=>snap(s,{phase:'regular',mode:'rounds',fromRound:round,toRound:round})));
-          for(const metric of scoring)if(historicalRound.metrics[metric].value!=null)add('ROUND_SCORING','ROUND',team,[historicalRound],{metric,value:historicalRound.metrics[metric].value,round});
+          const roundResults=historicalRound.entries.filter(e=>e.values.margin!=null).map(e=>({seasonKey:e.game.seasonKey,gameId:String(e.game.gameId),margin:e.values.margin}));
+          for(const metric of scoring)if(historicalRound.metrics[metric].value!=null)add('ROUND_SCORING','ROUND',team,[historicalRound],{metric,value:historicalRound.metrics[metric].value,round,roundResults});
           if(round>1) {
             const spec={phase:'regular',mode:'rounds',fromRound:1,toRound:round-1};
             const now=snap(current,spec);

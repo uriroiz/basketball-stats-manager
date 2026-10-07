@@ -5,6 +5,12 @@ const game=(id,seasonKey='2025-26',points=80,extra={})=>({gameId:String(id),seas
 const context=(round=1,current=[])=>({match:{seasonKey:'2026-27',roundNumber:round,roundVerified:true,competitionPhase:'regular',teams:[{teamId:1,name:'A'},{teamId:2,name:'B'}]},asOf:'2026-10-06',currentResultGames:current,currentScheduleGames:current,currentRegularGames:current,currentComplete:true,identity:x=>typeof x==='object'?`post:${x.playerId}`:x,playerSummaries:{records:[]},priorSeasons:[{seasonKey:'2024-25',state:'ready',regularGames:[game(1,'2024-25',80)],resultGames:[game(1,'2024-25',80)]},{seasonKey:'2025-26',state:'ready',regularGames:[game(1,'2025-26',100)],resultGames:[game(1,'2025-26',100)]}]});
 let stories=R.generate(context());const round=stories.find(s=>s.type==='ROUND_SCORING'&&s.teamIds[0]===1);
 assert.strictEqual(round.facts.value,90);assert.strictEqual(round.samples[0].gameCount,2);
+const split=context();
+split.priorSeasons.forEach((s,i)=>{s.regularGames=[game(1,s.seasonKey,i?47:105)];s.resultGames=s.regularGames;});
+const splitRound=R.generate(split).find(s=>s.type==='ROUND_SCORING'&&s.teamIds[0]===1&&s.facts.metric==='margin');
+assert.strictEqual(splitRound.facts.value,1);
+assert(Array.isArray(splitRound.facts.roundResults),'pooled round insight must retain actual game outcomes');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(splitRound.facts.roundResults)),[{seasonKey:'2024-25',gameId:'1',margin:30},{seasonKey:'2025-26',gameId:'1',margin:-28}],'pooled rounds preserve actual outcomes and season-scoped game identities');
 const current=Array.from({length:10},(_,i)=>game(i+1,'2026-27',i<5?80:90));
 stories=R.generate(context(11,current));const change=stories.find(s=>s.type==='RECENT_WINDOW_CHANGE'&&s.teamIds[0]===1&&s.facts.metric==='points');
 assert.strictEqual(change.facts.difference,10);assert.strictEqual(change.samples[0].gameCount,5);assert.strictEqual(change.samples[1].gameCount,5);

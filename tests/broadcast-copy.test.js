@@ -19,6 +19,16 @@ for(const variant of [0,1]) {
 }
 assert(C.format({...round,facts:{...round.facts,value:7,roundMetrics:{points:94,opponentPoints:87,margin:7}}}).includes('ניצחה'),'positive single-game margin describes a win');
 assert(C.format({...round,sampleSize:3}).includes('ממוצע'),'multiple games retain average wording');
+const pooled={...round,seasonKeys:['2024-25','2025-26'],sampleSize:2,facts:{metric:'margin',value:1,round:1,roundMetrics:{points:81.5,opponentPoints:80.5,margin:1},roundResults:[{seasonKey:'2024-25',gameId:'1',margin:30},{seasonKey:'2025-26',gameId:'1',margin:-28}]}};
+for(const variant of [0,1]) {
+ const text=C.format(pooled,{variant});
+ assert(text.includes('ניצחון ב־30 נקודות')&&text.includes('הפסד ב־28 נקודות'),'a +1 average cannot hide a blowout win and a blowout loss');
+ assert(text.includes('1 נקודה לזכותה')&&text.includes('81.5')&&text.includes('80.5')&&text.includes('2 משחקים'),'retain aggregate scoring and clearly label the average margin');
+}
+const losing={...pooled,facts:{...pooled.facts,value:-1,roundMetrics:{points:80.5,opponentPoints:81.5,margin:-1},roundResults:[{margin:1},{margin:-3}]}};
+assert(C.format(losing).includes('1 נקודה לחובתה')&&C.format(losing).includes('ניצחון ב־1 נקודה'),'singular margin and direction remain accurate');
+const wins={...pooled,facts:{...pooled.facts,value:5,roundMetrics:{points:85.5,opponentPoints:80.5,margin:5},roundResults:[{margin:2},{margin:8}]}};
+assert(!C.format(wins).includes('הפסד'),'two wins must not be described as a split record');
 assert(C.format({...profile,type:'CLOSE_GAME_RECORD',facts:{wins:3,total:9}}).includes('עד 5 נקודות'),'close-game threshold uses digits');
 assert(C.format(story).includes('ב־5 המשחקים האחרונים'),'recent-window quantities use digits consistently');
 const reversal=C.format({...profile,type:'LEAD_REVERSAL',facts:{count:7,total:36}});
