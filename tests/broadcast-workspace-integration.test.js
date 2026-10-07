@@ -43,7 +43,10 @@ async function run(){
  location.href='http://localhost/?season=2025-26&view=gamePrep&game=44';c.window.appConfig.seasonKey='2025-26';
  await c.restorePreparationFromUrl({seasonKey:'2025-26',scheduleGames:[oldMatch],complete:true});
  assert(document.getElementById('prepGameChooser').classList.contains('hidden'));
- c.resetPreparationReport();c.window.appConfig.seasonKey='2026-27';realSwitch('gamePrep');
+ assert(document.getElementById('prepExportStatus').textContent.includes('הדף השמור'));
+ c.resetPreparationReport();
+ assert(!document.getElementById('prepExportStatus').textContent.includes('הדף השמור'),'reset clears cached export messaging from the previous season');
+ c.window.appConfig.seasonKey='2026-27';realSwitch('gamePrep');
  assert(!document.getElementById('prepGameChooser').classList.contains('hidden'),'returning to active season restores the upcoming-match chooser');
  c.window.matchContextService={};c.window.IBBABroadcastReport={build:async()=>({seasonKey:match.seasonKey,gameInfo:match,currentSeason:null,topStories:[],allInsights:[],historicalInsights:[],families:{},selectedPlayerRefs:[],sourceStatuses:[],historicalContext:{state:'ready'},context:{match,priorSeasons:[],playerSummaries:{state:'ready',records:[],statuses:[]}}})};
  await realLoad(match);

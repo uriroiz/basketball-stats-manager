@@ -1643,6 +1643,7 @@
       window.historyView?.setBroadcastSelection?.([],{ready:false});
       reportVersion++;
       currentAdvancedReport = null;
+      syncBroadcastExport();
       const exportButton=document.getElementById('prepExport');if(exportButton)exportButton.disabled=true;
       const summary=document.getElementById('prepMatchSummary');if(summary){summary.innerHTML='';summary.classList.add('hidden');}
       gamePrepState.teamAveragesData = null;
