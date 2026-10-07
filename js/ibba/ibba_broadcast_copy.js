@@ -4,6 +4,14 @@
   class IBBABroadcastCopy {
     static formatNumber(value,{percent=false}={}){return value==null||!Number.isFinite(value)?'—':`${Number(value.toFixed(1))}${percent?'%':''}`;}
     static format(story,{variant=0}={}) {
+      if(story.type==='POOLED_H2H_RECORD') {
+        const years=story.seasonKeys.map(k=>window.IBBASeasons.getSeason(k)?.label||k).join(' ו־');
+        const prefix=`${story.seasonKeys.length===1?'בעונת':'בעונות'} ${years}, `;
+        const [a,b]=story.facts.winsByTeam,total=story.facts.total,names=story.teamNames;
+        if(a.wins===b.wins)return `${prefix}במפגשים בין ${names[0]} ל־${names[1]}, כל קבוצה ניצחה ${a.wins===1?'מפגש אחד':`ב־${a.wins} מפגשים`}.`;
+        const winner=a.wins>b.wins?0:1,wins=story.facts.winsByTeam[winner].wins;
+        return `${prefix}${names[winner]} ניצחה ${wins===total?`בכל ${total} המפגשים`:`ב־${wins} מתוך ${total} המפגשים`} מול ${names[1-winner]}.`;
+      }
       const f=story.facts||{},name=story.playerName||story.teamName||'הקבוצה';
       const yearLabels=(story.seasonKeys||[]).map(k=>window.IBBASeasons.getSeason(k)?.label||k);
       const years=yearLabels.length>1?`${yearLabels.slice(0,-1).join(', ')} ו־${yearLabels.at(-1)}`:yearLabels[0]||'';

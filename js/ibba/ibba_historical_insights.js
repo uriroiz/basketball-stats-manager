@@ -2,7 +2,7 @@
   'use strict';
   const label=key=>window.IBBASeasons.getSeason(key)?.label || key;
   const same=(a,b)=>a!=null&&b!=null&&String(a)===String(b);
-  const unique=games=>Array.from(new Map((games||[]).map(g=>[String(g.gameId),g])).values());
+  const unique=games=>Array.from(new Map((games||[]).map(g=>[`${g.seasonKey}:${g.gameId}`,g])).values());
   const newest=games=>unique(games).sort((a,b)=>+new Date(b.date)-+new Date(a.date)||Number(b.gameId)-Number(a.gameId));
   const evidence=game=>({seasonKey:game.seasonKey,gameId:game.gameId,sourceUrl:game.permalink,fields:['date','teams','results','stage_id']});
   const gameText=game=>`${game.teams[0].name} ${game.teams[0].score} — ${game.teams[1].score} ${game.teams[1].name}`;

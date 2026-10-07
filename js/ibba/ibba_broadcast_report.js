@@ -2,6 +2,7 @@
   'use strict';
   class IBBABroadcastReport {
     static selectTopStories(candidates,{limit=6,variant=0}={}) {
+      if(window.IBBABroadcastEditorial)return window.IBBABroadcastEditorial.prepare(candidates,{}, {limit,variant}).topStories;
       const rounds=new Map();
       for(const story of candidates.filter(s=>s.type==='ROUND_SCORING'&&Number.isFinite(s.facts?.value))) {
         const key=JSON.stringify([story.teamIds,story.seasonKeys,story.facts.round]);
@@ -57,9 +58,11 @@
       const rich=(window.IBBARichInsights?.generate(report.context,{playerRefs})||[]).map(s=>{const text=window.IBBABroadcastCopy?.format(s,{variant:report.copyVariant||0})||s.text;return {...s,text,broadcastShort:text};});
       const familyFor=s=>{const candidate=s.family||({'H2H':'MATCHUP','BACKGROUND':'PROFILE','QUARTERS':'DECIDING'}[s.category]||s.category);return ['ROUND','MOMENTUM','PROFILE','DECIDING','MATCHUP','PLAYERS'].includes(candidate)?candidate:'PROFILE';};
       const legacy=[...current,...historicalInsights].map(s=>({...s,family:familyFor(s),factKey:s.factKey||s.id}));
-      const allInsights=[...new Map([...rich,...legacy].map(s=>[s.factKey||s.id,s])).values()];
+      const candidates=[...new Map([...rich,...legacy].map(s=>[s.factKey||s.id,s])).values()];
+      const editorial=window.IBBABroadcastEditorial?.prepare(candidates,report.context,{variant:report.copyVariant||0});
+      const allInsights=editorial?.allStories||candidates;
       const families=Object.fromEntries(['ROUND','MOMENTUM','PROFILE','DECIDING','MATCHUP','PLAYERS'].map(f=>[f,allInsights.filter(s=>s.family===f)]));
-      return {...report,historicalContext:report.context.playerSummaries,historicalInsights,allInsights,families,topStories:this.selectTopStories(allInsights,{variant:report.copyVariant||0}),selectedPlayerRefs:[...playerRefs]};
+      return {...report,historicalContext:report.context.playerSummaries,historicalInsights,allInsights,families,topStories:editorial?.topStories||this.selectTopStories(allInsights,{variant:report.copyVariant||0}),selectedPlayerRefs:[...playerRefs]};
     }
     static exportRows(report) {
       const rows=[['=== נקודות לשידור ===']];

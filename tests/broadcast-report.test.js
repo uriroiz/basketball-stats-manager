@@ -1,5 +1,5 @@
 const assert=require('assert'),fs=require('fs'),vm=require('vm');const c={window:{},URLSearchParams,URL,Date,console};
-for(const name of ['ibba_seasons','ibba_broadcast_copy','ibba_historical_insights','ibba_broadcast_report','ibba_insights_v2'])if(fs.existsSync('js/ibba/'+name+'.js'))vm.runInNewContext(fs.readFileSync('js/ibba/'+name+'.js','utf8'),c);
+for(const name of ['ibba_seasons','ibba_analysis_scope','ibba_broadcast_copy','ibba_broadcast_editorial','ibba_historical_insights','ibba_broadcast_report','ibba_insights_v2'])if(fs.existsSync('js/ibba/'+name+'.js'))vm.runInNewContext(fs.readFileSync('js/ibba/'+name+'.js','utf8'),c);
 assert(c.window.IBBABroadcastReport,'broadcast report builder must exist');
 const B=c.window.IBBABroadcastReport;
 const story=(id,team=1)=>({id,type:'PLAYER_OFFICIAL_SEASON',scope:'historical',priority:80,teamIds:[team],seasonKeys:['2025-26'],sampleSize:3,text:'2025/26 story '+id,broadcastShort:'2025/26 story '+id,facts:{points:10},evidence:[{seasonKey:'2025-26',sourceUrl:'https://ibasketball.co.il/league/2025-2/'}]});
