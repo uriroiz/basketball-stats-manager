@@ -75,5 +75,21 @@ regression('pooled meetings provide their actual historical scores',()=>{
  const story=prepare(ctx).find(s=>s.type==='POOLED_H2H_RECORD');assert(Array.isArray(story.detailGroups));
  assert.strictEqual(story.detailGroups[0].games.length,2);assert.strictEqual((V.card(story).match(/<tr data-detail-game=/g)||[]).length,2);
 });
+regression('pooled record states total meetings and retains each season',()=>{
+ const ctx=context([game(1,5),game(2,-7)]);
+ ctx.priorSeasons.push({seasonKey:'2024-25',state:'ready',resultGames:[game(1,10,{seasonKey:'2024-25'}),game(2,3,{seasonKey:'2024-25'})],regularGames:[]});
+ const story=prepare(ctx).find(s=>s.type==='POOLED_H2H_RECORD');
+ assert.strictEqual(story.facts.total,4);assert.strictEqual(story.facts.winsByTeam[0].wins,3);
+ assert(story.text.startsWith('מתוך 4 מפגשים')&&story.text.includes('בעונות האחרונות')&&story.text.includes('ניצחה ב־3'),'three wins come from four total meetings, not four per season');
+ const html=V.card(story);assert(html.includes('<th scope="col">עונה</th>'));assert.strictEqual((html.match(/<tr data-detail-game=/g)||[]).length,4);
+ assert.strictEqual(story.detailGroups[0].games.filter(g=>g.seasonKey==='2024-25').length,2);
+ assert.strictEqual(story.detailGroups[0].games.filter(g=>g.seasonKey==='2025-26').length,2);
+});
+regression('pooled single-season meetings also identify the season in their table',()=>{
+ const story=prepare(context([game(1,5)])).find(s=>s.type==='POOLED_H2H_RECORD');
+ assert(story.text.includes('במפגש היחיד')&&story.text.includes('בעונת 2025/26'),'one meeting is described as one meeting');
+ const html=V.card(story);assert(html.includes('<th scope="col">עונה</th>'),'every pooled meeting has an explicit season column');
+ assert(html.includes('<td><bdi dir="ltr">2025/26</bdi></td>'));
+});
 if(failures.length){console.error(failures.join('\n'));process.exit(1);}
 console.log('broadcast game details tests passed');

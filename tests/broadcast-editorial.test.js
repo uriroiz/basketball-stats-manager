@@ -34,7 +34,8 @@ const context={match:{seasonKey:'2026-27',teams:[{teamId:1,name:'A'},{teamId:2,n
 const pooled=E.prepare([],context).topStories.find(x=>x.type==='POOLED_H2H_RECORD');
 assert.strictEqual(pooled.facts.total,4);
 assert.strictEqual(pooled.seasonKeys.length,2);
-assert(pooled.text.includes('4')&&pooled.text.includes('2024/25')&&!pooled.text.includes('2023/24'));
+assert(pooled.text.startsWith('מתוך 4 מפגשים')&&pooled.text.includes('בעונות האחרונות'),'pooled meeting count explicitly covers all seasons together');
+assert(!pooled.text.includes('2024/25')&&!pooled.text.includes('2025/26'),'individual season labels belong in the supporting results');
 assert.strictEqual(pooled.evidence.length,4);
 context.priorSeasons[1].resultGames=[game(1,'2025-26',2),game(2,'2025-26',2)];
 const tied=E.prepare([],context).topStories[0];

@@ -5,12 +5,12 @@
     static formatNumber(value,{percent=false}={}){return value==null||!Number.isFinite(value)?'—':`${Number(value.toFixed(1))}${percent?'%':''}`;}
     static format(story,{variant=0}={}) {
       if(story.type==='POOLED_H2H_RECORD') {
-        const years=story.seasonKeys.map(k=>window.IBBASeasons.getSeason(k)?.label||k).join(' ו־');
-        const prefix=`${story.seasonKeys.length===1?'בעונת':'בעונות'} ${years}, `;
+        const period=story.seasonKeys.length===1?`בעונת ${window.IBBASeasons.getSeason(story.seasonKeys[0])?.label||story.seasonKeys[0]}`:'בעונות האחרונות';
         const [a,b]=story.facts.winsByTeam,total=story.facts.total,names=story.teamNames;
-        if(a.wins===b.wins)return `${prefix}במפגשים בין ${names[0]} ל־${names[1]}, כל קבוצה ניצחה ${a.wins===1?'מפגש אחד':`ב־${a.wins} מפגשים`}.`;
+        if(a.wins===b.wins)return `מתוך ${total} מפגשים שנערכו בין ${names[0]} ל־${names[1]} ${period}, כל קבוצה ניצחה ${a.wins===1?'מפגש אחד':`ב־${a.wins}`}.`;
         const winner=a.wins>b.wins?0:1,wins=story.facts.winsByTeam[winner].wins;
-        return `${prefix}${names[winner]} ניצחה ${wins===total?`בכל ${total} המפגשים`:`ב־${wins} מתוך ${total} המפגשים`} מול ${names[1-winner]}.`;
+        if(total===1)return `במפגש היחיד שנערך בין הקבוצות ${period}, ${names[winner]} ניצחה את ${names[1-winner]}.`;
+        return `מתוך ${total} מפגשים שנערכו בין הקבוצות ${period}, ${names[winner]} ניצחה ${wins===total?'בכולם':`ב־${wins}`} מול ${names[1-winner]}.`;
       }
       const f=story.facts||{},name=story.playerName||story.teamName||'הקבוצה';
       const yearLabels=(story.seasonKeys||[]).map(k=>window.IBBASeasons.getSeason(k)?.label||k);
