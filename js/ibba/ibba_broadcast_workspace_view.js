@@ -6,10 +6,23 @@
   const button = (action,label,s,disabled=false) => `<button type="button" data-workspace-action="${action}" data-story-key="${s?key(s):''}"${disabled?' disabled':''}>${label}</button>`;
   class IBBABroadcastWorkspaceView {
     static details(s) {
-      const f=s.facts || {},labels={value:'נתון',referenceValue:'נתון להשוואה',difference:'שינוי',wins:'ניצחונות',total:'משחקים',points:'נקודות',round:'מחזור',quarter:'רבע',count:'מספר מקרים',threshold:'רף'};
-      const values=Object.entries(labels).filter(([k])=>typeof f[k]==='number').map(([k,label])=>`<dt>${label}</dt><dd>${text(f[k])}</dd>`).join('');
-      const scope=window.IBBAAnalysisScope?.label(s.analysisScope) || '';
-      return `<details data-workspace-details="${key(s)}"><summary>פרטים</summary><dl class="broadcast-facts">${scope?`<dt>טווח הנתונים</dt><dd>${text(scope)}</dd>`:''}${s.sampleSize!=null?`<dt>משחקים</dt><dd>${text(s.sampleSize)}</dd>`:''}${values}</dl></details>`;
+      const groups=(Array.isArray(s.detailGroups)?s.detailGroups:[]).filter(g=>Array.isArray(g?.games) && g.games.some(r=>Number.isFinite(r?.points)&&Number.isFinite(r?.opponentPoints)));
+      if(!groups.length)return '';
+      const content=groups.map(group=>{
+        const games=group.games.filter(r=>Number.isFinite(r?.points)&&Number.isFinite(r?.opponentPoints));
+        const seasons=[...new Set(games.map(g=>g.seasonKey))].sort(),multiSeason=seasons.length>1;
+        const w=group.window || {},scope=window.IBBAAnalysisScope?.label({phase:w.phase==='any'?'all':w.phase,mode:w.mode,windows:[w]});
+        const title=[group.teamName,seasons.map(k=>window.IBBASeasons.getSeason(k)?.label||k).join(' ו־'),w.venue==='away'?'משחקי חוץ':w.venue==='home'?'משחקי בית':'',w.phase==='regular' || ['rounds','recent'].includes(w.mode)&&w.count!=null?scope:''].filter(Boolean).join(' · ');
+        const wins=games.filter(g=>g.points>g.opponentPoints).length,losses=games.filter(g=>g.points<g.opponentPoints).length,ties=games.length-wins-losses;
+        const record=['CLOSE_GAME_RECORD','HALFTIME_RECORD','POOLED_H2H_RECORD'].includes(s.type)?'':`<p class="workspace-game-record">מאזן: ${text(`${wins} ${wins===1?'ניצחון':'ניצחונות'} · ${losses} ${losses===1?'הפסד':'הפסדים'}${ties?` · ${ties} בשוויון`:''}`)}</p>`;
+        const rows=games.map(g=>{
+          const date=new Date(g.date),dateLabel=Number.isNaN(+date)?'—':date.toLocaleDateString('he-IL');
+          const margin=g.points-g.opponentPoints,outcome=margin===0?'שוויון':`${margin>0?'ניצחון':'הפסד'} ב־${Math.abs(margin)} ${Math.abs(margin)===1?'נקודה':'נקודות'}`;
+          return `<tr data-detail-game="${escape(`${g.seasonKey}:${g.gameId}`)}"><td>${text(dateLabel)}</td>${multiSeason?`<td>${text(window.IBBASeasons.getSeason(g.seasonKey)?.label||g.seasonKey)}</td>`:''}<td>${text(g.opponentName || '—')}</td><td>${g.venue==='home'?'בית':g.venue==='away'?'חוץ':'—'}</td><td>${text(`${g.points}:${g.opponentPoints}`)}</td><td>${text(outcome)}</td></tr>`;
+        }).join('');
+        return `<div class="workspace-detail-group">${record}<div class="broadcast-table-wrap workspace-game-results" role="region" aria-label="${escape(`תוצאות: ${title}`)}" tabindex="0"><table class="broadcast-table"><caption>${text(title)}</caption><thead><tr><th scope="col">תאריך</th>${multiSeason?'<th scope="col">עונה</th>':''}<th scope="col">יריבה</th><th scope="col">בית / חוץ</th><th scope="col">תוצאה — ${text(group.teamName)} תחילה</th><th scope="col">סיום</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+      }).join('');
+      return `<details class="workspace-game-details" data-workspace-details="${key(s)}"><summary>פרטים נוספים — תוצאות המשחקים</summary>${content}</details>`;
     }
     static card(s,{saved=false,readOnly=false}={}) {
       return `<article class="broadcast-highlight"><p>${text(s.text)}</p><div class="workspace-actions">${button('add',saved?'נוסף לדף שלי':'הוסף לדף שלי',s,saved||readOnly||!s.storyKey)}${button('copy-current','העתק',s)}</div>${this.details(s)}</article>`;

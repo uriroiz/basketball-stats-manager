@@ -4,7 +4,7 @@
   const same = (a,b) => a && b && a.seasonKey===b.seasonKey && String(a.gameId)===String(b.gameId);
   const failure = 'לא ניתן לשמור במכשיר כרגע; השינויים זמינים בדף הפתוח';
   const fields = ['type','family','storyKey','factFingerprint','text','broadcastShort','facts','seasonKeys','analysisScope','sampleSize',
-    'samples','evidence','scope','teamIds','teamNames','teamName','playerRef','playerName','historicalTeam','dataState','windows'];
+    'samples','evidence','scope','teamIds','teamNames','teamName','playerRef','playerName','historicalTeam','dataState','windows','detailGroups'];
   const snapshot = s => copy(Object.fromEntries(fields.filter(k=>s[k]!==undefined).map(k=>[k,s[k]])));
   const matchSnapshot = m => copy(Object.fromEntries(['seasonKey','gameId','date','homeTeam','awayTeam','teams','roundNumber','roundVerified','competitionPhase','status','hasResult','permalink'].filter(k=>m[k]!==undefined).map(k=>[k,m[k]])));
   class IBBABroadcastWorkspace {
@@ -117,6 +117,10 @@
         if (!this.sourceReady(item.storySnapshot,report)) {this.cached=true;continue;}
         const next=byKey.get(item.storyKey);
         if (!next) {item.status='missing';item.pendingStory=null;continue;}
+        if (!item.storySnapshot.detailGroups?.length && next.detailGroups?.length &&
+          window.IBBABroadcastEditorial?.fingerprint({...next,detailGroups:undefined})===item.storySnapshot.factFingerprint) {
+          item.storySnapshot.detailGroups=copy(next.detailGroups);item.storySnapshot.factFingerprint=next.factFingerprint;
+        }
         if (next.factFingerprint===item.storySnapshot.factFingerprint) {item.status='active';item.pendingStory=null;}
         else {item.status='changed';item.pendingStory=snapshot(next);}
       }

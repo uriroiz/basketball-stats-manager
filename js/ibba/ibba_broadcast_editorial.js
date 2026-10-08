@@ -26,6 +26,7 @@
     }
     static fingerprint(s) {
       const facts={...(s.facts || {})};delete facts.analysisScope;
+      if(s.detailGroups?.length)facts.supportingResults=s.detailGroups.map(g=>[g.entityRef,g.games.map(r=>[r.seasonKey,r.gameId,r.teamId,r.opponentId,r.date,r.venue,r.points,r.opponentPoints])]);
       return stable(factsOnly([facts,s.seasonKeys,s.analysisScope,s.samples,s.sampleSize,s.evidence]));
     }
     static tier(s) {
@@ -50,8 +51,11 @@
         return Number(own.score)>Number(other.score);
       }).length}));
       const scope=window.IBBAAnalysisScope?.fromGames(games,{phase:'all',mode:'meetings',requestedSeasonKeys:(context.priorSeasons || []).map(s=>s.seasonKey)});
+      const detailTeam=teams[winsByTeam[0].wins>=winsByTeam[1].wins?0:1],stats=window.IBBAWindowStats;
+      const detailGroups=stats && window.IBBARichInsights?.detailGroups('H2H_WINDOW_PROFILE',[
+        stats.team(stats.selectGames(games,{phase:'any',mode:'recent',teamId:detailTeam.teamId}),detailTeam.teamId)],{metric:'points'}) || [];
       return {type:'POOLED_H2H_RECORD',family:'MATCHUP',scope:'historical',teamIds:teams.map(t=>t.teamId),teamNames:teams.map(t=>t.name),
-        seasonKeys,analysisScope:scope,sampleSize:games.length,facts:{total:games.length,winsByTeam},dataState:'ready',priority:80,
+        seasonKeys,analysisScope:scope,sampleSize:games.length,facts:{total:games.length,winsByTeam},detailGroups,dataState:'ready',priority:80,
         evidence:games.map(g=>({seasonKey:g.seasonKey,gameId:g.gameId,sourceUrl:g.permalink})),text:''};
     }
     static prepare(candidates=[],context={}, {limit=6,variant=0}={}) {

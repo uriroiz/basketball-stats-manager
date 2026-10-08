@@ -4,6 +4,28 @@
   const scoring=['points','opponentPoints','margin'];
   const year=k=>window.IBBASeasons.getSeason(k)?.label||k;
   class IBBARichInsights {
+    static detailGroups(type,snapshots,facts,extras={}) {
+      const supported=['VENUE_PROFILE','ROUND_SCORING','ROUND_WINDOW_PROFILE','SAME_STAGE_COMPARISON','HISTORICAL_WINDOW_COMPARISON','RECENT_WINDOW_CHANGE',
+        'H2H_WINDOW_PROFILE','H2H_VENUE_PROFILE','H2H_CHANGE','MATCHUP_STYLE','WINDOW_STYLE','CLOSE_GAME_RECORD','HALFTIME_RECORD','QUARTER_WINDOW','LATE_GAME_CHANGE'];
+      if(extras.playerRef || !supported.includes(type))return [];
+      const pairs={fgPercentage:['fieldGoalsMade','fieldGoalsAttempted'],threePointPercentage:['threePointsMade','threePointsAttempted'],ftPercentage:['freeThrowsMade','freeThrowsAttempted'],assistTurnoverRatio:['assists','turnovers']};
+      return snapshots.flatMap((snapshot,index)=>{
+        const metric=index && facts.referenceMetric?facts.referenceMetric:facts.metric;
+        const ids=extras.recordGameIds || facts.gameIds;
+        const entries=(snapshot.entries || []).filter(e=>String(e.teamId)===String(snapshot.entityRef) && e.game.gameId!=null && e.game.seasonKey &&
+          e.values.points!=null && e.values.opponentPoints!=null && (!ids || ids.map(String).includes(String(e.game.gameId))) &&
+          (!metric || (metric==='quarterMargin'?e.quarters[facts.quarter-1]!=null:pairs[metric]?pairs[metric].every(m=>e.values[m]!=null):e.values[metric]!=null)) &&
+          (type!=='CLOSE_GAME_RECORD' || Math.abs(e.values.margin)<=5) &&
+          (type!=='HALFTIME_RECORD' || e.quarters[0]!=null && e.quarters[1]!=null && (facts.position==='leading'?e.quarters[0]+e.quarters[1]>0:e.quarters[0]+e.quarters[1]<0)));
+        const games=entries.map(e=>{
+          const ownIndex=e.game.teams.findIndex(t=>String(t.teamId)===String(e.teamId)),opponent=e.game.teams[1-ownIndex];
+          return {seasonKey:e.game.seasonKey,gameId:String(e.game.gameId),date:e.game.date,teamId:e.teamId,opponentId:opponent.teamId,opponentName:opponent.name,
+            venue:ownIndex===0?'home':'away',points:e.values.points,opponentPoints:e.values.opponentPoints};
+        }).sort((a,b)=>a.seasonKey.localeCompare(b.seasonKey)||+new Date(a.date)-+new Date(b.date)||a.gameId.localeCompare(b.gameId));
+        if(!games.length)return [];
+        return [{entityRef:snapshot.entityRef,teamName:entries[0].teamName,window:{...snapshot.window.spec},games}];
+      });
+    }
     static story(type,family,team,snapshots,facts,extras={}) {
       const seasonKeys=[...new Set(snapshots.flatMap(s=>s.seasonKeys))];
       const windows=snapshots.flatMap(s=>s.window.spec.mode==='pool'?s.window.spec.windows:s.window.spec);
@@ -17,7 +39,7 @@
         seasonKeys,scope:extras.scope||'historical',facts,windows,
         analysisScope:window.IBBAAnalysisScope?.fromSnapshots(snapshots,{facts,recordGameIds:extras.recordGameIds,requestedSeasonKeys:extras.requestedSeasonKeys}),
         metricDefinitions:{[facts.metric||'record']:{unit:facts.metric?.includes('Percentage')?'percent':'perGame'}},
-        samples,
+        samples,detailGroups:this.detailGroups(type,snapshots,facts,extras),
         coverage:snapshots.map(s=>s.coverage),evidence:snapshots.flatMap(s=>s.evidence),sampleSize:samples[0]?.gameCount||0,
         dataState:snapshots.every(s=>s.coverage.complete)&&sampleMetrics.every(s=>!s.name||s.metric?.dataState==='ready')?'ready':'partial',
         smallSample:small,priority:type==='ROUND_SCORING'?96:type.includes('CHANGE')?92:72,text:'',broadcastShort:'',...extras};
