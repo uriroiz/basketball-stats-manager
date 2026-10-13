@@ -43,7 +43,7 @@
     <div class="header-gradient rounded-lg p-3 mb-3 shadow-md">
       <h1 class="text-2xl font-bold mb-1 text-center">הכנה לשידורי כדורסל</h1>
       <p class="text-sm text-center text-blue-100">משחקים, סטטיסטיקות ונקודות לשידור</p>
-      <p class="text-sm text-center text-blue-100 mt-1">גרסה <bdi class="version-display">v2.3.3</bdi></p>
+      <p class="text-sm text-center text-blue-100 mt-1">גרסה <bdi class="version-display">v2.3.4</bdi></p>
     </div>
     <div id="seasonError" role="alert" class="hidden card p-4 mb-4"></div>
     
@@ -841,22 +841,22 @@
   <script src="js/config.js?v=4"></script>
   <script src="js/ibba/ibba_adapter.js?v=10"></script>
   <script src="js/ibba/ibba_analytics.js?v=7"></script>
-  <script src="js/ibba/ibba_player_history.js?v=2.3.3"></script>
-  <script src="js/ibba/ibba_history_view.js?v=2.3.3"></script>
+  <script src="js/ibba/ibba_player_history.js?v=2.3.4"></script>
+  <script src="js/ibba/ibba_history_view.js?v=2.3.4"></script>
   <script src="js/ibba/ibba_match_context.js"></script>
   <script src="js/ibba/ibba_analysis_scope.js"></script>
   <script src="js/ibba/ibba_window_stats.js"></script>
   <script src="js/ibba/ibba_rich_insights.js"></script>
   <script src="js/ibba/ibba_broadcast_copy.js"></script>
   <script src="js/ibba/ibba_broadcast_editorial.js"></script>
-  <script src="js/ibba/ibba_broadcast_view.js?v=2.3.3"></script>
+  <script src="js/ibba/ibba_broadcast_view.js?v=2.3.4"></script>
   <script src="js/ibba/ibba_broadcast_workspace.js"></script>
   <script src="js/ibba/ibba_broadcast_workspace_view.js"></script>
   <script src="js/ibba/ibba_broadcast_workspace_controller.js"></script>
   <script src="js/ibba/ibba_team_summaries.js"></script>
   <script src="js/ibba/ibba_historical_insights.js"></script>
   <script src="js/ibba/ibba_broadcast_report.js"></script>
-  <script src="js/ibba/ibba_player_names.js?v=2.3.3" defer></script>
+  <script src="js/ibba/ibba_player_names.js?v=2.3.4" defer></script>
   <script src="js/app_upcoming_games_pure.js?v=4" defer></script>
   
   <!-- Insights V2 System -->
@@ -1312,6 +1312,19 @@
       if(currentTab==='leaders') initLeaderStats();
       updatePlayerNamesStatus();
     }
+    let playerNamesRefresh = null;
+    function resetPlayerNamesRefresh() {
+      if(playerNamesRefresh?.buttons) {
+        for(const {button,text,disabled,busy} of playerNamesRefresh.buttons) {
+          button.innerHTML=text;
+          button.disabled=disabled;
+          if(busy===null)button.removeAttribute('aria-busy');
+          else button.setAttribute('aria-busy',busy);
+        }
+        playerNamesRefresh.buttons=null;
+      }
+      playerNamesRefresh=null;
+    }
     function updatePlayerNamesStatus(players = allPlayerStats) {
       const loader=window.playerNamesLoader;
       const displayed=players.length?players:(window.ibbaAnalytics?.getPlayerAverages?.() || []);
@@ -1319,7 +1332,11 @@
       const total=displayed.length;
       const status=document.getElementById('playerNamesStatus');
       if(status) {
-        status.textContent=total && loader?.isLoading
+        const manual=playerNamesRefresh && playerNamesRefresh.loader===loader && playerNamesRefresh.version===seasonController.gate.version
+          ? playerNamesRefresh : null;
+        status.textContent=manual
+          ? (manual.loading?`מרענן שמות… זוהו ${total-missing} מתוך ${total} שחקנים.`:manual.message)
+          : total && loader?.isLoading
           ? (missing?`זוהו ${total-missing} מתוך ${total} שחקנים · משלים שמות…`:'מרענן שמות ברקע…')
           : (missing?`${missing} שמות עדיין אינם זמינים. ניתן לנסות רענון שמות.`
             : (total && ['partial','error'].includes(loader?.sourceState)?'חלק מהשמות לא התעדכנו; השמות השמורים מוצגים.':''));
@@ -1653,6 +1670,7 @@
       const targetTab=currentTab;
       const previousSeason=window.appConfig.seasonKey;
       window.playerNamesLoader?.cancel?.();
+      resetPlayerNamesRefresh();
       Object.assign(window.appConfig, season, {seasonKey:key, seasonLabel:season.label});
       document.getElementById('seasonSelect').value = key;
       try { localStorage.setItem('ibba_selected_season',key); } catch (_) {}
@@ -3315,7 +3333,6 @@
     }, 3500);
     
     /**
-     * Force refresh player names from Supabase
      * Revalidate official names while keeping verified names visible.
      */
     async function forceRefreshPlayerNames() {
@@ -3324,31 +3341,50 @@
       }
       const refreshVersion = seasonController.gate.version;
       const loader = window.playerNamesLoader;
-      const isCurrent = () => refreshVersion === seasonController.gate.version && loader === window.playerNamesLoader;
-      
-      const statusDiv = document.getElementById('playerNamesStatus');
-      if (statusDiv) {
-        statusDiv.textContent = 'מרענן שמות שחקנים…';
-        statusDiv.style.display = 'block';
-      }
+      if(playerNamesRefresh?.loading && playerNamesRefresh.loader===loader && playerNamesRefresh.version===refreshVersion)return;
+      resetPlayerNamesRefresh();
+      const players=window.ibbaAnalytics?.getPlayerAverages?.() || allPlayerStats;
+      const countMissing=()=>players.filter(player=>!loader.getPlayerName(player.playerId)).length;
+      const before=countMissing();
       const buttons=['refreshPlayersBtn','refreshPlayerNamesBtn'].map(id=>document.getElementById(id)).filter(Boolean);
-      const originals=buttons.map(button=>({button,text:button.innerHTML,disabled:button.disabled}));
-      for(const button of buttons)button.disabled=true;
+      const refresh={loader,version:refreshVersion,loading:true,message:'',
+        buttons:buttons.map(button=>({button,text:button.innerHTML,disabled:button.disabled,busy:button.getAttribute('aria-busy')}))};
+      playerNamesRefresh=refresh;
+      const isCurrent=()=>refreshVersion===seasonController.gate.version && loader===window.playerNamesLoader && playerNamesRefresh===refresh;
+      for(const button of buttons) {
+        button.textContent='מרענן…';button.disabled=true;button.setAttribute('aria-busy','true');
+      }
+      updatePlayerNamesStatus(players);
       try {
         await loader.loadReferencedPlayers(allGames,isCurrent,()=>{
           if(isCurrent())refreshNamedViews();
         },{refresh:true});
         if (!isCurrent()) return;
+        const missing=countMissing(),added=before-missing;
+        const remaining=missing===1?'שם אחד עדיין אינו זמין.':`${missing} שמות עדיין אינם זמינים.`;
+        const available=players.length===0?'אין שחקנים עם סטטיסטיקה בעונה זו.'
+          : players.length===1?'שם השחקן זמין.':`כל ${players.length} השמות זמינים.`;
+        refresh.message=missing===0?`הרענון הסתיים. ${available}`
+          : added>0?`${added===1?'נוסף שם אחד':`נוספו ${added} שמות`}. ${remaining}`
+          : `הרענון הסתיים ללא שמות נוספים. ${remaining}`;
+        if(['partial','error'].includes(loader.sourceState))refresh.message+=' לא ניתן היה להשלים את הטעינה מהמקור; השמות שכבר זוהו נשמרו.';
+        refresh.loading=false;
         refreshNamedViews();
       } catch (error) {
         if (!isCurrent()) return;
         console.warn('Player-name refresh failed:',error.message);
-        if (statusDiv) {
-          statusDiv.textContent = 'רענון השמות נכשל. השמות שכבר זוהו נשמרו; ניתן לנסות שוב.';
-          statusDiv.style.display = 'block';
-        }
+        refresh.loading=false;
+        refresh.message='רענון השמות נכשל. השמות שכבר זוהו נשמרו; ניתן לנסות שוב.';
+        updatePlayerNamesStatus(players);
       } finally {
-        for(const {button,text,disabled} of originals) {button.innerHTML=text;button.disabled=disabled;}
+        if(playerNamesRefresh===refresh) {
+          for(const {button,text,disabled,busy} of refresh.buttons || []) {
+            button.innerHTML=text;button.disabled=disabled;
+            if(busy===null)button.removeAttribute('aria-busy');
+            else button.setAttribute('aria-busy',busy);
+          }
+          refresh.buttons=null;
+        }
       }
     }
 
