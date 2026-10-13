@@ -20,8 +20,9 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - run: deno check supabase/functions/*/index.ts
+      - run: deno check --node-modules-dir=auto supabase/functions/*/index.ts
       - uses: supabase/setup-cli@v1
+        id: supabase
         with:
           version: latest
       - name: Validate database migrations
@@ -29,5 +30,5 @@ jobs:
           supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,realtime,storage,studio,vector
           supabase db reset
       - name: Stop local Supabase
-        if: always()
+        if: always() && steps.supabase.outcome == 'success'
         run: supabase stop --no-backup
