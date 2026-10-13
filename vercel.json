@@ -2,7 +2,20 @@
   "version": 2,
   "name": "basketball-stats-manager",
   "regions": ["fra1"],
+  "rewrites": [
+    { "source": "/api/ibba-league/2023-24", "destination": "https://ibasketball.co.il/league/2023-2-%d7%9c%d7%90%d7%95%d7%9e%d7%99%d7%aa/" },
+    { "source": "/api/ibba-league/2024-25", "destination": "https://ibasketball.co.il/league/2024-2-%d7%9c%d7%90%d7%95%d7%9e%d7%99%d7%aa/" },
+    { "source": "/api/ibba-league/2025-26", "destination": "https://ibasketball.co.il/league/2025-2/" }
+  ],
   "headers": [
+    {
+      "source": "/api/ibba-league/(.*)",
+      "headers": [
+        { "key": "Content-Type", "value": "text/plain; charset=utf-8" },
+        { "key": "Content-Security-Policy", "value": "default-src 'none'; sandbox; frame-ancestors 'none'" },
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    },
     {
       "source": "/(.*)",
       "headers": [
