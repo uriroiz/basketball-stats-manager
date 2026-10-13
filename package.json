@@ -1,6 +1,6 @@
 {
   "name": "basketball-stats-manager",
-  "version": "2.3.2",
+  "version": "2.3.3",
   "description": "Basketball Stats Manager - Pure API (Real-time IBBA data)",
   "main": "index.html",
   "scripts": {

@@ -21,7 +21,7 @@
     return null;
   }
   class IBBAPlayerHistory {
-    constructor() { this.cache=new Map();this.pending=new Map();this.aliases=new Map(); }
+    constructor() { this.cache=new Map();this.pending=new Map();this.aliases=new Map();this.textRequests=new Map(); }
     registerPlayer(player) {
       const ref=playerRef(player.link);
       if (player.id != null && ref) this.aliases.set(`post:${player.id}`,ref);
@@ -69,7 +69,12 @@
       if (!recognized) throw new Error('טבלת הסיכומים הרשמית אינה זמינה או שמבנה המקור השתנה');
       return records;
     }
-    async fetchText(url) {
+    fetchText(url) {
+      if(this.textRequests.has(url))return this.textRequests.get(url);
+      const pending=this.requestText(url).finally(()=>{if(this.textRequests.get(url)===pending)this.textRequests.delete(url);});
+      this.textRequests.set(url,pending);return pending;
+    }
+    async requestText(url) {
       const request=async target=>{
         const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),12000);
         try { const response=await fetch(target,{signal:controller.signal});
@@ -81,7 +86,7 @@
         return request(`${window.appConfig?.ibbaProxyUrl || '/api/ibba'}?url=${encodeURIComponent(url)}`);
       }
     }
-    invalidateSeason(key) {this.cache.delete(key);this.pending.delete(key);}
+    invalidateSeason(key) {this.cache.delete(key);this.pending.delete(key);const source=window.IBBASeasons.getSeason(key)?.playersPageUrl;if(source)this.textRequests.delete(source);}
     loadSummary(season,refresh) {
       if(refresh)this.invalidateSeason(season.key);
       if(this.cache.has(season.key))return Promise.resolve(this.cache.get(season.key));

@@ -16,6 +16,7 @@ class IBBAPlayerNames {
     this.isLoaded = false;
     this.supabase = supabaseClient; // Optional Supabase client
     this.apiUrl = 'https://ibasketball.co.il/wp-json/sportspress/v2/players';
+    this.searchApiUrl = 'https://ibasketball.co.il/wp-json/wp/v2/search';
     this.leagueId = String(config.leagueId || 119474);
     this.playersPageUrl = config.playersPageUrl || 'https://ibasketball.co.il/league/2025-2/';
     this.cacheKey = `ibba_player_names_api_${config.seasonId || 119472}_v8`;
@@ -26,6 +27,7 @@ class IBBAPlayerNames {
     this._generation = 0;
     this._activeLoad = null;
     this._requests = new Set();
+    this._sourceRetryAt = { json: 0, search: 0, text: 0 };
     this._catalogLoaded = false;
     this._plusMinusMap = new Map();
     this._statsVerifiedAt = null;
@@ -484,6 +486,16 @@ class IBBAPlayerNames {
     return true;
   }
 
+  _acceptSearchPlayer(player, requested, operation) {
+    if (!Number.isSafeInteger(player?.id) || player.id <= 0 || player.type !== 'post' || player.subtype !== 'sp_player') return false;
+    try {
+      const url = new URL(player.url);
+      if (url.protocol !== 'https:' || url.hostname !== 'ibasketball.co.il' || url.port || url.username || url.password
+        || !/^\/player\/[^/]+\/?$/.test(url.pathname) || !this._officialLink(url.href, String(player.id))) return false;
+      return this._acceptPlayer({ id: player.id, title: { rendered: player.title }, link: url.href }, requested, operation);
+    } catch (_) { return false; }
+  }
+
   _isCurrent(operation) {
     return !operation.cancelled && operation.generation === this._generation && operation.subscribers.some(subscriber => {
       try { return subscriber.isCurrent(); } catch (_) { return false; }
@@ -512,24 +524,48 @@ class IBBAPlayerNames {
 
   async _fetchOfficial(url, operation = null, type = 'json', proxyOnly = false) {
     const proxy = `${window.appConfig?.ibbaProxyUrl || '/api/ibba'}?url=${encodeURIComponent(url)}`;
-    for (const source of proxyOnly ? [proxy] : [url, proxy]) {
+    const lane = type === 'text' ? 'text' : url.startsWith(this.searchApiUrl) ? 'search' : 'json';
+    let lastError = null, deniedError = null;
+    // Public search exposes CORS; it is outside the proxy's deliberately narrow allowlist.
+    for (const source of lane === 'search' ? [url] : proxyOnly ? [proxy] : [url, proxy]) {
       if (operation && !this._isCurrent(operation)) throw new Error('Player load cancelled');
+      if (!this._sourceAvailable(lane)) throw new Error('Player source cooling down');
       const controller = new AbortController();
       const request = { controller, timer: setTimeout(() => controller.abort(), 12000) };
       this._requests.add(request);
       try {
         const response = await fetch(source, { signal: controller.signal });
         if (controller.signal.aborted || (operation && !this._isCurrent(operation))) throw new Error('Player load cancelled');
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (!response.ok) {
+          const error = new Error(`HTTP ${response.status}`);
+          error.status = response.status;
+          error.retryAfter = response.headers?.get('Retry-After');
+          throw error;
+        }
         return await response[type]();
       } catch (error) {
         if (operation && !this._isCurrent(operation)) throw error;
+        lastError = error;
+        if ([401, 403, 429].includes(error.status) && (deniedError?.status !== 429)) deniedError = error;
       } finally {
         clearTimeout(request.timer);
         this._requests.delete(request);
       }
     }
-    throw new Error('Player source unavailable');
+    const error = deniedError || lastError || new Error('Player source unavailable');
+    if (deniedError) {
+      const retryAfter = error.retryAfter;
+      const seconds = retryAfter == null || retryAfter === '' ? NaN : Number(retryAfter);
+      const retryAt = Number.isFinite(seconds) ? Date.now() + seconds * 1000 : Date.parse(retryAfter);
+      const until = Math.max(Date.now() + 60000, Number.isFinite(retryAt) ? retryAt : 0);
+      const lanes = error.status === 429 ? ['json', 'search', 'text'] : [lane];
+      for (const sourceLane of lanes) this._sourceRetryAt[sourceLane] = Math.max(this._sourceRetryAt[sourceLane], until);
+    }
+    throw error;
+  }
+
+  _sourceAvailable(type) {
+    return Date.now() >= this._sourceRetryAt[type];
   }
 
   fetchPlayerById(id, operation = null) {
@@ -564,29 +600,16 @@ class IBBAPlayerNames {
       const cached = this.identitiesMap.get(id);
       return refresh || !cached || Date.now() - cached.verifiedAt > this.identityExpiry;
     });
-    const batches = [];
-    for (let offset = 0; offset < targets.length; offset += 100) batches.push(targets.slice(offset, offset + 100));
     try {
-      let batchCursor = 0;
-      const collection = Promise.all(Array.from({ length: Math.min(3, batches.length) }, async () => {
-        while (batchCursor < batches.length && this._isCurrent(operation)) {
-          const ids = batches[batchCursor++], requested = new Set(ids);
-          const url = `${this.apiUrl}?include=${ids.join(',')}&per_page=100&_fields=id,title,link`;
-          try {
-            const players = await this._fetchOfficial(url, operation);
-            if (!this._isCurrent(operation)) return;
-            let changed = false;
-            for (const player of Array.isArray(players) ? players : [])
-              if (this._acceptPlayer(player, requested, operation)) changed = true;
-            if (changed) { this._saveIdentities(); this._notifyProgress(operation); }
-          } catch (_) { /* Only unresolved requested IDs fall back to individual requests. */ }
-        }
-      }));
+      const collection = (async () => {
+        await this._loadIdentityBatches(targets, operation, true);
+        await this._loadIdentityBatches(targets.filter(id => !operation.verified.has(id)), operation, false);
+      })();
       await Promise.all([collection, this.loadPlayerStatsFromHTML(null, operation)]);
       const unresolved = targets.filter(id => !operation.verified.has(id));
       let cursor = 0, resolved = 0;
       await Promise.all(Array.from({ length: Math.min(6, unresolved.length) }, async () => {
-        while (cursor < unresolved.length && this._isCurrent(operation)) {
+        while (cursor < unresolved.length && this._isCurrent(operation) && this._sourceAvailable('json')) {
           const id = unresolved[cursor++];
           try {
             const player = await this.fetchPlayerById(id, operation);
@@ -613,6 +636,31 @@ class IBBAPlayerNames {
         this._activeLoad = null;
       }
     }
+  }
+
+  async _loadIdentityBatches(targets, operation, publicSearch) {
+    const batches = [];
+    for (let offset = 0; offset < targets.length; offset += 100) batches.push(targets.slice(offset, offset + 100));
+    let cursor = 0;
+    const lane = publicSearch ? 'search' : 'json';
+    await Promise.all(Array.from({ length: Math.min(3, batches.length) }, async () => {
+      while (cursor < batches.length && this._isCurrent(operation) && this._sourceAvailable(lane)) {
+        const ids = batches[cursor++], requested = new Set(ids);
+        const url = publicSearch
+          ? `${this.searchApiUrl}?type=post&subtype=sp_player&include=${ids.join(',')}&per_page=100`
+          : `${this.apiUrl}?include=${ids.join(',')}&per_page=100&_fields=id,title,link`;
+        try {
+          const players = await this._fetchOfficial(url, operation);
+          if (!this._isCurrent(operation)) return;
+          let changed = false;
+          for (const player of Array.isArray(players) ? players : []) {
+            const accepted = publicSearch ? this._acceptSearchPlayer(player, requested, operation) : this._acceptPlayer(player, requested, operation);
+            if (accepted) changed = true;
+          }
+          if (changed) { this._saveIdentities(); this._notifyProgress(operation); }
+        } catch (_) { /* Recover unresolved records through the next source; access denial pauses this lane. */ }
+      }
+    }));
   }
   
   /**

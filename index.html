@@ -43,7 +43,7 @@
     <div class="header-gradient rounded-lg p-3 mb-3 shadow-md">
       <h1 class="text-2xl font-bold mb-1 text-center">הכנה לשידורי כדורסל</h1>
       <p class="text-sm text-center text-blue-100">משחקים, סטטיסטיקות ונקודות לשידור</p>
-      <p class="text-sm text-center text-blue-100 mt-1">גרסה <bdi class="version-display">v2.3.2</bdi></p>
+      <p class="text-sm text-center text-blue-100 mt-1">גרסה <bdi class="version-display">v2.3.3</bdi></p>
     </div>
     <div id="seasonError" role="alert" class="hidden card p-4 mb-4"></div>
     
@@ -841,22 +841,22 @@
   <script src="js/config.js?v=4"></script>
   <script src="js/ibba/ibba_adapter.js?v=10"></script>
   <script src="js/ibba/ibba_analytics.js?v=7"></script>
-  <script src="js/ibba/ibba_player_history.js?v=1"></script>
-  <script src="js/ibba/ibba_history_view.js?v=1"></script>
+  <script src="js/ibba/ibba_player_history.js?v=2.3.3"></script>
+  <script src="js/ibba/ibba_history_view.js?v=2.3.3"></script>
   <script src="js/ibba/ibba_match_context.js"></script>
   <script src="js/ibba/ibba_analysis_scope.js"></script>
   <script src="js/ibba/ibba_window_stats.js"></script>
   <script src="js/ibba/ibba_rich_insights.js"></script>
   <script src="js/ibba/ibba_broadcast_copy.js"></script>
   <script src="js/ibba/ibba_broadcast_editorial.js"></script>
-  <script src="js/ibba/ibba_broadcast_view.js?v=2.3.2"></script>
+  <script src="js/ibba/ibba_broadcast_view.js?v=2.3.3"></script>
   <script src="js/ibba/ibba_broadcast_workspace.js"></script>
   <script src="js/ibba/ibba_broadcast_workspace_view.js"></script>
   <script src="js/ibba/ibba_broadcast_workspace_controller.js"></script>
   <script src="js/ibba/ibba_team_summaries.js"></script>
   <script src="js/ibba/ibba_historical_insights.js"></script>
   <script src="js/ibba/ibba_broadcast_report.js"></script>
-  <script src="js/ibba/ibba_player_names.js?v=10" defer></script>
+  <script src="js/ibba/ibba_player_names.js?v=2.3.3" defer></script>
   <script src="js/app_upcoming_games_pure.js?v=4" defer></script>
   
   <!-- Insights V2 System -->
@@ -2691,8 +2691,8 @@
         const context=await window.matchContextService.enrich(report.context,{refresh});
         if(version!==reportVersion)return;
         const enriched=window.IBBABroadcastReport.compose({...report,copyVariant:currentAdvancedReport?.copyVariant||0,context},window.selectedBroadcastPlayers||[]);
-        for(const s of context.playerSummaries.statuses||[])enriched.sourceStatuses.push({seasonKey:s.seasonKey,state:s.state,error:s.error});
-        for(const s of context.teamSummaries||[])if(s.state==='error')enriched.sourceStatuses.push(s);
+        for(const s of context.playerSummaries.statuses||[])enriched.sourceStatuses.push({kind:'players',seasonKey:s.seasonKey,state:s.state,error:s.error});
+        for(const s of context.teamSummaries||[])if(s.state==='error')enriched.sourceStatuses.push({...s,kind:'teams'});
         publish(enriched);
       }catch(error){
         if(version!==reportVersion)return;

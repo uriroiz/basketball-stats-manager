@@ -26,6 +26,11 @@ assert.strictEqual(V.meetingTable(context).split('<tr>').length-1,3,'one meeting
 const notices=V.sourceNotices([{seasonKey:'2023-24',state:'error',error:'upstream'},{seasonKey:'2023-24',state:'partial'},{seasonKey:'2025-26',state:'ready'},{seasonKey:'2024-25',state:'loading'}]);
 assert.strictEqual(notices.length,1,'one source failure notice per season; loading is displayed separately');
 assert(notices[0].includes('2023/24')&&!notices[0].includes('upstream'),'actionable message, no raw diagnostic errors');
+const summaryNotices=V.sourceNotices(['2023-24','2024-25','2025-26'].flatMap(seasonKey=>['players','teams'].map(kind=>({kind,seasonKey,state:'error',error:'HTTP 403'}))));
+assert.strictEqual(summaryNotices.length,1,'one failed summary source must not imply three whole-season game failures');
+assert(summaryNotices[0].includes('שחקנים')&&summaryNotices[0].includes('קבוצות'),'unavailable summaries are identified separately from game data');
+assert.strictEqual(V.sourceNotices([{kind:'players',seasonKey:'2024-25',state:'ready'}]).length,0);
+assert.strictEqual(V.sourceNotices([{seasonKey:'2023-24',state:'partial'},...['players','teams'].map(kind=>({kind,seasonKey:'2023-24',state:'error'}))]).length,2,'a genuine game-data failure stays visible alongside a summary failure');
 const matchup=V.renderGroups(['points','margin'].map(metric=>s('2025-26',metric,84,{type:'H2H_WINDOW_PROFILE',facts:{metric,value:84,wins:1,total:2}})));
 assert.strictEqual(matchup.split('ניצחונות מתוך המפגשים').length-1,1,'record appears once alongside matchup averages');
 assert(matchup.includes('1</bdi> מתוך <bdi dir="ltr">2'),'record facts survive numeric presentation');

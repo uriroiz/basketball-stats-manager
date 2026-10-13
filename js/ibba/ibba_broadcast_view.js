@@ -10,8 +10,16 @@
     }
     static count(n) {return n==null?'':`${n} ${n===1?'משחק':'משחקים'}`;}
     static sourceNotices(statuses) {
-      const failed=new Set((statuses||[]).filter(s=>['error','partial'].includes(s.state)).map(s=>s.seasonKey));
-      return [...failed].map(key=>`${label(key)}: חלק מהנתונים לא נטענו. אפשר לרענן את הדוח כדי לנסות שוב.`);
+      const failures=(statuses||[]).filter(s=>['error','partial'].includes(s.state));
+      const summaries=failures.filter(s=>['players','teams'].includes(s.kind));
+      const failed=new Set(failures.filter(s=>!['players','teams'].includes(s.kind)).map(s=>s.seasonKey));
+      const notices=[...failed].map(key=>`${label(key)}: חלק מנתוני המשחקים לא נטענו. אפשר לרענן את הדוח כדי לנסות שוב.`);
+      if(summaries.length){
+        const kinds=[...new Set(summaries.map(s=>s.kind))];
+        const names=kinds.length===2?'השחקנים והקבוצות':kinds[0]==='players'?'השחקנים':'הקבוצות';
+        notices.push(`סיכומי ${names} לא נטענו לעונות ${[...new Set(summaries.map(s=>s.seasonKey))].map(label).join(', ')}. נתוני המשחקים הזמינים מוצגים בדוח; אפשר לרענן כדי לנסות שוב.`);
+      }
+      return notices;
     }
     static renderCard(story) {
       const n=story.sampleSize;

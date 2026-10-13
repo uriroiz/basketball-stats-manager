@@ -1,5 +1,5 @@
 const assert=require('assert');const fs=require('fs');const vm=require('vm');
-const c={window:{},URL,Map,Promise,console,DOMParser:class {parseFromString(){return {};}}};
+const c={window:{},URL,Map,Promise,console,AbortController,setTimeout,clearTimeout,DOMParser:class {parseFromString(){return {};}}};
 vm.runInNewContext(fs.readFileSync('js/ibba/ibba_seasons.js','utf8'),c);
 if(fs.existsSync('js/ibba/ibba_player_history.js'))vm.runInNewContext(fs.readFileSync('js/ibba/ibba_player_history.js','utf8'),c);
 const H=c.window.IBBAPlayerHistory; assert(H,'official history parser must exist');
@@ -24,6 +24,29 @@ assert.throws(()=>history.parseOfficialSummaries({querySelectorAll:()=>[]},c.win
 assert(H.insights([prior,records[0]]).some(t=>t.includes('לעומת')),'historical comparison names both seasons');
 assert(H.exportRows({state:'ready',records:[records[0]],statuses:[]}).some(row=>row.includes('מ.כ עוטף דרום')));
 async function run(){
+ const shared=new H();let textCalls=0,finishText;
+ c.fetch=()=>{textCalls++;return new Promise(resolve=>{finishText=()=>resolve({ok:true,text:async()=>'<html>official summaries</html>'});});};
+ const playerSource=shared.fetchText('https://ibasketball.co.il/league/2025-2/');
+ const teamSource=shared.fetchText('https://ibasketball.co.il/league/2025-2/');
+ assert.strictEqual(textCalls,1,'player and team summaries must share one in-flight source request');
+ finishText();assert.deepStrictEqual(await Promise.all([playerSource,teamSource]),['<html>official summaries</html>','<html>official summaries</html>']);
+ c.fetch=async()=>{textCalls++;return {ok:false,status:403};};
+ await assert.rejects(shared.fetchText('https://ibasketball.co.il/league/2025-2/'),/HTTP 403/);
+ c.fetch=async()=>{textCalls++;return {ok:true,text:async()=>'<html>source recovered</html>'};};
+ assert.strictEqual(await shared.fetchText('https://ibasketball.co.il/league/2025-2/'),'<html>source recovered</html>','a failed source request must remain retryable');
+ const refreshing=new H(),htmlRequests=[];
+ const originalParser=c.DOMParser;
+ c.DOMParser=class {parseFromString(html){return {html};}};
+ c.fetch=()=>new Promise(resolve=>htmlRequests.push(html=>resolve({ok:true,text:async()=>html})));
+ refreshing.parseOfficialSummaries=parsed=>[{name:parsed.html}];
+ const refreshSeason=c.window.IBBASeasons.getSeason('2025-26');
+ const beforeRefresh=refreshing.loadSummary(refreshSeason,false);
+ const afterRefresh=refreshing.loadSummary(refreshSeason,true);
+ assert.strictEqual(htmlRequests.length,2,'refresh must start a new request instead of joining pre-refresh HTML');
+ htmlRequests[1]('new HTML');assert.strictEqual((await afterRefresh)[0].name,'new HTML');
+ htmlRequests[0]('old HTML');await beforeRefresh;
+ assert.strictEqual((await refreshing.loadSummary(refreshSeason,false))[0].name,'new HTML','late pre-refresh HTML must not replace refreshed cache');
+ c.DOMParser=originalParser;
  const h=new H();let calls=0;
  h.fetchText=async()=>{calls++;throw Error('offline');};
  const failed=await h.loadHistory('2025-26');assert.strictEqual(failed.statuses[0].state,'error');

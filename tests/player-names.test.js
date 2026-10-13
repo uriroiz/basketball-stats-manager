@@ -8,9 +8,17 @@ const games = (...ids) => [{ players: ids.map(playerId => ({ playerId })) }];
 const player = (id, name = `Player ${id}`, link = `https://ibasketball.co.il/player/profile-${id}/`) =>
   ({ id: Number(id), title: { rendered: name }, link, number: '17', current_teams: [333] });
 const response = value => ({ ok: true, status: 200, json: async () => value, text: async () => value });
+const failedResponse = (status, retryAfter = null) => ({ ok: false, status,
+  headers: { get: name => name.toLowerCase() === 'retry-after' ? retryAfter : null } });
 const leagueHTML = rows => JSON.stringify({ rows }) + ' '.repeat(1100);
 const targetURL = url => url.startsWith('/api/ibba?url=') ? decodeURIComponent(url.slice(14)) : url;
-const includeIDs = url => new URL(targetURL(url)).searchParams.get('include')?.split(',');
+const includeIDs = url => new URL(targetURL(url)).pathname.includes('/sportspress/v2/players')
+  ? new URL(targetURL(url)).searchParams.get('include')?.split(',') : undefined;
+const searchIDs = url => new URL(targetURL(url)).pathname === '/wp-json/wp/v2/search'
+  ? new URL(targetURL(url)).searchParams.get('include')?.split(',') : undefined;
+const individualRequest = url => /\/sportspress\/v2\/players\/[1-9]\d*$/.test(new URL(targetURL(url)).pathname);
+const searchPlayer = (id, title = `Search Player ${id}`, url = `https://ibasketball.co.il/player/search-${id}/`) =>
+  ({ id: Number(id), title, url, type: 'post', subtype: 'sp_player' });
 function deferred() { let resolve; const promise = new Promise(done => { resolve = done; }); return { promise, resolve }; }
 async function settle() { for (let i = 0; i < 30; i++) await Promise.resolve(); }
 const cached = (id, name, verifiedAt = NOW, link = null) => [String(id), { name, link, verifiedAt }];
@@ -27,7 +35,7 @@ function parseDocument(source) {
     ({ getAttribute: attribute => ({ 'data-id': row.id, 'data-pm': String(row.pm) })[attribute] ?? null })) : [] };
 }
 
-function fixture({ storage = new Map(), session = new Map(), fetchImpl, seasonId = 119472, now = NOW, storageThrows = false, withHistory = true } = {}) {
+function fixture({ storage = new Map(), session = new Map(), fetchImpl, searchImpl, seasonId = 119472, now = NOW, storageThrows = false, withHistory = true } = {}) {
   const requests = [], timers = new Set();
   const browserStorage = values => ({
     getItem(key) { if (storageThrows) throw Error('storage unavailable'); return values.get(key) || null; },
@@ -36,12 +44,16 @@ function fixture({ storage = new Map(), session = new Map(), fetchImpl, seasonId
   });
   const context = {
     console: { log() {}, warn() {}, error() {} }, URL, AbortController,
-    Date: class extends Date { static now() { return now; } },
+    Date: class extends Date { static now() { return typeof now === 'function' ? now() : now; } },
     setTimeout(callback, duration) { const timer = setTimeout(callback, duration); timers.add(timer); return timer; },
     clearTimeout(timer) { timers.delete(timer); clearTimeout(timer); },
     window: { appConfig: { seasonId, seasonKey: seasonId === 119472 ? '2025-26' : '2024-25', playersPageUrl: 'https://ibasketball.co.il/league/2025-2/' } },
     localStorage: browserStorage(storage), sessionStorage: browserStorage(session),
-    fetch: async (url, options) => { requests.push(url); return fetchImpl ? fetchImpl(url, options) : response(leagueHTML([])); },
+    fetch: async (url, options) => {
+      requests.push(url);
+      if (searchIDs(url)) return searchImpl ? searchImpl(url, options) : failedResponse(404);
+      return fetchImpl ? fetchImpl(url, options) : response(leagueHTML([]));
+    },
     DOMParser: class { parseFromString(source) { return parseDocument(source); } }
   };
   for (const file of ['ibba_seasons.js', 'ibba_player_history.js', 'ibba_player_names.js'])
@@ -78,6 +90,100 @@ test('cold load combines requested batch identities with explicit official summa
   assert.strictEqual(f.loader.sourceState, 'ready');
   assert.strictEqual(f.requests.filter(url => includeIDs(url)).length, 1);
   assert.strictEqual(f.timers.size, 0, 'settled requests release timeout resources');
+});
+
+test('public search resolves cold identities in three bounded batches without SportsPress requests', async () => {
+  const gate = deferred(); let active = 0, peak = 0;
+  const f = fixture({ searchImpl: async url => {
+    const query = new URL(targetURL(url)).searchParams;
+    assert.strictEqual(query.get('type'), 'post');
+    assert.strictEqual(query.get('subtype'), 'sp_player');
+    assert.strictEqual(query.get('per_page'), '100');
+    assert.strictEqual(query.has('search'), false, 'identities must be requested by official IDs, never by names');
+    active++; peak = Math.max(peak, active); await gate.promise; active--;
+    return response(searchIDs(url).map(id => searchPlayer(id)));
+  }, fetchImpl: async url => targetURL(url).includes('/league/') ? response(leagueHTML([])) : failedResponse(401) });
+  const work = f.loader.loadReferencedPlayers(games(...Array.from({ length: 205 }, (_, i) => i + 1)));
+  await settle(); assert.strictEqual(active, 3);
+  gate.resolve(); await work;
+  assert.strictEqual(peak, 3);
+  assert.deepStrictEqual(f.requests.filter(url => searchIDs(url)).map(url => searchIDs(url).length), [100, 100, 5]);
+  assert.strictEqual(f.requests.filter(url => includeIDs(url) || individualRequest(url)).length, 0);
+  assert.strictEqual(f.loader.getPlayerName(205), 'Search Player 205');
+  assert.strictEqual(f.history.identity({ playerId: 205 }), 'profile:/player/search-205');
+  assert.strictEqual(f.loader.getPlayerTeam(205), null);
+  assert.strictEqual(f.loader.sourceState, 'ready');
+  assert.strictEqual(f.timers.size, 0);
+});
+
+test('public search rejects unrelated identities, wrong post types, malformed titles and unsafe profile links', async () => {
+  const f = fixture({ searchImpl: async () => response([
+    searchPlayer(1, '<b>First &amp; One</b>'),
+    searchPlayer(999, 'Unrequested'), { ...searchPlayer(2), type: 'term' },
+    { ...searchPlayer(3), subtype: 'sp_team' }, searchPlayer(4, ' '),
+    searchPlayer(5, 'Foreign', 'https://example.com/player/foreign/'),
+    searchPlayer(6, 'HTTP', 'http://ibasketball.co.il/player/http/'),
+    searchPlayer(7, 'Post Only', 'https://ibasketball.co.il/?p=7'),
+    { ...searchPlayer(8), id: '8' }, searchPlayer(9, 'Private URL', 'https://user:pass@ibasketball.co.il/player/private/'),
+    searchPlayer(10, 'Wrong Port', 'https://ibasketball.co.il:8080/player/port/'),
+    searchPlayer(11, 'Nested Path', 'https://ibasketball.co.il/player/one/extra/'),
+    searchPlayer(12, 'Wrong Post', 'https://ibasketball.co.il/player/twelve/?p=999')
+  ]), fetchImpl: async url => targetURL(url).includes('/league/') ? response(leagueHTML([])) : failedResponse(401) });
+  await f.loader.loadReferencedPlayers(games(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12));
+  assert.strictEqual(f.loader.getPlayerName(1), 'First & One');
+  for (const id of [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 999]) assert.strictEqual(f.loader.getPlayerName(id), null);
+  assert.strictEqual(f.loader.sourceState, 'partial');
+  assert.deepStrictEqual(f.requests.filter(url => includeIDs(url)).map(url => includeIDs(url)),
+    [['10', '11', '12', '2', '3', '4', '5', '6', '7', '8', '9'], ['10', '11', '12', '2', '3', '4', '5', '6', '7', '8', '9']],
+    'only identities not validated by public search should reach secondary direct/proxy collections');
+});
+
+test('public search names survive a denied secondary API and recover more identities on refresh', async () => {
+  let round = 0;
+  const f = fixture({ searchImpl: async () => response(++round === 1 ? [searchPlayer(1)] : [searchPlayer(1), searchPlayer(2)]),
+    fetchImpl: async url => targetURL(url).includes('/league/') ? response(leagueHTML([])) : failedResponse(401) });
+  await f.loader.loadReferencedPlayers(games(1, 2));
+  assert.strictEqual(f.loader.getPlayerName(1), 'Search Player 1');
+  assert.strictEqual(f.loader.getPlayerName(2), null);
+  const apiRequests = f.requests.filter(url => includeIDs(url)).length;
+  await f.loader.loadReferencedPlayers(games(1, 2), () => true, () => {}, { refresh: true });
+  assert.strictEqual(f.loader.getPlayerName(2), 'Search Player 2');
+  assert.strictEqual(f.requests.filter(url => includeIDs(url)).length, apiRequests);
+  assert.strictEqual(f.loader.sourceState, 'ready');
+});
+
+test('a partial public-search collection falls back only for unresolved identities', async () => {
+  const f = fixture({ searchImpl: async () => response([searchPlayer(1)]), fetchImpl: async url => {
+    if (includeIDs(url)) { assert.deepStrictEqual(includeIDs(url), ['2']); return response([player(2)]); }
+    return response(leagueHTML([]));
+  } });
+  await f.loader.loadReferencedPlayers(games(1, 2));
+  assert.strictEqual(f.loader.getPlayerName(1), 'Search Player 1');
+  assert.strictEqual(f.loader.getPlayerName(2), 'Player 2');
+  assert.strictEqual(f.loader.sourceState, 'ready');
+});
+
+test('public-search network failure uses secondary identities without requesting an unsupported search proxy', async () => {
+  const f = fixture({ searchImpl: async () => { throw Error('CORS unavailable'); }, fetchImpl: async url => {
+    if (includeIDs(url)) return response([player(1)]);
+    return response(leagueHTML([]));
+  } });
+  await f.loader.loadReferencedPlayers(games(1));
+  assert.strictEqual(f.loader.getPlayerName(1), 'Player 1');
+  assert.strictEqual(f.loader.sourceState, 'ready');
+  assert.deepStrictEqual(f.requests.filter(url => searchIDs(url)),
+    ['https://ibasketball.co.il/wp-json/wp/v2/search?type=post&subtype=sp_player&include=1&per_page=100']);
+  assert.strictEqual(f.timers.size, 0);
+});
+
+test('cancelled public-search responses cannot change identities or persistent storage', async () => {
+  const gate = deferred();
+  const f = fixture({ searchImpl: async () => gate.promise });
+  const work = f.loader.loadReferencedPlayers(games(1)); await settle(); f.loader.cancel();
+  gate.resolve(response([searchPlayer(1)])); await work;
+  assert.strictEqual(f.loader.getPlayerName(1), null);
+  assert.strictEqual(f.storage.has(IDENTITY_KEY), false);
+  assert.strictEqual(f.timers.size, 0);
 });
 
 test('invalid batch identities and blank titles fall back only for unresolved requested IDs', async () => {
@@ -118,6 +224,93 @@ test('individual fallback preserves its endpoint through the proxy after collect
   } });
   await f.loader.loadReferencedPlayers(games(9));
   assert.strictEqual(f.loader.getPlayerName(9), 'Player 9');
+});
+
+test('source-wide API denial stops queued batches and does not fan out into individual requests', async () => {
+  for (const status of [401, 403]) {
+    const f = fixture({ fetchImpl: async url => targetURL(url).includes('/league/')
+      ? response(leagueHTML([])) : failedResponse(status) });
+    await f.loader.loadReferencedPlayers(games(...Array.from({ length: 405 }, (_, i) => i + 1)));
+    assert.strictEqual(f.requests.filter(individualRequest).length, 0);
+    assert(f.requests.filter(url => includeIDs(url)).length <= 6, 'only the three in-flight batches may reach direct and proxy routes');
+    assert.strictEqual(f.loader.sourceState, 'error');
+    assert.strictEqual(f.loader.isLoading, false);
+    assert.strictEqual(f.timers.size, 0);
+  }
+});
+
+test('HTML access denial leaves successful API collections and missing-record recovery usable', async () => {
+  const f = fixture({ fetchImpl: async url => {
+    if (includeIDs(url)) return response([player(1)]);
+    if (targetURL(url).includes('/league/')) return failedResponse(403);
+    return response(player(2));
+  } });
+  await f.loader.loadReferencedPlayers(games(1, 2));
+  assert.strictEqual(f.loader.getPlayerName(1), 'Player 1');
+  assert.strictEqual(f.loader.getPlayerName(2), 'Player 2');
+  assert.strictEqual(f.loader.sourceState, 'ready');
+});
+
+test('rate limits suppress refresh requests until Retry-After expires, then recover without losing cached names', async () => {
+  let time = NOW, available = false;
+  const storage = cacheStorage([cached(1, 'Known One')]);
+  const f = fixture({ storage, now: () => time, fetchImpl: async url => {
+    if (!available) return failedResponse(429, '120');
+    return includeIDs(url) ? response([player(1, 'Fresh One'), player(2)]) : response(leagueHTML([]));
+  } });
+  await f.loader.loadReferencedPlayers(games(1, 2), () => true, () => {}, { refresh: true });
+  assert.strictEqual(f.loader.getPlayerName(1), 'Known One');
+  assert.strictEqual(f.loader.getPlayerName(2), null);
+  assert.strictEqual(f.loader.sourceState, 'partial');
+  const failedRequests = f.requests.length;
+  available = true;
+  await f.loader.loadReferencedPlayers(games(1, 2), () => true, () => {}, { refresh: true });
+  time += 119999;
+  await f.loader.loadReferencedPlayers(games(1, 2), () => true, () => {}, { refresh: true });
+  assert.strictEqual(f.requests.length, failedRequests, 'refresh must respect the source cooldown');
+  time += 2;
+  await f.loader.loadReferencedPlayers(games(1, 2), () => true, () => {}, { refresh: true });
+  assert.strictEqual(f.loader.getPlayerName(1), 'Fresh One');
+  assert.strictEqual(f.loader.getPlayerName(2), 'Player 2');
+  assert.strictEqual(f.loader.sourceState, 'ready');
+  assert.strictEqual(f.timers.size, 0);
+});
+
+test('an in-flight valid batch persists its identities even when another batch is denied', async () => {
+  const first = deferred();
+  const f = fixture({ fetchImpl: async url => {
+    if (includeIDs(url)) return includeIDs(url)[0] === '1' ? first.promise : failedResponse(401);
+    return response(leagueHTML([]));
+  } });
+  const work = f.loader.loadReferencedPlayers(games(...Array.from({ length: 105 }, (_, i) => i + 1)));
+  await settle(); first.resolve(response([player(1)])); await work;
+  assert.strictEqual(f.loader.getPlayerName(1), 'Player 1');
+  assert.strictEqual(JSON.parse(f.storage.get(IDENTITY_KEY)).players[0][0], '1');
+  assert.strictEqual(f.loader.sourceState, 'partial');
+  assert.strictEqual(f.requests.filter(individualRequest).length, 0);
+});
+
+test('denied individual responses stop the remaining recovery queue', async () => {
+  const f = fixture({ fetchImpl: async url => {
+    if (includeIDs(url)) return response([]);
+    if (targetURL(url).includes('/league/')) return response(leagueHTML([]));
+    return failedResponse(401);
+  } });
+  await f.loader.loadReferencedPlayers(games(...Array.from({ length: 35 }, (_, i) => i + 1)));
+  assert(f.requests.filter(individualRequest).length <= 12,
+    'at most six individual requests may already be in flight through direct and proxy routes');
+  assert.strictEqual(f.loader.sourceState, 'error');
+});
+
+test('a cancelled late denial cannot prevent the next generation from resolving names', async () => {
+  const first = deferred(); let batches = 0;
+  const f = fixture({ fetchImpl: async url => includeIDs(url)
+    ? (++batches === 1 ? first.promise : response([player(1)])) : response(leagueHTML([])) });
+  const old = f.loader.loadReferencedPlayers(games(1)); await settle(); f.loader.cancel();
+  first.resolve(failedResponse(403)); await old;
+  await f.loader.loadReferencedPlayers(games(1), () => true, () => {}, { refresh: true });
+  assert.strictEqual(f.loader.getPlayerName(1), 'Player 1');
+  assert.strictEqual(f.loader.sourceState, 'ready');
 });
 
 test('fresh cross-season persistent identities avoid name requests and rebuild official profile bridges', async () => {

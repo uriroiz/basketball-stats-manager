@@ -8,7 +8,7 @@ class VersionManager {
         this.version = {
             major: 2,
             minor: 3,
-            patch: 2,
+            patch: 3,
             build: this.generateBuildNumber()
         };
         
