@@ -28,6 +28,7 @@ class IBBAPlayerNames {
     this._activeLoad = null;
     this._requests = new Set();
     this._sourceRetryAt = { json: 0, search: 0, text: 0 };
+    this._verifiedNameSnapshot = undefined;
     this._catalogLoaded = false;
     this._plusMinusMap = new Map();
     this._statsVerifiedAt = null;
@@ -582,6 +583,7 @@ class IBBAPlayerNames {
       return this._activeLoad.promise;
     }
     if (refresh || this._activeLoad) this.cancel();
+    if (refresh && this._verifiedNameSnapshot === null) this._verifiedNameSnapshot = undefined;
     for (const id of ids) {
       const identity = this.identitiesMap.get(id);
       if (identity) this._applyIdentity(id, identity);
@@ -595,6 +597,61 @@ class IBBAPlayerNames {
     return operation.promise;
   }
 
+  async _loadVerifiedNameSnapshot(operation) {
+    if (!this._isCurrent(operation) || operation.ids.every(id => this.namesMap.has(id))) return;
+    let data = this._verifiedNameSnapshot;
+    if (data === undefined) {
+      const controller = new AbortController();
+      const request = { controller, timer: setTimeout(() => controller.abort(), 5000) };
+      this._requests.add(request);
+      try {
+        const response = await fetch('/data/ibba-player-identities.json?v=2.3.5', { signal: controller.signal });
+        if (controller.signal.aborted || !this._isCurrent(operation)) return;
+        if (!response.ok || Number(response.headers?.get('Content-Length')) > 5 * 1024 * 1024) throw new Error('Verified names unavailable');
+        data = await response.json();
+        if (controller.signal.aborted || !this._isCurrent(operation)) return;
+        const generatedAt = Date.parse(data?.generatedAt);
+        if (data?.schemaVersion !== 1 || !Number.isFinite(generatedAt) || generatedAt <= 0 || generatedAt > Date.now()
+          || !Array.isArray(data.players) || data.players.length > 5000 || JSON.stringify(data).length > 5 * 1024 * 1024) {
+          throw new Error('Invalid verified names');
+        }
+        this._verifiedNameSnapshot = data;
+      } catch (_) {
+        if (this._isCurrent(operation) && !controller.signal.aborted) this._verifiedNameSnapshot = null;
+        return; // Live sources remain available when the optional names file fails.
+      } finally {
+        clearTimeout(request.timer);
+        this._requests.delete(request);
+      }
+    }
+    if (!data || !this._isCurrent(operation)) return;
+    const requested = new Set(operation.ids);
+    const sources = new Set(['2023-24', '2024-25', '2025-26'].map(key => window.IBBASeasons?.getSeason(key)?.playersPageUrl).filter(Boolean));
+    let changed = false;
+    for (const record of data.players) {
+      if (!Number.isSafeInteger(record?.id) || record.id <= 0 || !requested.has(String(record.id)) || !sources.has(record.sourceUrl)
+        || record.verifiedAt > Date.parse(data.generatedAt)) continue;
+      const id = String(record.id);
+      let link;
+      try {
+        link = new URL(record.link);
+        if (link.protocol !== 'https:' || link.hostname !== 'ibasketball.co.il' || link.port || link.username || link.password
+          || link.pathname !== '/' || link.hash || link.search !== `?p=${id}`) continue;
+      } catch (_) { continue; }
+      const identity = this._identity(id, record, record.verifiedAt), previous = this.identitiesMap.get(id);
+      if (!identity || (previous && previous.verifiedAt >= identity.verifiedAt)) continue;
+      identity.link = this._identityLink(link.href, id);
+      this.identitiesMap.set(id, identity);
+      this._applyIdentity(id, identity);
+      changed = true;
+    }
+    if (changed) {
+      // Preserve collection timestamps: a bundled identity is not a live verification.
+      this._saveIdentities();
+      this._notifyProgress(operation);
+    }
+  }
+
   async _loadReferences(operation, refresh) {
     const targets = operation.ids.filter(id => {
       const cached = this.identitiesMap.get(id);
@@ -605,7 +662,7 @@ class IBBAPlayerNames {
         await this._loadIdentityBatches(targets, operation, true);
         await this._loadIdentityBatches(targets.filter(id => !operation.verified.has(id)), operation, false);
       })();
-      await Promise.all([collection, this.loadPlayerStatsFromHTML(null, operation)]);
+      await Promise.all([collection, this.loadPlayerStatsFromHTML(null, operation), this._loadVerifiedNameSnapshot(operation)]);
       const unresolved = targets.filter(id => !operation.verified.has(id));
       let cursor = 0, resolved = 0;
       await Promise.all(Array.from({ length: Math.min(6, unresolved.length) }, async () => {

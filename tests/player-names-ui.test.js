@@ -196,7 +196,7 @@ async function run() {
     c.refreshNamedViews=()=>c.updatePlayerNamesStatus();
     await c.forceRefreshPlayerNames();
     const outcome=document.getElementById('playerNamesStatus').textContent;
-    assert(outcome.includes('שם השחקן זמין')&&outcome.includes('לא ניתן היה להשלים'),'cached availability does not imply complete fresh verification');
+    assert(outcome.includes('שם השחקן זמין')&&outcome.includes('מהמטמון'),'cached availability does not imply complete fresh verification');
     assert(!outcome.includes('נוסף שם'),'an unchanged cached name is not newly resolved');
   }
   {

@@ -12,17 +12,23 @@ const failedResponse = (status, retryAfter = null) => ({ ok: false, status,
   headers: { get: name => name.toLowerCase() === 'retry-after' ? retryAfter : null } });
 const leagueHTML = rows => JSON.stringify({ rows }) + ' '.repeat(1100);
 const targetURL = url => url.startsWith('/api/ibba?url=') ? decodeURIComponent(url.slice(14)) : url;
-const includeIDs = url => new URL(targetURL(url)).pathname.includes('/sportspress/v2/players')
-  ? new URL(targetURL(url)).searchParams.get('include')?.split(',') : undefined;
-const searchIDs = url => new URL(targetURL(url)).pathname === '/wp-json/wp/v2/search'
-  ? new URL(targetURL(url)).searchParams.get('include')?.split(',') : undefined;
-const individualRequest = url => /\/sportspress\/v2\/players\/[1-9]\d*$/.test(new URL(targetURL(url)).pathname);
+const includeIDs = url => new URL(targetURL(url), 'https://site.example').pathname.includes('/sportspress/v2/players')
+  ? new URL(targetURL(url), 'https://site.example').searchParams.get('include')?.split(',') : undefined;
+const searchIDs = url => new URL(targetURL(url), 'https://site.example').pathname === '/wp-json/wp/v2/search'
+  ? new URL(targetURL(url), 'https://site.example').searchParams.get('include')?.split(',') : undefined;
+const individualRequest = url => /\/sportspress\/v2\/players\/[1-9]\d*$/.test(new URL(targetURL(url), 'https://site.example').pathname);
 const searchPlayer = (id, title = `Search Player ${id}`, url = `https://ibasketball.co.il/player/search-${id}/`) =>
   ({ id: Number(id), title, url, type: 'post', subtype: 'sp_player' });
 function deferred() { let resolve; const promise = new Promise(done => { resolve = done; }); return { promise, resolve }; }
 async function settle() { for (let i = 0; i < 30; i++) await Promise.resolve(); }
 const cached = (id, name, verifiedAt = NOW, link = null) => [String(id), { name, link, verifiedAt }];
 const cacheStorage = entries => new Map([[IDENTITY_KEY, JSON.stringify({ players: entries })]]);
+const snapshotRecord = (id, name = `Verified ${id}`, verifiedAt = NOW - DAY) => ({
+  id: Number(id), name, link: `https://ibasketball.co.il/?p=${id}`, verifiedAt,
+  sourceUrl: 'https://ibasketball.co.il/league/2025-2/'
+});
+const snapshot = players => ({ schemaVersion: 1, generatedAt: new Date(NOW).toISOString(), players });
+const snapshotRequest = url => url.startsWith('/data/ibba-player-identities.json');
 
 // Browser DOM boundary: production history parsing still identifies the rows and references.
 function parseDocument(source) {
@@ -35,7 +41,7 @@ function parseDocument(source) {
     ({ getAttribute: attribute => ({ 'data-id': row.id, 'data-pm': String(row.pm) })[attribute] ?? null })) : [] };
 }
 
-function fixture({ storage = new Map(), session = new Map(), fetchImpl, searchImpl, seasonId = 119472, now = NOW, storageThrows = false, withHistory = true } = {}) {
+function fixture({ storage = new Map(), session = new Map(), fetchImpl, searchImpl, snapshotImpl, seasonId = 119472, now = NOW, storageThrows = false, withHistory = true } = {}) {
   const requests = [], timers = new Set();
   const browserStorage = values => ({
     getItem(key) { if (storageThrows) throw Error('storage unavailable'); return values.get(key) || null; },
@@ -51,6 +57,7 @@ function fixture({ storage = new Map(), session = new Map(), fetchImpl, searchIm
     localStorage: browserStorage(storage), sessionStorage: browserStorage(session),
     fetch: async (url, options) => {
       requests.push(url);
+      if (snapshotRequest(url)) return snapshotImpl ? snapshotImpl(url, options) : failedResponse(404);
       if (searchIDs(url)) return searchImpl ? searchImpl(url, options) : failedResponse(404);
       return fetchImpl ? fetchImpl(url, options) : response(leagueHTML([]));
     },
@@ -65,6 +72,165 @@ function fixture({ storage = new Map(), session = new Map(), fetchImpl, searchIm
 }
 const tests = [];
 function test(name, run) { tests.push({ name, run }); }
+
+test('verified name snapshot publishes requested identities before delayed live sources finish', async () => {
+  const live = deferred(), updates = [];
+  const f = fixture({ snapshotImpl: async () => response(snapshot([
+    { ...snapshotRecord(7, '<b>Verified &amp; Seven</b>'), teamId: 999, jersey: '99', totalPlusMinus: 999 },
+    snapshotRecord(999, 'Unrequested')
+  ])), searchImpl: async () => live.promise,
+  fetchImpl: async url => targetURL(url).includes('/league/') ? response(leagueHTML([])) : failedResponse(401) });
+  const work = f.loader.loadReferencedPlayers(games(7), () => true, progress => updates.push(progress));
+  await settle();
+  assert.strictEqual(f.loader.getPlayerName(7), 'Verified & Seven');
+  assert.strictEqual(f.loader.getPlayerName(999), null);
+  assert.strictEqual(f.loader.getPlayerTeam(7), null);
+  assert.strictEqual(f.loader.getPlayerJersey(7), '');
+  assert.strictEqual(f.loader.getPlayerData(7).totalPlusMinus, undefined);
+  assert(updates.some(progress => progress.resolved === 1), 'snapshot arrival must publish UI progress immediately');
+  assert.strictEqual(f.loader.isLoading, true);
+  live.resolve(failedResponse(403)); await work;
+  assert.strictEqual(f.loader.getPlayerName(7), 'Verified & Seven');
+  assert.strictEqual(f.loader.sourceState, 'partial', 'snapshot must not pretend to be a live verification');
+  assert.strictEqual(f.loader.getPlayerData(7).verifiedAt, NOW - DAY);
+  assert.strictEqual(JSON.parse(f.storage.get(IDENTITY_KEY)).players[0][1].verifiedAt, NOW - DAY);
+  assert.strictEqual(f.timers.size, 0);
+});
+
+test('verified snapshot rejects invalid identities, dates, post links and non-season sources', async () => {
+  const f = fixture({ snapshotImpl: async () => response(snapshot([
+    snapshotRecord(1), { ...snapshotRecord(2), id: '2' }, { ...snapshotRecord(3), name: ' ' },
+    { ...snapshotRecord(4), verifiedAt: NOW + 1 }, { ...snapshotRecord(5), verifiedAt: 0 },
+    { ...snapshotRecord(6), link: 'https://ibasketball.co.il/?p=999' },
+    { ...snapshotRecord(7), link: 'https://ibasketball.co.il/player/seven/' },
+    { ...snapshotRecord(8), link: 'https://example.com/?p=8' },
+    { ...snapshotRecord(9), link: 'http://ibasketball.co.il/?p=9' },
+    { ...snapshotRecord(10), link: 'https://user:pass@ibasketball.co.il/?p=10' },
+    { ...snapshotRecord(11), link: 'https://ibasketball.co.il:8080/?p=11' },
+    { ...snapshotRecord(12), link: 'https://ibasketball.co.il/league/?p=12' },
+    { ...snapshotRecord(13), sourceUrl: 'https://ibasketball.co.il/league/2026-2/' },
+    { ...snapshotRecord(14), sourceUrl: 'https://example.com/league/2025-2/' },
+    { ...snapshotRecord(15), link: 'https://ibasketball.co.il/?p=15&other=1' },
+    { ...snapshotRecord(16), sourceUrl: 'https://ibasketball.co.il/league/2023-2-%d7%9c%d7%90%d7%95%d7%9e%d7%99%d7%aa/' },
+    { ...snapshotRecord(17), sourceUrl: 'https://ibasketball.co.il/league/2024-2-%d7%9c%d7%90%d7%95%d7%9e%d7%99%d7%aa/' }
+  ])), fetchImpl: async () => failedResponse(403) });
+  await f.loader.loadReferencedPlayers(games(...Array.from({ length: 17 }, (_, i) => i + 1)));
+  assert.strictEqual(f.loader.getPlayerName(1), 'Verified 1');
+  for (const id of Array.from({ length: 14 }, (_, i) => i + 2)) assert.strictEqual(f.loader.getPlayerName(id), null);
+  assert.strictEqual(f.loader.getPlayerName(16), 'Verified 16');
+  assert.strictEqual(f.loader.getPlayerName(17), 'Verified 17');
+  assert.strictEqual(f.loader.sourceState, 'partial');
+});
+
+test('invalid snapshot envelopes leave live identity resolution available', async () => {
+  for (const data of [{ ...snapshot([snapshotRecord(1)]), schemaVersion: 2 },
+    { ...snapshot([snapshotRecord(1)]), generatedAt: 'not a date' },
+    { ...snapshot([snapshotRecord(1)]), generatedAt: new Date(NOW + 1).toISOString() },
+    { schemaVersion: 1, generatedAt: new Date(NOW).toISOString(), players: 'invalid' }]) {
+    const f = fixture({ snapshotImpl: async () => response(data), searchImpl: async () => response([searchPlayer(2)]),
+      fetchImpl: async () => failedResponse(403) });
+    await f.loader.loadReferencedPlayers(games(1, 2));
+    assert.strictEqual(f.loader.getPlayerName(1), null, 'an invalid envelope cannot supply its identity even if a live source is unavailable');
+    assert.strictEqual(f.loader.getPlayerName(2), 'Search Player 2');
+    assert.strictEqual(f.loader.sourceState, 'partial');
+  }
+});
+
+test('snapshot preserves newer verified names and an existing official profile bridge', async () => {
+  const profile = 'https://ibasketball.co.il/player/seven/';
+  const f = fixture({ storage: cacheStorage([cached(7, 'Newer Seven', NOW, profile),
+    cached(8, 'Older Eight', NOW - 2 * DAY, 'https://ibasketball.co.il/player/eight/')]),
+    snapshotImpl: async () => response(snapshot([snapshotRecord(7, 'Older Seven'), snapshotRecord(8, 'Verified Eight'), snapshotRecord(9)])),
+    fetchImpl: async () => failedResponse(403) });
+  await f.loader.loadReferencedPlayers(games(7, 8, 9), () => true, () => {}, { refresh: true });
+  assert.strictEqual(f.loader.getPlayerName(7), 'Newer Seven');
+  assert.strictEqual(f.loader.getPlayerData(7).verifiedAt, NOW);
+  assert.strictEqual(f.loader.getPlayerName(8), 'Verified Eight');
+  assert.strictEqual(f.loader.getPlayerData(8).verifiedAt, NOW - DAY);
+  assert.strictEqual(f.history.identity({ playerId: 7 }), 'profile:/player/seven');
+  assert.strictEqual(f.history.identity({ playerId: 8 }), 'profile:/player/eight');
+  const later = fixture({ storage: f.storage });
+  assert.strictEqual(later.loader.getPlayerName(8), 'Verified Eight');
+  assert.strictEqual(later.history.identity({ playerId: 8 }), 'profile:/player/eight');
+});
+
+test('a delayed snapshot cannot overwrite a name verified live during the same load', async () => {
+  const gate = deferred();
+  const f = fixture({ snapshotImpl: async () => gate.promise, searchImpl: async () => response([searchPlayer(7)]),
+    fetchImpl: async () => response(leagueHTML([])) });
+  const work = f.loader.loadReferencedPlayers(games(7)); await settle();
+  assert.strictEqual(f.loader.getPlayerName(7), 'Search Player 7');
+  gate.resolve(response(snapshot([snapshotRecord(7, 'Older Seven')]))); await work;
+  assert.strictEqual(f.loader.getPlayerName(7), 'Search Player 7');
+  assert.strictEqual(f.loader.getPlayerData(7).verifiedAt, NOW);
+  assert.strictEqual(f.loader.sourceState, 'ready');
+});
+
+test('snapshot data is fetched once and only applies additional requested IDs on later loads', async () => {
+  const f = fixture({ snapshotImpl: async () => response(snapshot([snapshotRecord(7), snapshotRecord(8)])),
+    fetchImpl: async () => failedResponse(403) });
+  await f.loader.loadReferencedPlayers(games(7));
+  assert.strictEqual(f.loader.getPlayerName(7), 'Verified 7');
+  assert.strictEqual(f.loader.getPlayerName(8), null);
+  await f.loader.loadReferencedPlayers(games(7, 8), () => true, () => {}, { refresh: true });
+  assert.strictEqual(f.loader.getPlayerName(8), 'Verified 8');
+  assert.strictEqual(f.requests.filter(snapshotRequest).length, 1);
+});
+
+test('explicit refresh retries a failed verified snapshot without retrying blocked official sources', async () => {
+  let available = false;
+  const f = fixture({ snapshotImpl: async () => available ? response(snapshot([snapshotRecord(7)])) : failedResponse(503),
+    searchImpl: async () => failedResponse(403),
+    fetchImpl: async () => failedResponse(403) });
+  await f.loader.loadReferencedPlayers(games(7));
+  assert.strictEqual(f.loader.getPlayerName(7), null);
+  const blockedRequests = f.requests.filter(url => !snapshotRequest(url)).length;
+  available = true;
+  await f.loader.loadReferencedPlayers(games(7), () => true, () => {}, { refresh: true });
+  assert.strictEqual(f.loader.getPlayerName(7), 'Verified 7');
+  assert.strictEqual(f.requests.filter(snapshotRequest).length, 2);
+  assert.strictEqual(f.requests.filter(url => !snapshotRequest(url)).length, blockedRequests,
+    'the failed snapshot retry must respect source-specific access-denial cooldowns');
+  assert.strictEqual(f.timers.size, 0);
+});
+
+test('cancelled snapshot requests cannot mutate names or storage and the next load can retry', async () => {
+  const gate = deferred(); let first = true, cancelledSignal;
+  const f = fixture({ snapshotImpl: async (url, options) => {
+    if (first) { first = false; cancelledSignal = options.signal; return gate.promise; }
+    return response(snapshot([snapshotRecord(7, 'New generation')]));
+  }, fetchImpl: async () => failedResponse(403) });
+  const old = f.loader.loadReferencedPlayers(games(7)); await settle(); f.loader.cancel();
+  assert.strictEqual(cancelledSignal.aborted, true);
+  gate.resolve(response(snapshot([snapshotRecord(7, 'Old generation')]))); await old;
+  assert.strictEqual(f.loader.getPlayerName(7), null);
+  assert.strictEqual(f.storage.has(IDENTITY_KEY), false);
+  await f.loader.loadReferencedPlayers(games(7));
+  assert.strictEqual(f.loader.getPlayerName(7), 'New generation');
+  assert.strictEqual(f.timers.size, 0);
+});
+
+test('an inactive season cannot accept a late snapshot even if fetch ignores cancellation', async () => {
+  const gate = deferred(); let current = true;
+  const f = fixture({ snapshotImpl: async () => gate.promise, fetchImpl: async () => failedResponse(403) });
+  const old = f.loader.loadReferencedPlayers(games(7), () => current); await settle(); current = false;
+  gate.resolve(response(snapshot([snapshotRecord(7)]))); await old;
+  assert.strictEqual(f.loader.getPlayerName(7), null);
+  assert.strictEqual(f.storage.has(IDENTITY_KEY), false);
+  assert.strictEqual(f.timers.size, 0);
+});
+
+test('known persistent names skip the snapshot and failed snapshot fetches do not prevent live recovery', async () => {
+  const warm = fixture({ storage: cacheStorage([cached(7, 'Known Seven')]), fetchImpl: async () => response(leagueHTML([])) });
+  await warm.loader.loadReferencedPlayers(games(7), () => true, () => {}, { refresh: true });
+  assert.strictEqual(warm.requests.filter(snapshotRequest).length, 0);
+  const cold = fixture({ snapshotImpl: async () => { throw Error('snapshot unavailable'); },
+    searchImpl: async () => response([searchPlayer(7)]), fetchImpl: async () => response(leagueHTML([])) });
+  await cold.loader.loadReferencedPlayers(games(7));
+  assert.strictEqual(cold.loader.getPlayerName(7), 'Search Player 7');
+  assert.strictEqual(cold.loader.sourceState, 'ready');
+  assert.strictEqual(cold.timers.size, 0);
+});
 
 test('cold load combines requested batch identities with explicit official summary IDs', async () => {
   const f = fixture({ fetchImpl: async url => {
@@ -262,12 +428,12 @@ test('rate limits suppress refresh requests until Retry-After expires, then reco
   assert.strictEqual(f.loader.getPlayerName(1), 'Known One');
   assert.strictEqual(f.loader.getPlayerName(2), null);
   assert.strictEqual(f.loader.sourceState, 'partial');
-  const failedRequests = f.requests.length;
+  const failedRequests = f.requests.filter(url => !snapshotRequest(url)).length;
   available = true;
   await f.loader.loadReferencedPlayers(games(1, 2), () => true, () => {}, { refresh: true });
   time += 119999;
   await f.loader.loadReferencedPlayers(games(1, 2), () => true, () => {}, { refresh: true });
-  assert.strictEqual(f.requests.length, failedRequests, 'refresh must respect the source cooldown');
+  assert.strictEqual(f.requests.filter(url => !snapshotRequest(url)).length, failedRequests, 'refresh must respect the official source cooldown');
   time += 2;
   await f.loader.loadReferencedPlayers(games(1, 2), () => true, () => {}, { refresh: true });
   assert.strictEqual(f.loader.getPlayerName(1), 'Fresh One');

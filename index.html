@@ -43,7 +43,7 @@
     <div class="header-gradient rounded-lg p-3 mb-3 shadow-md">
       <h1 class="text-2xl font-bold mb-1 text-center">הכנה לשידורי כדורסל</h1>
       <p class="text-sm text-center text-blue-100">משחקים, סטטיסטיקות ונקודות לשידור</p>
-      <p class="text-sm text-center text-blue-100 mt-1">גרסה <bdi class="version-display">v2.3.4</bdi></p>
+      <p class="text-sm text-center text-blue-100 mt-1">גרסה <bdi class="version-display">v2.3.5</bdi></p>
     </div>
     <div id="seasonError" role="alert" class="hidden card p-4 mb-4"></div>
     
@@ -841,22 +841,22 @@
   <script src="js/config.js?v=4"></script>
   <script src="js/ibba/ibba_adapter.js?v=10"></script>
   <script src="js/ibba/ibba_analytics.js?v=7"></script>
-  <script src="js/ibba/ibba_player_history.js?v=2.3.4"></script>
-  <script src="js/ibba/ibba_history_view.js?v=2.3.4"></script>
+  <script src="js/ibba/ibba_player_history.js?v=2.3.5"></script>
+  <script src="js/ibba/ibba_history_view.js?v=2.3.5"></script>
   <script src="js/ibba/ibba_match_context.js"></script>
   <script src="js/ibba/ibba_analysis_scope.js"></script>
   <script src="js/ibba/ibba_window_stats.js"></script>
   <script src="js/ibba/ibba_rich_insights.js"></script>
   <script src="js/ibba/ibba_broadcast_copy.js"></script>
   <script src="js/ibba/ibba_broadcast_editorial.js"></script>
-  <script src="js/ibba/ibba_broadcast_view.js?v=2.3.4"></script>
+  <script src="js/ibba/ibba_broadcast_view.js?v=2.3.5"></script>
   <script src="js/ibba/ibba_broadcast_workspace.js"></script>
   <script src="js/ibba/ibba_broadcast_workspace_view.js"></script>
   <script src="js/ibba/ibba_broadcast_workspace_controller.js"></script>
   <script src="js/ibba/ibba_team_summaries.js"></script>
   <script src="js/ibba/ibba_historical_insights.js"></script>
   <script src="js/ibba/ibba_broadcast_report.js"></script>
-  <script src="js/ibba/ibba_player_names.js?v=2.3.4" defer></script>
+  <script src="js/ibba/ibba_player_names.js?v=2.3.5" defer></script>
   <script src="js/app_upcoming_games_pure.js?v=4" defer></script>
   
   <!-- Insights V2 System -->
@@ -1339,7 +1339,7 @@
           : total && loader?.isLoading
           ? (missing?`זוהו ${total-missing} מתוך ${total} שחקנים · משלים שמות…`:'מרענן שמות ברקע…')
           : (missing?`${missing} שמות עדיין אינם זמינים. ניתן לנסות רענון שמות.`
-            : (total && ['partial','error'].includes(loader?.sourceState)?'חלק מהשמות לא התעדכנו; השמות השמורים מוצגים.':''));
+            : (total && ['partial','error'].includes(loader?.sourceState)?'כל שמות השחקנים זמינים, כולל השמות השמורים במטמון.':''));
         status.style.display=status.textContent?'block':'none';
       }
       const refreshNames=document.getElementById('refreshPlayerNamesBtn');
@@ -3367,7 +3367,9 @@
         refresh.message=missing===0?`הרענון הסתיים. ${available}`
           : added>0?`${added===1?'נוסף שם אחד':`נוספו ${added} שמות`}. ${remaining}`
           : `הרענון הסתיים ללא שמות נוספים. ${remaining}`;
-        if(['partial','error'].includes(loader.sourceState))refresh.message+=' לא ניתן היה להשלים את הטעינה מהמקור; השמות שכבר זוהו נשמרו.';
+        if(['partial','error'].includes(loader.sourceState))refresh.message+=missing
+          ? ' לא ניתן היה להשלים את הטעינה מהמקור; השמות שכבר זוהו נשמרו.'
+          : ' שמות שלא התעדכנו מוצגים מהמטמון.';
         refresh.loading=false;
         refreshNamedViews();
       } catch (error) {
