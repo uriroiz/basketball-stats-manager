@@ -887,6 +887,15 @@ body {
 .broadcast-count { display:block; font-size:0.875rem; color:#64748b; margin-top:4px; font-weight:400; }
 .broadcast-family { border-top:1px solid #cbd5e1; padding:16px 0; }
 .broadcast-family > summary { font-size:1.05rem; font-weight:700; cursor:pointer; padding:8px 0; }
+.broadcast-team-groups { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:start; margin-top:12px; }
+.broadcast-team-section,.broadcast-shared-section { min-width:0; border:1px solid #dbe3ef; border-radius:8px; padding:16px; }
+.broadcast-shared-section { grid-column:1 / -1; }
+.broadcast-team-heading { font-size:1rem; font-weight:700; color:#172554; padding-bottom:10px; border-bottom:1px solid #e2e8f0; }
+.broadcast-team-section > .broadcast-comparison { margin-top:8px; }
+.broadcast-team-section > .broadcast-comparison > summary { border-radius:6px; background:#f8fafc; }
+.broadcast-team-empty,.broadcast-coverage-note { color:#475569; line-height:1.7; padding:12px 0; }
+.broadcast-team-summary { line-height:1.7; padding:12px 0; border-bottom:1px solid #e2e8f0; }
+.broadcast-coverage-note { padding:12px 16px; background:#f1f5f9; border-radius:8px; margin-top:12px; }
 .broadcast-comparison { margin-top:20px; min-width:0; }
 .broadcast-comparison > h5 { font-size:1rem; font-weight:600; margin-bottom:10px; }
 .broadcast-table-wrap { max-width:100%; overflow:auto; border:1px solid #dbe3ef; border-radius:8px; }
@@ -895,12 +904,15 @@ body {
 .broadcast-table thead th { background:#eff6ff; font-weight:700; white-space:nowrap; }
 .broadcast-table tbody tr:nth-child(even) { background:#f8fafc; }
 .broadcast-table th:first-child { position:sticky; right:0; background:#f1f5f9; z-index:1; min-width:160px; }
+.broadcast-story-table th:first-child { width:100px; min-width:100px; }
+.broadcast-story-table td { min-width:320px; }
 .broadcast-table td { font-variant-numeric:tabular-nums; line-height:1.6; }
 .broadcast-table bdi { white-space:nowrap; }
 .broadcast-table-wrap:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible,[role="tab"]:focus-visible { outline:3px solid #2563eb; outline-offset:3px; }
 #view-gamePrep #prepWorkspace > .card:has(#gameAnalysis.hidden):has(#advancedAnalysis.hidden) { display:none; }
 #view-teams > .card > div:first-child,#view-teams > .card > div:first-child > div,#view-players > .card > div:first-child > div { flex-wrap:wrap; gap:12px; }
 #view-teams input,#view-players input,#view-players select { max-width:100%; }
+@media(max-width:1100px) { .broadcast-team-groups { grid-template-columns:1fr; } }
 @media(max-width:640px) {
   button,select,input { min-height:44px; }
   #view-players .stats-table { font-size:0.875rem; }

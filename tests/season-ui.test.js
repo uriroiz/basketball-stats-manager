@@ -84,7 +84,7 @@ async function run(){
  assert.strictEqual(vm.runInContext('currentAdvancedReport',c),null,'team change invalidates pending old report');
  assert.strictEqual(document.getElementById('prepExport').disabled,true,'old report cannot reenable export');
  let release; const pending=new Promise(r=>release=r);let initialized=0;
- c.window.playerNamesLoader={clearCache(){},loadFromSupabase:()=>pending};
+ c.window.playerNamesLoader={loadReferencedPlayers:()=>pending};
  const realInitPlayerStats=c.initPlayerStats;c.initPlayerStats=()=>initialized++;
  const refresh=vm.runInContext('refreshPlayerData()',c);
  vm.runInContext(`seasonController.gate.begin('2024-25');window.playerNamesLoader=null;window.ibbaAnalytics=null;`,c);
@@ -119,7 +119,7 @@ async function run(){
  for(const name of ['disableTabs','updateProgress','processGames','populateFilters','applyFilters']) c[name]=()=>{};
  c.switchTab=tab=>{selectedTab=tab;};
  c.enableTabs=()=>{enabled=true;};
- c.window.IBBAPlayerNames=function(){this.loadAllPlayerNames=()=>namesPending;this.getPlayerName=()=> 'Recovered official name';};
+ c.window.IBBAPlayerNames=function(){this.loadReferencedPlayers=()=>namesPending;this.getPlayerName=()=> 'Recovered official name';};
  c.window.historyView.reset=()=>{};
  vm.runInContext("seasonController.select=async(key,apply)=>apply({scheduleGames:[],analyticsGames:[{}],complete:true},()=>true)",c);
  vm.runInContext("currentTab='teams'",c);

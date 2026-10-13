@@ -2,7 +2,8 @@
  * IBBAPlayerNames - Load player names from SportsPress API
  * 
  * Uses the /wp-json/sportspress/v2/players endpoint to fetch all player data
- * including names, jersey numbers, and team IDs. Caches results in sessionStorage.
+ * Referenced identities use bounded include queries and a shared persistent name cache.
+ * Seasonal team, jersey and Plus/Minus data stay in the season-specific map/cache.
  */
 
 class IBBAPlayerNames {
@@ -19,6 +20,16 @@ class IBBAPlayerNames {
     this.playersPageUrl = config.playersPageUrl || 'https://ibasketball.co.il/league/2025-2/';
     this.cacheKey = `ibba_player_names_api_${config.seasonId || 119472}_v8`;
     this.cacheExpiry = 5 * 60 * 1000; // 5 minutes (fast refresh for admin changes)
+    this.identityCacheKey = 'ibba_player_identities_v1';
+    this.identityExpiry = 7 * 24 * 60 * 60 * 1000;
+    this.identitiesMap = new Map();
+    this._generation = 0;
+    this._activeLoad = null;
+    this._requests = new Set();
+    this._catalogLoaded = false;
+    this._plusMinusMap = new Map();
+    this._statsVerifiedAt = null;
+    this._membershipVerifiedAt = null;
     
     // Try loading from cache immediately
     this.loadFromCache();
@@ -72,73 +83,135 @@ class IBBAPlayerNames {
    * Load from sessionStorage cache
    */
   loadFromCache() {
-    try {
-      const cached = sessionStorage.getItem(this.cacheKey);
-      if (!cached) return false;
-      
-      const data = JSON.parse(cached);
-      
-      // Check expiry
-      if (data.timestamp && Date.now() - data.timestamp > this.cacheExpiry) {
-        console.log('⏰ Player names cache expired');
-        sessionStorage.removeItem(this.cacheKey);
-        return false;
-      }
-      
-      // Load into map
-      if (data.players && Array.isArray(data.players)) {
-        this.namesMap = new Map(data.players);
-        
-        // Validate: cache must have at least 100 players to be valid
-        if (this.namesMap.size < 100) {
-          console.warn(`⚠️ Cache has only ${this.namesMap.size} players (expected 100+) - clearing bad cache`);
-          sessionStorage.removeItem(this.cacheKey);
-          this.namesMap.clear();
-          return false;
+    this._readIdentities(this._readStorage('localStorage', this.identityCacheKey));
+    for (const [id, identity] of this.identitiesMap) this._applyIdentity(id, identity);
+    const legacy = this._readStorage('sessionStorage', this.cacheKey);
+    let migrated = false;
+    if (Array.isArray(legacy?.players)) {
+      this._statsVerifiedAt = Object.hasOwn(legacy, 'statsVerifiedAt') ? legacy.statsVerifiedAt : legacy.timestamp;
+      this._membershipVerifiedAt = Object.hasOwn(legacy, 'membershipVerifiedAt') ? legacy.membershipVerifiedAt : legacy.timestamp;
+      for (const entry of legacy.players) {
+        if (!Array.isArray(entry) || entry.length !== 2) continue;
+        const [id, value] = entry;
+        const identity = this._identity(id, value, value?.verifiedAt ?? legacy.timestamp);
+        if (!identity) continue;
+        const key = String(id), previous = this.identitiesMap.get(key);
+        if (!previous || previous.verifiedAt < identity.verifiedAt) {
+          this.identitiesMap.set(key, identity);
+          this._applyIdentity(key, identity);
+          migrated = true;
         }
-        
-        console.log(`✅ Loaded ${this.namesMap.size} player names from cache`);
-        
-        // Load Plus/Minus stats from HTML (async, but don't wait for it)
-        this.loadPlayerStatsFromHTML().then(() => {
-          // Save updated cache with Plus/Minus data
-          this.saveToCache();
-        }).catch(err => {
-          console.warn('⚠️ Failed to load Plus/Minus from HTML:', err.message);
-        });
+        // These fields belong only to this loader's configured season.
+        const seasonal = this.namesMap.get(key);
+        if (this._freshSeasonData(this._membershipVerifiedAt)) {
+          for (const field of ['jersey', 'teamId']) if (value[field] != null) seasonal[field] = value[field];
+        }
+        if (this._freshSeasonData(this._statsVerifiedAt) && Number.isFinite(value.totalPlusMinus)) {
+          seasonal.totalPlusMinus = value.totalPlusMinus;
+          this._plusMinusMap.set(key, value.totalPlusMinus);
+        }
       }
-      
-      this.isLoaded = true;
-      return true;
-      
-    } catch (error) {
-      console.error('❌ Failed to load from cache:', error);
-      return false;
     }
+    if (migrated) this._saveIdentities();
+    this.isLoaded = this.namesMap.size > 0;
+    return this.isLoaded;
+  }
+
+  _readStorage(storageName, key) {
+    try {
+      const storage = storageName === 'localStorage' ? localStorage : sessionStorage;
+      const data = storage.getItem(key);
+      return data ? JSON.parse(data) : null;
+    } catch (_) { return null; }
+  }
+
+  _name(value) {
+    if (typeof value !== 'string') return null;
+    const parsed = new DOMParser().parseFromString(value, 'text/html');
+    const name = parsed.body?.textContent?.trim();
+    return name || null;
+  }
+
+  _freshSeasonData(timestamp) {
+    return Number.isFinite(timestamp) && timestamp > 0 && timestamp <= Date.now() && Date.now() - timestamp <= this.cacheExpiry;
+  }
+
+  _officialLink(value, id) {
+    if (typeof value !== 'string') return null;
+    try {
+      const url = new URL(value, 'https://ibasketball.co.il');
+      if (url.hostname !== 'ibasketball.co.il' || !['https:', 'http:'].includes(url.protocol)) return null;
+      const postId = url.searchParams.get('p');
+      if (/^\d+$/.test(postId || '')) return /^[1-9]\d*$/.test(postId) && postId === String(id) ? url.href : null;
+      return /^\/player\/[^/]+/.test(url.pathname) ? url.href : null;
+    } catch (_) { return null; }
+  }
+
+  _identity(id, value, timestamp) {
+    if (!/^[1-9]\d*$/.test(String(id)) || !value || typeof value !== 'object') return null;
+    const name = this._name(value.name);
+    if (!name || !Number.isFinite(timestamp) || timestamp <= 0 || timestamp > Date.now()) return null;
+    return { name, link: this._officialLink(value.link, id), verifiedAt: timestamp };
+  }
+
+  _identityLink(value, id) {
+    const link = this._officialLink(value, id), previous = this.identitiesMap.get(id)?.link;
+    if (!link) return previous || null;
+    // A post URL verifies the same numeric ID but carries no new profile bridge.
+    if (previous && new URL(link).searchParams.get('p') === id) return previous;
+    return link;
+  }
+
+  _readIdentities(data, target = this.identitiesMap) {
+    if (!Array.isArray(data?.players)) return;
+    for (const entry of data.players) {
+      if (!Array.isArray(entry) || entry.length !== 2) continue;
+      const [id, value] = entry, identity = this._identity(id, value, value?.verifiedAt);
+      if (!identity) continue;
+      const key = String(id), previous = target.get(key);
+      if (!previous || previous.verifiedAt <= identity.verifiedAt) target.set(key, identity);
+    }
+  }
+
+  _registerIdentity(id, identity) {
+    if (identity.link) window.historyView?.service?.registerPlayer({ id: Number(id), link: identity.link });
+  }
+
+  _applyIdentity(id, identity) {
+    this.namesMap.set(id, { jersey: '', teamId: null, ...this.namesMap.get(id), ...identity });
+    if (this._plusMinusMap.has(id)) this.namesMap.get(id).totalPlusMinus = this._plusMinusMap.get(id);
+    this._registerIdentity(id, identity);
+  }
+
+  _saveIdentities() {
+    const identities = new Map();
+    this._readIdentities(this._readStorage('localStorage', this.identityCacheKey), identities);
+    for (const [id, identity] of this.identitiesMap) {
+      const previous = identities.get(id);
+      if (!previous || previous.verifiedAt <= identity.verifiedAt) identities.set(id, identity);
+    }
+    const players = Array.from(identities).sort((a, b) => b[1].verifiedAt - a[1].verifiedAt).slice(0, 5000);
+    try { localStorage.setItem(this.identityCacheKey, JSON.stringify({ players })); } catch (_) {}
   }
   
   /**
    * Save to sessionStorage cache
    */
   saveToCache() {
+    this._saveIdentities();
     try {
-      // Don't save empty or invalid cache
-      if (this.namesMap.size < 100) {
-        console.warn(`⚠️ Not saving cache: only ${this.namesMap.size} players (expected 100+)`);
-        return;
-      }
-      
+      if (!this.namesMap.size) return;
       const data = {
         players: Array.from(this.namesMap.entries()),
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        statsVerifiedAt: this._statsVerifiedAt,
+        membershipVerifiedAt: this._membershipVerifiedAt
       };
       
       sessionStorage.setItem(this.cacheKey, JSON.stringify(data));
       console.log(`💾 Cached ${this.namesMap.size} player names`);
       
-    } catch (error) {
-      console.error('❌ Failed to save to cache:', error);
-    }
+    } catch (_) { /* Storage is an optional optimization. */ }
   }
   
   /**
@@ -181,15 +254,13 @@ class IBBAPlayerNames {
     const proxies = [`${window.appConfig?.ibbaProxyUrl || '/api/ibba'}?url=`];
     
     for (let i = 0; i < proxies.length; i++) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
       try {
         const proxyUrl = proxies[i] + encodeURIComponent(url);
         console.log(`🔄 Trying proxy ${i + 1}/${proxies.length}...`);
         
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
-        
         const response = await fetch(proxyUrl, { signal: controller.signal });
-        clearTimeout(timeoutId);
         
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
@@ -205,7 +276,7 @@ class IBBAPlayerNames {
         if (i === proxies.length - 1) {
           throw new Error(`All proxies failed for page ${page}`);
         }
-      }
+      } finally { clearTimeout(timeoutId); }
     }
   }
   
@@ -214,64 +285,15 @@ class IBBAPlayerNames {
    * @param {Function} onProgress - Optional callback for progress updates
    * @private
    */
-  async loadPlayerStatsFromHTML(onProgress = null) {
+  async loadPlayerStatsFromHTML(onProgress = null, operation = null) {
+    const generation = this._generation;
+    const current = () => operation ? this._isCurrent(operation) : generation === this._generation;
     try {
-      console.log('🔄 Loading player Plus/Minus stats from league HTML via CORS proxy...');
-      
-      const leaguePageUrl = this.playersPageUrl;
-      let html = null;
-      
-      const proxies = [
-        {
-          url: `${window.appConfig?.ibbaProxyUrl || '/api/ibba'}?url=`,
-          parseResponse: (response) => response.text(),
-          timeout: 12000
-        }
-      ];
-      
-      for (let i = 0; i < proxies.length; i++) {
-        try {
-          const proxy = proxies[i];
-          const proxyUrl = proxy.url + encodeURIComponent(leaguePageUrl);
-          console.log(`🔄 Trying proxy ${i + 1}/${proxies.length}...`);
-          
-          // Report progress to UI
-          if (onProgress) {
-            onProgress({ stage: 'proxy', proxy: i + 1, total: proxies.length });
-          }
-          
-          // Use AbortController with timeout
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), proxy.timeout || 8000);
-          
-          const response = await fetch(proxyUrl, { signal: controller.signal });
-          clearTimeout(timeoutId);
-          
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-          
-          html = await proxy.parseResponse(response);
-          
-          if (html && html.length > 1000) {
-            console.log(`✅ Proxy ${i + 1} succeeded for league HTML`);
-            break;
-          } else {
-            throw new Error('Response too short');
-          }
-          
-        } catch (error) {
-          const errorMsg = error.name === 'AbortError' ? `timeout (${proxies[i].timeout}ms)` : error.message;
-          console.warn(`⚠️ Proxy ${i + 1} failed:`, errorMsg);
-          if (i === proxies.length - 1) {
-            throw new Error('All proxies failed for league HTML');
-          }
-        }
-      }
-      
-      if (!html) {
-        throw new Error('Failed to fetch league HTML');
-      }
+      if (!current()) return 0;
+      if (onProgress) onProgress({ stage: 'proxy', proxy: 1, total: 1 });
+      const html = await this._fetchOfficial(this.playersPageUrl, operation, 'text', true);
+      if (!current()) return 0;
+      if (typeof html !== 'string' || html.length < 1000) throw new Error('Response too short');
       
       // Parse HTML to extract Plus/Minus data
       const parser = new DOMParser();
@@ -279,30 +301,37 @@ class IBBAPlayerNames {
       const season=window.IBBASeasons?.getSeason(this.seasonKey);
       if(season && window.IBBAPlayerHistory) {
         const records=new window.IBBAPlayerHistory().parseOfficialSummaries(doc,season);
-        this.addOfficialSummaryNames(records);
+        this.addOfficialSummaryNames(records, operation);
       }
       
       // Find player rows with data-pm attribute
       const playerRows = doc.querySelectorAll('tr[data-pm]');
       let statsCount = 0;
+      this._plusMinusMap.clear();
+      for (const data of this.namesMap.values()) delete data.totalPlusMinus;
+      this._statsVerifiedAt = Date.now();
       
       playerRows.forEach(row => {
         const playerId = row.getAttribute('data-id') || row.getAttribute('data-player');
         const plusMinus = row.getAttribute('data-pm');
         
-        if (playerId && plusMinus !== null && plusMinus !== '') {
+        if (/^[1-9]\d*$/.test(String(playerId)) && plusMinus !== null && plusMinus !== '') {
           const id = String(playerId);
           const existingData = this.namesMap.get(id);
+          const value = parseFloat(plusMinus);
+          if (!Number.isFinite(value)) return;
+          this._plusMinusMap.set(id, value);
           
           if (existingData) {
             // Update existing player data with Plus/Minus
-            existingData.totalPlusMinus = parseFloat(plusMinus) || 0;
+            existingData.totalPlusMinus = value;
             statsCount++;
           }
         }
       });
       
       console.log(`✅ Loaded Plus/Minus stats for ${statsCount} players from HTML`);
+      if (operation) this._notifyProgress(operation);
       return statsCount;
       
     } catch (error) {
@@ -323,13 +352,17 @@ class IBBAPlayerNames {
       return this.namesMap;
     }
     
-    if (this.isLoaded && this.namesMap.size > 0) {
+    if (this._catalogLoaded && this.namesMap.size > 0) {
       console.log('✅ Player names already loaded');
       return this.namesMap;
     }
     
     this.isLoading = true;
     this.sourceState='loading';
+    // Admin callers consume this map as the selected league catalog. Shared
+    // identities remain available in identitiesMap but are not catalog members.
+    this.namesMap.clear();
+    this.isLoaded = false;
     
     try {
       console.log('🔄 Loading player names from SportsPress API...');
@@ -377,18 +410,13 @@ class IBBAPlayerNames {
       if (onProgress) onProgress({ stage: 'processing', percent: 70, message: 'Processing data...' });
       
       // Build the mapping
+      this._membershipVerifiedAt = Date.now();
       allPlayers.forEach(player => {
         const playerId = String(player.id);
-        const name = player.title?.rendered || '';
         const jersey = player.number || '';
         const teamId = player.current_teams?.[0] || null;
-        
-        if (playerId && name) {
-          this.namesMap.set(playerId, {
-            name: name,
-            jersey: jersey,
-            teamId: teamId
-          });
+        if (this._acceptPlayer(player, new Set([playerId]))) {
+          Object.assign(this.namesMap.get(playerId), { jersey, teamId });
         }
       });
       
@@ -405,6 +433,7 @@ class IBBAPlayerNames {
       this.saveToCache();
       
       this.isLoaded = true;
+      this._catalogLoaded = true;
       this.sourceState='ready';
       return this.namesMap;
       
@@ -417,13 +446,6 @@ class IBBAPlayerNames {
         return this.namesMap;
       }
       
-      // Save what we have so far (if >= 100)
-      if (this.namesMap.size >= 100) {
-        console.log(`💾 Saving ${this.namesMap.size} players loaded before error...`);
-        this.saveToCache();
-        this.isLoaded = true;
-      }
-      
       if (onProgress) onProgress({ stage: 'error', error });
       throw error;
       
@@ -432,51 +454,165 @@ class IBBAPlayerNames {
     }
   }
 
-  addOfficialSummaryNames(records) {
-    for(const record of records) {
-      const match=/^post:([1-9]\d*)$/.exec(record.playerRef || '');
-      if(match && record.name && !this.namesMap.has(match[1])) {
-        this.namesMap.set(match[1],{name:record.name,jersey:'',teamId:null});
-      }
+  addOfficialSummaryNames(records, operation = null) {
+    if (operation && !this._isCurrent(operation)) return;
+    let changed = false;
+    for (const record of records || []) {
+      const match = /^post:([1-9]\d*)$/.exec(record.playerRef || '');
+      const name = this._name(record.name);
+      if (!match || !name) continue;
+      const id = match[1];
+      // The API wins when it already verified this identity during the same load.
+      if (operation?.verified.has(id)) continue;
+      const identity = { name, link: this._identityLink(record.playerUrl, id), verifiedAt: Date.now() };
+      this.identitiesMap.set(id, identity);
+      this._applyIdentity(id, identity);
+      operation?.verified.add(id);
+      changed = true;
+    }
+    if (changed) this._saveIdentities();
+  }
+
+  _acceptPlayer(player, requested, operation = null) {
+    if (operation && !this._isCurrent(operation)) return false;
+    const id = String(player?.id), name = this._name(player?.title?.rendered);
+    if (!/^[1-9]\d*$/.test(id) || !requested.has(id) || !name) return false;
+    const identity = { name, link: this._identityLink(player.link, id), verifiedAt: Date.now() };
+    this.identitiesMap.set(id, identity);
+    this._applyIdentity(id, identity);
+    operation?.verified.add(id);
+    return true;
+  }
+
+  _isCurrent(operation) {
+    return !operation.cancelled && operation.generation === this._generation && operation.subscribers.some(subscriber => {
+      try { return subscriber.isCurrent(); } catch (_) { return false; }
+    });
+  }
+
+  _notifyProgress(operation) {
+    if (!this._isCurrent(operation)) return;
+    const progress = { total: operation.ids.length, resolved: operation.ids.filter(id => this.namesMap.has(id)).length };
+    for (const subscriber of operation.subscribers) {
+      try { if (subscriber.isCurrent()) subscriber.onProgress(progress); } catch (_) { /* UI callbacks do not invalidate source data. */ }
     }
   }
 
-  async fetchPlayerById(id) {
-    const url=`${this.apiUrl}/${id}`;
-    const sources=[url,`${window.appConfig?.ibbaProxyUrl || '/api/ibba'}?url=${encodeURIComponent(url)}`];
-    for(const source of sources) {
-      const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),12000);
+  cancel() {
+    this._generation++;
+    if (this._activeLoad) this._activeLoad.cancelled = true;
+    this._activeLoad = null;
+    for (const request of this._requests) {
+      clearTimeout(request.timer);
+      request.controller.abort();
+    }
+    this._requests.clear();
+    this.isLoading = false;
+  }
+
+  async _fetchOfficial(url, operation = null, type = 'json', proxyOnly = false) {
+    const proxy = `${window.appConfig?.ibbaProxyUrl || '/api/ibba'}?url=${encodeURIComponent(url)}`;
+    for (const source of proxyOnly ? [proxy] : [url, proxy]) {
+      if (operation && !this._isCurrent(operation)) throw new Error('Player load cancelled');
+      const controller = new AbortController();
+      const request = { controller, timer: setTimeout(() => controller.abort(), 12000) };
+      this._requests.add(request);
       try {
-        const response=await fetch(source,{signal:controller.signal});
-        if(response.ok) return await response.json();
-      } catch(_) {} finally {clearTimeout(timer);}
+        const response = await fetch(source, { signal: controller.signal });
+        if (controller.signal.aborted || (operation && !this._isCurrent(operation))) throw new Error('Player load cancelled');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response[type]();
+      } catch (error) {
+        if (operation && !this._isCurrent(operation)) throw error;
+      } finally {
+        clearTimeout(request.timer);
+        this._requests.delete(request);
+      }
     }
     throw new Error('Player source unavailable');
   }
 
-  async loadReferencedPlayers(games, isCurrent = ()=>true, onProgress = ()=>{}) {
-    const ids=Array.from(new Set((games || []).flatMap(g=>(g.players || []).map(p=>String(p.playerId))))).filter(id=>/^[1-9]\d*$/.test(id)&&!this.namesMap.has(id));
-    this.isLoading=true;
-    let cursor=0, resolved=0;
+  fetchPlayerById(id, operation = null) {
+    return this._fetchOfficial(`${this.apiUrl}/${id}`, operation);
+  }
+
+  loadReferencedPlayers(games, isCurrent = () => true, onProgress = () => {}, { refresh = false } = {}) {
+    const ids = Array.from(new Set((games || []).flatMap(game => (game.players || []).map(player => String(player.playerId)))))
+      .filter(id => /^[1-9]\d*$/.test(id)).sort();
+    const key = ids.join(',');
+    if (!refresh && this._activeLoad?.key === key && this._isCurrent(this._activeLoad)) {
+      this._activeLoad.subscribers.push({ isCurrent, onProgress });
+      this._notifyProgress(this._activeLoad);
+      return this._activeLoad.promise;
+    }
+    if (refresh || this._activeLoad) this.cancel();
+    for (const id of ids) {
+      const identity = this.identitiesMap.get(id);
+      if (identity) this._applyIdentity(id, identity);
+    }
+    const operation = { key, ids, generation: this._generation, subscribers: [{ isCurrent, onProgress }], verified: new Set(), cancelled: false };
+    this._activeLoad = operation;
+    this.isLoading = true;
+    this.sourceState = 'loading';
+    this._notifyProgress(operation);
+    operation.promise = this._loadReferences(operation, refresh);
+    return operation.promise;
+  }
+
+  async _loadReferences(operation, refresh) {
+    const targets = operation.ids.filter(id => {
+      const cached = this.identitiesMap.get(id);
+      return refresh || !cached || Date.now() - cached.verifiedAt > this.identityExpiry;
+    });
+    const batches = [];
+    for (let offset = 0; offset < targets.length; offset += 100) batches.push(targets.slice(offset, offset + 100));
     try {
-      await Promise.all(Array.from({length:Math.min(6,ids.length)},async()=>{
-        while(cursor<ids.length && isCurrent()) {
-          const id=ids[cursor++];
+      let batchCursor = 0;
+      const collection = Promise.all(Array.from({ length: Math.min(3, batches.length) }, async () => {
+        while (batchCursor < batches.length && this._isCurrent(operation)) {
+          const ids = batches[batchCursor++], requested = new Set(ids);
+          const url = `${this.apiUrl}?include=${ids.join(',')}&per_page=100&_fields=id,title,link`;
           try {
-            const player=await this.fetchPlayerById(id);
-            if(!isCurrent()) return;
-            if(String(player.id)!==id || !player.title?.rendered) continue;
-            const doc=new DOMParser().parseFromString(player.title.rendered,'text/html');
-            const name=doc.body?.textContent || player.title.rendered;
-            this.namesMap.set(id,{name,jersey:'',teamId:null});
-            window.historyView?.service?.registerPlayer(player);
-            if(++resolved%6===0)onProgress();
-          } catch(_) {}
+            const players = await this._fetchOfficial(url, operation);
+            if (!this._isCurrent(operation)) return;
+            let changed = false;
+            for (const player of Array.isArray(players) ? players : [])
+              if (this._acceptPlayer(player, requested, operation)) changed = true;
+            if (changed) { this._saveIdentities(); this._notifyProgress(operation); }
+          } catch (_) { /* Only unresolved requested IDs fall back to individual requests. */ }
         }
       }));
-      if(isCurrent()) {this.saveToCache();this.sourceState=ids.some(id=>!this.namesMap.has(id))?'partial':'ready';}
+      await Promise.all([collection, this.loadPlayerStatsFromHTML(null, operation)]);
+      const unresolved = targets.filter(id => !operation.verified.has(id));
+      let cursor = 0, resolved = 0;
+      await Promise.all(Array.from({ length: Math.min(6, unresolved.length) }, async () => {
+        while (cursor < unresolved.length && this._isCurrent(operation)) {
+          const id = unresolved[cursor++];
+          try {
+            const player = await this.fetchPlayerById(id, operation);
+            if (!this._isCurrent(operation)) return;
+            if (this._acceptPlayer(player, new Set([id]), operation)) {
+              this._saveIdentities();
+              if (++resolved % 6 === 0) this._notifyProgress(operation);
+            }
+          } catch (_) { /* Preserve known identities when a source is unavailable. */ }
+        }
+      }));
+      if (this._isCurrent(operation)) {
+        const resolvedCount = operation.ids.filter(id => this.namesMap.has(id)).length;
+        const incomplete = resolvedCount < operation.ids.length || targets.some(id => !operation.verified.has(id));
+        this.sourceState = incomplete ? (resolvedCount ? 'partial' : 'error') : 'ready';
+        this.isLoaded = resolvedCount > 0;
+        this.saveToCache();
+      }
       return this.namesMap;
-    } finally {this.isLoading=false;if(isCurrent())onProgress();}
+    } finally {
+      if (this._activeLoad === operation) {
+        this.isLoading = false;
+        this._notifyProgress(operation);
+        this._activeLoad = null;
+      }
+    }
   }
   
   /**
@@ -586,6 +722,7 @@ class IBBAPlayerNames {
       }
 
       if (data && data.length > 0) {
+        this._membershipVerifiedAt = Date.now();
         // Load into map
         data.forEach(player => {
           this.namesMap.set(String(player.player_id), {
@@ -619,9 +756,17 @@ class IBBAPlayerNames {
    * Clear cache
    */
   clearCache() {
-    sessionStorage.removeItem(this.cacheKey);
+    this.cancel();
+    try { sessionStorage.removeItem(this.cacheKey); } catch (_) {}
+    try { localStorage.removeItem(this.identityCacheKey); } catch (_) {}
     this.namesMap.clear();
+    this.identitiesMap.clear();
+    this._plusMinusMap.clear();
+    this._catalogLoaded = false;
+    this._statsVerifiedAt = null;
+    this._membershipVerifiedAt = null;
     this.isLoaded = false;
+    this.sourceState = 'idle';
     console.log('🗑️ Player names cache cleared');
   }
   

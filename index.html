@@ -43,7 +43,7 @@
     <div class="header-gradient rounded-lg p-3 mb-3 shadow-md">
       <h1 class="text-2xl font-bold mb-1 text-center">הכנה לשידורי כדורסל</h1>
       <p class="text-sm text-center text-blue-100">משחקים, סטטיסטיקות ונקודות לשידור</p>
-      <p class="text-sm text-center text-blue-100 mt-1">גרסה <bdi class="version-display">v2.3.0</bdi></p>
+      <p class="text-sm text-center text-blue-100 mt-1">גרסה <bdi class="version-display">v2.3.2</bdi></p>
     </div>
     <div id="seasonError" role="alert" class="hidden card p-4 mb-4"></div>
     
@@ -230,7 +230,7 @@
             <h2 class="text-lg font-bold text-blue-900">סטטיסטיקות שחקנים (<span id="playersCount">0</span>)</h2>
             
             <!-- Loading indicator for player names -->
-            <div id="playerNamesStatus" class="text-sm text-gray-600" style="display: none;">
+            <div id="playerNamesStatus" class="text-sm text-gray-600" style="display: none;" role="status" aria-live="polite" aria-atomic="true">
               <span class="animate-pulse">⏳ טוען שמות שחקנים...</span>
             </div>
             
@@ -849,14 +849,14 @@
   <script src="js/ibba/ibba_rich_insights.js"></script>
   <script src="js/ibba/ibba_broadcast_copy.js"></script>
   <script src="js/ibba/ibba_broadcast_editorial.js"></script>
-  <script src="js/ibba/ibba_broadcast_view.js"></script>
+  <script src="js/ibba/ibba_broadcast_view.js?v=2.3.2"></script>
   <script src="js/ibba/ibba_broadcast_workspace.js"></script>
   <script src="js/ibba/ibba_broadcast_workspace_view.js"></script>
   <script src="js/ibba/ibba_broadcast_workspace_controller.js"></script>
   <script src="js/ibba/ibba_team_summaries.js"></script>
   <script src="js/ibba/ibba_historical_insights.js"></script>
   <script src="js/ibba/ibba_broadcast_report.js"></script>
-  <script src="js/ibba/ibba_player_names.js?v=9" defer></script>
+  <script src="js/ibba/ibba_player_names.js?v=10" defer></script>
   <script src="js/app_upcoming_games_pure.js?v=4" defer></script>
   
   <!-- Insights V2 System -->
@@ -1310,6 +1310,23 @@
       leaderStats=null;
       if(currentTab==='players') initPlayerStats();
       if(currentTab==='leaders') initLeaderStats();
+      updatePlayerNamesStatus();
+    }
+    function updatePlayerNamesStatus(players = allPlayerStats) {
+      const loader=window.playerNamesLoader;
+      const displayed=players.length?players:(window.ibbaAnalytics?.getPlayerAverages?.() || []);
+      const missing=displayed.filter(player=>!loader?.getPlayerName(player.playerId)).length;
+      const total=displayed.length;
+      const status=document.getElementById('playerNamesStatus');
+      if(status) {
+        status.textContent=total && loader?.isLoading
+          ? (missing?`זוהו ${total-missing} מתוך ${total} שחקנים · משלים שמות…`:'מרענן שמות ברקע…')
+          : (missing?`${missing} שמות עדיין אינם זמינים. ניתן לנסות רענון שמות.`
+            : (total && ['partial','error'].includes(loader?.sourceState)?'חלק מהשמות לא התעדכנו; השמות השמורים מוצגים.':''));
+        status.style.display=status.textContent?'block':'none';
+      }
+      const refreshNames=document.getElementById('refreshPlayerNamesBtn');
+      if(refreshNames)refreshNames.style.display=total?'inline-block':'none';
     }
     function initPlayerStats() {
       console.log('👥 Initializing player statistics...');
@@ -1329,13 +1346,7 @@
         ...player,
         name: getPlayerDisplayName(player)
       }));
-      const missingNames=averages.filter(p=>!window.playerNamesLoader?.getPlayerName(p.playerId)).length;
-      const namesStatus=document.getElementById('playerNamesStatus');
-      if(namesStatus) {
-        namesStatus.textContent=window.playerNamesLoader?.isLoading?'טוען שמות שחקנים…':(missingNames?`${missingNames} שמות אינם זמינים מהאיגוד. ניתן לנסות רענון שמות.`:'');
-        namesStatus.style.display=namesStatus.textContent?'block':'none';
-      }
-      const refreshNames=document.getElementById('refreshPlayerNamesBtn');if(refreshNames)refreshNames.style.display=averages.length?'inline-block':'none';
+      updatePlayerNamesStatus(averages);
       
       console.log(`✅ Loaded ${allPlayerStats.length} players`);
       
@@ -1364,36 +1375,7 @@
      * Refresh player data (names + statistics)
      */
     async function refreshPlayerData() {
-      const refreshVersion = seasonController.gate.version;
-      const loader = window.playerNamesLoader;
-      const btn = document.getElementById('refreshPlayersBtn');
-      const originalText = btn.innerHTML;
-      btn.innerHTML = '🔄 טוען...';
-      btn.disabled = true;
-      
-      try {
-        console.log('🔄 Refreshing player data...');
-        
-        // Refresh names from Supabase
-        if (loader) {
-          loader.clearCache();
-          try { await loader.loadFromSupabase(); } catch(error) {console.warn('Name list unavailable',error.message);}
-          if(refreshVersion!==seasonController.gate.version || loader!==window.playerNamesLoader) return;
-          await loader.loadReferencedPlayers?.(allGames,()=>refreshVersion===seasonController.gate.version && loader===window.playerNamesLoader);
-          console.log('✅ Player names refreshed from Supabase');
-        }
-        
-        // Re-initialize player stats (recalculates from analytics)
-        if (refreshVersion !== seasonController.gate.version || loader !== window.playerNamesLoader || !window.ibbaAnalytics) return;
-        refreshNamedViews();
-        
-        console.log('✅ Player data refreshed successfully');
-      } catch (error) {
-        console.error('❌ Refresh failed:', error);
-      } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-      }
+      return forceRefreshPlayerNames();
     }
     
     /**
@@ -1670,6 +1652,7 @@
       if (!season) return;
       const targetTab=currentTab;
       const previousSeason=window.appConfig.seasonKey;
+      window.playerNamesLoader?.cancel?.();
       Object.assign(window.appConfig, season, {seasonKey:key, seasonLabel:season.label});
       document.getElementById('seasonSelect').value = key;
       try { localStorage.setItem('ibba_selected_season',key); } catch (_) {}
@@ -1709,7 +1692,11 @@
           processGames(); populateFilters(); applyFilters();
           const loader = new window.IBBAPlayerNames(window.supabaseClient || null);
           window.playerNamesLoader = loader;
-          const names=allGames.length?loader.loadAllPlayerNames().catch(error=>console.warn('Names unavailable',error)):Promise.resolve();
+          const namesCurrent=()=>isCurrent() && loader===window.playerNamesLoader;
+          const names=allGames.length
+            ? loader.loadReferencedPlayers(allGames,namesCurrent,()=>{if(namesCurrent())refreshNamedViews();})
+              .catch(error=>console.warn('Names unavailable',error))
+            : Promise.resolve();
           document.getElementById('seasonStatus').textContent = result.complete
             ? `${season.label} · ${scheduleGames.length} משחקים · ${allGames.length} עם סטטיסטיקה`
             : `${season.label} · נתונים חלקיים; טעינה נכשלה בחודשים: ${result.failedMonths.join(', ')}`;
@@ -1719,9 +1706,7 @@
           // Names enrich statistics; they must not block access to the season schedule.
           if (allGames.length) {
             await names;
-            if (!isCurrent()) return;
-            await loader.loadReferencedPlayers?.(allGames,isCurrent,()=>{if(isCurrent())refreshNamedViews();});
-            if (!isCurrent()) return;
+            if (!namesCurrent()) return;
             refreshNamedViews();
           }
         }, {refresh});
@@ -2636,16 +2621,19 @@
       const familyLabels={ROUND:'מחזורים ושלבי העונה',MOMENTUM:'מומנטום והתפתחות',PROFILE:'סגנון ובית־חוץ',DECIDING:'משחקים צמודים ורבעים',MATCHUP:'מפגשים בין הקבוצות',PLAYERS:'שחקנים'};
       const families=report.families||{ROUND:history.filter(i=>i.category==='ROUND'),PROFILE:history.filter(i=>i.category!=='ROUND')};
       const sections=Object.entries(families).filter(([,items])=>items.length);
+      const priorSeasons=report.context?.priorSeasons||[];
+      const historyCoverage=priorSeasons.length?(report.context?.match?.teams||[]).filter(team=>team.teamId!=null&&!priorSeasons.some(season=>(season.resultGames||[]).some(game=>game.hasResult&&game.teams?.some(t=>String(t.teamId)===String(team.teamId)))))
+        .map(team=>`<p class="broadcast-coverage-note">${view.text(`אין נתוני משחקים זמינים עבור ${team.name} בעונות ${priorSeasons.map(s=>window.IBBASeasons.getSeason(s.seasonKey)?.label||s.seasonKey).join(', ')}.`)}</p>`).join(''):'';
       panel.innerHTML=`<h3 class="font-bold text-lg mb-2">נקודות מומלצות</h3><p class="text-gray-600 mb-3">בחרו את הסיפורים שמתאימים לשידור ושמרו אותם בדף האישי.</p><div class="broadcast-highlights">${(report.topStories||[]).map(storyCard).join('')||'<p class="py-3">עדיין אין נקודות לשידור למשחק זה.</p>'}</div>
         <h4 class="font-bold mt-4">העונה הנוכחית</h4><p class="my-2">${report.currentSeason?'ניתוח עונתי זמין בהמשך הדוח.':'אין עדיין נתונים מספיקים לניתוח עונתי של שתי הקבוצות. סיפורי העבר זמינים בנפרד.'}</p>
         ${view.sourceNotices(report.sourceStatuses).map(message=>`<p role="status" class="text-amber-800 my-2">${safeText(message)}</p>`).join('')}
         <p role="status" aria-live="polite" class="my-2">${['idle','loading'].includes(report.historicalContext?.state)?'סיכומי שחקנים ורקע קבוצתי עדיין נטענים…':''}</p>
-        <div class="flex flex-wrap items-center gap-3 mt-5"><h4 class="font-bold">נתונים והשוואות</h4><label>נושא <select id="broadcastFamilyFilter" class="broadcast-family-filter border rounded p-2"><option value="all">כל הנושאים</option>${sections.map(([family,items])=>`<option value="${family}">${familyLabels[family]}</option>`).join('')}</select></label><button type="button" id="broadcastReword" onclick="regenerateInsights()" class="broadcast-reword border rounded px-3 py-2">החלף ניסוח</button></div>
+        <div class="flex flex-wrap items-center gap-3 mt-5"><h4 class="font-bold">נתונים והשוואות</h4><label>נושא <select id="broadcastFamilyFilter" class="broadcast-family-filter border rounded p-2"><option value="all">כל הנושאים</option>${sections.map(([family,items])=>`<option value="${family}">${familyLabels[family]}</option>`).join('')}</select></label><button type="button" id="broadcastReword" onclick="regenerateInsights()" class="broadcast-reword border rounded px-3 py-2">החלף ניסוח</button></div>${historyCoverage}
         ${sections.map(([family,items])=>{
           const rows=family==='ROUND'&&report.context?.match?.roundVerified?items.filter(s=>s.type!=='HISTORICAL_ROUND_RESULT'):family==='MATCHUP'&&report.context?items.filter(s=>!['LAST_HISTORICAL_MEETING','HISTORICAL_H2H_RECORD'].includes(s.type)):items;
-          const content=family==='ROUND'?view.roundTables(report.context)+view.renderGroups(rows):family==='MATCHUP'?view.meetingTable(report.context)+`<details class="mt-3"><summary class="cursor-pointer">ממוצעים במפגשים</summary>${view.renderGroups(rows)}</details>`:view.renderGroups(rows);
-          const summaries=view.familySummary?.(items,report.context)||[];
-          return `<details data-broadcast-family="${family}" class="broadcast-family"><summary>${familyLabels[family]}</summary><div class="broadcast-family-brief">${summaries.map(storyCard).join('')}</div>${content}</details>`;
+          const grouped=view.renderTeamGroups?view.renderTeamGroups(rows,report.context):view.renderGroups(rows);
+          const content=family==='ROUND'?view.roundTables(report.context)+grouped:family==='MATCHUP'?view.meetingTable(report.context)+grouped:grouped;
+          return `<details data-broadcast-family="${family}" class="broadcast-family"><summary>${familyLabels[family]}</summary>${content}</details>`;
         }).join('')}
         ${(report.selectedPlayerRefs||[]).length?`<p class="text-sm my-2">שחקנים שנבחרו בידי השדרן — הבחירה אינה מאשרת סגל נוכחי.</p>${report.selectedPlayerRefs.map(ref=>`<button type="button" data-remove-player="${safeText(ref)}" class="border rounded px-3 py-2 m-1">הסר ${safeText(report.context?.playerSummaries?.records?.find(r=>report.context.identity(r.playerRef)===ref)?.name||ref)}</button>`).join('')}`:''}
         <button type="button" onclick="refreshBroadcastPreparation()" class="border rounded px-3 py-2 mt-3">נסה שוב / רענן מקורות</button>`;
@@ -3328,58 +3316,39 @@
     
     /**
      * Force refresh player names from Supabase
-     * Clears cache and reloads from server
+     * Revalidate official names while keeping verified names visible.
      */
     async function forceRefreshPlayerNames() {
       if (!window.playerNamesLoader) {
-        console.error('❌ Player names loader not initialized');
         return;
       }
       const refreshVersion = seasonController.gate.version;
       const loader = window.playerNamesLoader;
       const isCurrent = () => refreshVersion === seasonController.gate.version && loader === window.playerNamesLoader;
       
-      console.log('🔄 Force refreshing player names...');
-      
-      // Show loading
       const statusDiv = document.getElementById('playerNamesStatus');
       if (statusDiv) {
-        statusDiv.innerHTML = '<span class="animate-pulse">🔄 מרענן שמות שחקנים...</span>';
+        statusDiv.textContent = 'מרענן שמות שחקנים…';
         statusDiv.style.display = 'block';
       }
-      
-      // Clear cache
-      loader.clearCache();
-      
-      // Reload from Supabase
+      const buttons=['refreshPlayersBtn','refreshPlayerNamesBtn'].map(id=>document.getElementById(id)).filter(Boolean);
+      const originals=buttons.map(button=>({button,text:button.innerHTML,disabled:button.disabled}));
+      for(const button of buttons)button.disabled=true;
       try {
-        try {await loader.loadFromSupabase();} catch(error) {console.warn('Name list unavailable',error.message);}
-        if(!isCurrent()) return;
-        await loader.loadReferencedPlayers?.(allGames,isCurrent);
-        const count=loader.namesMap?.size || 0;
+        await loader.loadReferencedPlayers(allGames,isCurrent,()=>{
+          if(isCurrent())refreshNamedViews();
+        },{refresh:true});
         if (!isCurrent()) return;
-        
-        if (count > 0) {
-          console.log(`✅ Refreshed ${count} player names from Supabase`);
-          
-          // Refresh player tab if open
-          refreshNamedViews();
-          
-          if (statusDiv) {
-            statusDiv.textContent = `✅ רוענן! נטענו ${Number(count) || 0} שחקנים`;
-            setTimeout(() => { if(isCurrent()) statusDiv.style.display = 'none'; }, 3000);
-          }
-        } else {
-          throw new Error('No data loaded from Supabase');
-        }
-        
+        refreshNamedViews();
       } catch (error) {
         if (!isCurrent()) return;
-        console.error('❌ Refresh failed:', error);
+        console.warn('Player-name refresh failed:',error.message);
         if (statusDiv) {
-          statusDiv.innerHTML = '❌ רענון נכשל';
-          setTimeout(() => { if(isCurrent()) statusDiv.style.display = 'none'; }, 3000);
+          statusDiv.textContent = 'רענון השמות נכשל. השמות שכבר זוהו נשמרו; ניתן לנסות שוב.';
+          statusDiv.style.display = 'block';
         }
+      } finally {
+        for(const {button,text,disabled} of originals) {button.innerHTML=text;button.disabled=disabled;}
       }
     }
 

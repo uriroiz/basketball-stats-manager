@@ -51,6 +51,27 @@ async function run(){
  c.window.matchContextService={};c.window.IBBABroadcastReport={build:async()=>({seasonKey:match.seasonKey,gameInfo:match,currentSeason:null,topStories:[],allInsights:[],historicalInsights:[],families:{},selectedPlayerRefs:[],sourceStatuses:[],historicalContext:{state:'ready'},context:{match,priorSeasons:[],playerSummaries:{state:'ready',records:[],statuses:[]}}})};
  await realLoad(match);
  assert(document.getElementById('prepExport').disabled,'actual empty report publication preserves recommended-export availability');
+ const closeStory=(teamId,teamName,text)=>({type:'CLOSE_GAME_RECORD',family:'DECIDING',teamIds:[teamId],teamName,
+  seasonKeys:['2025-26'],scope:'historical',sampleSize:5,facts:{wins:4,total:5,threshold:5},text});
+ const homeStory=closeStory(1,'A','home-close'),awayStory=closeStory(2,'B','away-close');
+ const organizedReport={seasonKey:match.seasonKey,gameInfo:match,context:{match,priorSeasons:[]},topStories:[homeStory],
+  allInsights:[homeStory,awayStory],families:{DECIDING:[homeStory,awayStory]},sourceStatuses:[],historicalContext:{state:'ready'}};
+ c.renderBroadcastReport(organizedReport);
+ let rendered=document.getElementById('broadcastReport').innerHTML;
+ assert(rendered.includes('data-broadcast-team="1"')&&rendered.includes('data-broadcast-team="2"'),'active comparison screen explicitly sections both official teams');
+ const familyMarkup=rendered.split('data-broadcast-family="DECIDING"')[1];
+ assert.strictEqual(familyMarkup.split('home-close').length-1,1,'comparison family does not repeat recommendation cards above the same facts');
+ assert(familyMarkup.includes('away-close'),'opponent facts remain visible in the same family');
+ c.renderBroadcastReport({...organizedReport,allInsights:[homeStory],families:{DECIDING:[homeStory]}});
+ rendered=document.getElementById('broadcastReport').innerHTML;
+ assert(rendered.includes('data-broadcast-team="2"')&&rendered.includes('אין נתונים זמינים לנושא זה'),'team without prior league games is explained instead of silently omitted');
+ const roundSummary={...homeStory,type:'ROUND_TEAM_SUMMARY',family:'ROUND',storyKey:'round-summary',text:'round-results-outside-recommendations',
+  facts:{round:1,metric:'margin',value:2,roundMetrics:{points:82,opponentPoints:80,margin:2}}};
+ const roundMetric={...roundSummary,type:'ROUND_SCORING',storyKey:'round-margin',text:'raw-round-metric'};
+ c.renderBroadcastReport({...organizedReport,topStories:[],allInsights:[roundMetric,roundSummary],families:{ROUND:[roundMetric,roundSummary]}});
+ rendered=document.getElementById('broadcastReport').innerHTML;
+ assert(rendered.includes('round-results-outside-recommendations'),'combined round result remains visible even when not selected for the recommendations');
+ assert(rendered.includes('data-workspace-action="add" data-story-key="round-summary"'),'combined round result remains saveable without duplicate recommendation cards');
  console.log('broadcast workspace integration tests passed');
 }
 run().catch(e=>{console.error(e);process.exit(1);});
