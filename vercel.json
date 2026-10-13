@@ -1,6 +1,7 @@
 {
   "version": 2,
   "name": "basketball-stats-manager",
+  "regions": ["fra1"],
   "headers": [
     {
       "source": "/(.*)",
