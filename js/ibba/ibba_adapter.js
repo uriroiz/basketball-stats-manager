@@ -29,13 +29,13 @@ class IBBAAdapter {
     return Object.fromEntries(ids.map(id=>[id,Object.entries(this.readObservedStats(event.performance?.[id]?.[0],event.sp_teams?.[id])).filter(([,value])=>value!=null).map(([field])=>field)]));
   }
   extractPlayerObservations(event,ids) {
+    const teamNames=this.extractTeamNames(event,ids);
     return ids.flatMap((teamId,index)=>Object.entries(event.performance?.[teamId]||{}).flatMap(([playerId,raw])=>{
       if(playerId==='0'||!raw||typeof raw!=='object')return [];
       const stats=this.readObservedStats(raw),availableMetrics=Object.keys(stats).filter(k=>stats[k]!=null);
       if(!availableMetrics.length)return [];
       const participation=Object.entries(stats).some(([,value])=>value!=null&&value!==0)?'verified':'unknown';
-      const titles=(event.title?.rendered||'').split(/\s*[—–-]\s*/);
-      const teamName=this.decodeHtmlEntities(this.resolveTeamName(teamId,(index===0?event.home?.team:event.away?.team)||titles[index]));
+      const teamName=teamNames[index];
       return [{playerId,teamId,teamName,stats,availableMetrics,participation}];
     }));
   }
@@ -296,11 +296,7 @@ class IBBAAdapter {
     const homeTeamId = ibbaGame.teams[0];
     const awayTeamId = ibbaGame.teams[1];
     
-    // חילוץ שמות קבוצות מה-title (פורמט: "קבוצה א — קבוצה ב")
-    const title = ibbaGame.title?.rendered || '';
-    const teamNames = title.split(/\s*[—–-]\s*/); // תומך במינוס, em-dash, en-dash
-    const homeTeamName = this.resolveTeamName(homeTeamId, teamNames[0]);
-    const awayTeamName = this.resolveTeamName(awayTeamId, teamNames[1]);
+    const [homeTeamName, awayTeamName] = this.extractTeamNames(ibbaGame);
     
     // חילוץ ניקוד מ-performance data (אם קיים)
     const readScore = teamId => {
@@ -348,8 +344,8 @@ class IBBAAdapter {
       gender: ibbaGame.league?.gender || 'M',
       
       // שמות קבוצות (למטה compatibility עם smoke test)
-      homeTeam: this.decodeHtmlEntities(homeTeamName),
-      awayTeam: this.decodeHtmlEntities(awayTeamName),
+      homeTeam: homeTeamName,
+      awayTeam: awayTeamName,
       homeScore: homeScore,
       awayScore: awayScore,
       
@@ -358,14 +354,14 @@ class IBBAAdapter {
         {
           teamId: homeTeamId,
           profileUrl: window.IBBATeamSummaries?.profile(ibbaGame.home?.link) || ibbaGame.home?.link || null,
-          name: this.decodeHtmlEntities(homeTeamName),
+          name: homeTeamName,
           isHome: true,
           score: homeScore
         },
         {
           teamId: awayTeamId,
           profileUrl: window.IBBATeamSummaries?.profile(ibbaGame.away?.link) || ibbaGame.away?.link || null,
-          name: this.decodeHtmlEntities(awayTeamName),
+          name: awayTeamName,
           isHome: false,
           score: awayScore
         }
@@ -421,6 +417,16 @@ class IBBAAdapter {
     })).map(([metric])=>metric);
   }
 
+  extractTeamNames(event, ids = event.teams) {
+    // Prefer explicit team fields; a hyphen inside a sponsor name is not a separator.
+    const titleNames = this.decodeHtmlEntities(event.title?.rendered || '').split(/\s*[—–]\s*|\s+-\s+/);
+    return ids.map((teamId, index) => {
+      const officialName = this.decodeHtmlEntities((index === 0 ? event.home?.team : event.away?.team) || '').trim();
+      const name = officialName && !/^unknown(?: team)?$/i.test(officialName) ? officialName : titleNames[index];
+      return this.decodeHtmlEntities(this.resolveTeamName(teamId, name));
+    });
+  }
+
   resolveTeamName(teamId, sourceName) {
     const name = String(sourceName || '').trim();
     if (name && !/^unknown(?: team)?$/i.test(name)) return name;
@@ -450,14 +456,14 @@ class IBBAAdapter {
       return players;
     }
     
+    const teamIds = [homeTeamId, awayTeamId];
+    const teamNames = this.extractTeamNames(ibbaGame, teamIds);
     // עיבוד שתי הקבוצות
-    [homeTeamId, awayTeamId].forEach(teamId => {
+    teamIds.forEach((teamId, index) => {
       const teamPerformance = ibbaGame.performance[teamId];
       if (!teamPerformance) return;
       
-      const rawTeamName = teamId === homeTeamId ? ibbaGame.home?.team : ibbaGame.away?.team;
-      const titleNames = (ibbaGame.title?.rendered || '').split(/\s*[—–-]\s*/);
-      const teamName = this.decodeHtmlEntities(this.resolveTeamName(teamId, rawTeamName || titleNames[teamId === homeTeamId ? 0 : 1]));
+      const teamName = teamNames[index];
       const isHome = teamId === homeTeamId;
       
       // עיבוד כל שחקן בקבוצה

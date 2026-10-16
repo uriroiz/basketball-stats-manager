@@ -3,7 +3,7 @@ const fs = require('fs');
 const vm = require('vm');
 function adapter(fetch, seasonKey = null) {
   const c = {window:{},fetch,console:{log(){},warn(){},error(){}},URL,Date,
-    document:{createElement:()=>({set innerHTML(v){this.value=v;},value:''})}};
+    document:{createElement:()=>({set innerHTML(v){this.value=v.replace(/&#8212;|&mdash;/g,'—').replace(/&ndash;/g,'–').replace(/&amp;/g,'&');},value:''})}};
   vm.runInNewContext(fs.readFileSync('js/ibba/ibba_adapter.js','utf8'),c);
   vm.runInNewContext(fs.readFileSync('js/ibba/ibba_seasons.js','utf8'),c);
   return new c.window.IBBAAdapter(seasonKey ? c.window.IBBASeasons.getSeason(seasonKey) : {key:'2026-27',leagueId:119894,seasonId:119888,seasonMonths:['2026-10','2026-11']});
@@ -38,6 +38,37 @@ async function run() {
   assert.strictEqual(older.normalizeRound({...olderData.games[0],stage_id:26}).roundVerified,true);
   assert.strictEqual(older.normalizeRound({...olderData.games[0],stage_id:27}).roundVerified,false,'later phases cannot enter the 26-round regular season');
   const stats=Object.fromEntries(['min','pts','fgm','fga','threepm','threepa','ftm','fta','off','def','ast','stl','blk','to','pf','rate'].map(key=>[key,'1']));
+  const raanana='מכבי אב-גד רעננה',modiin='הפועל חבל מודיעין';
+  const completed={id:1502009,teams:[166484,167843],date:'2026-10-16',
+    performance:{166484:{0:{pts:84},11:stats},167843:{0:{pts:72},22:stats}}};
+  // The official first-round fixture lost both its full home name and its real opponent.
+  for(const fixture of [
+    {title:`${raanana} — ${modiin}`,home:{team:raanana},away:{team:modiin},want:[raanana,modiin]},
+    {title:`${modiin} — ${raanana}`,home:{team:modiin},away:{team:raanana},want:[modiin,raanana]},
+    {title:`old home — old away`,home:{team:raanana},away:{team:modiin},want:[raanana,modiin]},
+    {title:`${raanana} — ${modiin}`,want:[raanana,modiin]},
+    {title:`${modiin} – ${raanana}`,want:[modiin,raanana]},
+    {title:`${raanana} - יריבה אב-גד`,want:[raanana,'יריבה אב-גד']},
+    {title:`${raanana}—${modiin}`,want:[raanana,modiin]},
+    {title:`${raanana} &#8212; ${modiin}`,want:[raanana,modiin]},
+    {title:`${raanana} &ndash; ${modiin}`,home:{team:'Unknown'},away:{team:'   '},want:[raanana,modiin]},
+    {title:'Home &amp; Sponsor — Away',want:['Home & Sponsor','Away']}
+  ]) {
+    const game=a.convertToInternalFormat({...completed,home:fixture.home,away:fixture.away,title:{rendered:fixture.title}});
+    assert.deepStrictEqual([game.homeTeam,game.awayTeam],fixture.want,'game labels retain internal hyphens and official team names');
+    assert.deepStrictEqual(Array.from(game.teams,t=>t.name),fixture.want);
+    for(const rows of [game.players,game.playerObservations]) {
+      assert.deepStrictEqual(Array.from(rows,p=>p.teamName),fixture.want,'players and observations use the same names as their game teams');
+      assert.deepStrictEqual(Array.from(rows,p=>Number(p.teamId)),[166484,167843]);
+    }
+  }
+  const namedGame=a.convertToInternalFormat({...completed,title:{rendered:`${raanana} — ${modiin}`},home:{team:raanana},away:{team:modiin}});
+  const analyticsContext={window:{},console:{log(){},time(){},timeEnd(){}}};
+  vm.runInNewContext(fs.readFileSync('js/ibba/ibba_analytics.js','utf8'),analyticsContext);
+  const teamStats=new analyticsContext.window.IBBAAnalytics([namedGame]).getTeamStats();
+  assert.deepStrictEqual(Object.keys(teamStats),[raanana,modiin],'analytics has two real teams rather than sponsor fragments');
+  assert.strictEqual(teamStats[raanana].totalPoints,84);assert.strictEqual(teamStats[modiin].totalPoints,72);
+  assert.strictEqual(Number(teamStats[raanana].totalEfficiency),1,'player efficiency remains attached to the full team name');
   const withPlayers=historical.convertToInternalFormat({...deletedTeamGame,performance:{596704:{123:stats}},away:{team:''}});
   assert.strictEqual(withPlayers.players[0].teamName,recovered.awayTeam,'player and game team labels agree');
   assert.strictEqual(r.games.length,101);
