@@ -43,7 +43,7 @@
     <div class="header-gradient rounded-lg p-3 mb-3 shadow-md">
       <h1 class="text-2xl font-bold mb-1 text-center">הכנה לשידורי כדורסל</h1>
       <p class="text-sm text-center text-blue-100">משחקים, סטטיסטיקות ונקודות לשידור</p>
-      <p class="text-sm text-center text-blue-100 mt-1">גרסה <bdi class="version-display">v2.3.6</bdi></p>
+      <p class="text-sm text-center text-blue-100 mt-1">גרסה <bdi class="version-display">v2.3.7</bdi></p>
     </div>
     <div id="seasonError" role="alert" class="hidden card p-4 mb-4"></div>
     
@@ -2690,7 +2690,7 @@
           const savedGames=allGames,savedAnalytics=window.ibbaAnalytics;
           try {
             allGames=report.context.currentGames;window.ibbaAnalytics=new window.IBBAAnalytics(allGames);
-            loadTeamAverages(match.homeTeam,match.awayTeam);loadLastFiveGames(match.homeTeam,match.awayTeam);
+            loadTeamAverages(match.homeTeam,match.awayTeam,report.context.currentResultGames||allGames);loadLastFiveGames(match.homeTeam,match.awayTeam);
             loadHeadToHeadHistory(match.homeTeam,match.awayTeam);loadPlayersForComparison(match.homeTeam,match.awayTeam);
           }finally{allGames=savedGames;window.ibbaAnalytics=savedAnalytics;}
           document.getElementById('gameAnalysis').classList.remove('hidden');displayAdvancedAnalysis(report.currentSeason);
@@ -2746,10 +2746,14 @@
       if(window.historyView){window.historyView.message='השחקן הוסר מהדוח';window.historyView.render?.();}
     };
 
-    function getHomeAwayRecord(teamName, isHome) {
-      const teamGames = allGames.filter(g => 
-        isHome ? g.homeTeam === teamName : g.awayTeam === teamName
-      );
+    function getHomeAwayRecord(teamName, isHome, games = allGames) {
+      const teamGames = games.filter(g => {
+        const inScope = isHome == null ? g.homeTeam === teamName || g.awayTeam === teamName
+          : isHome ? g.homeTeam === teamName : g.awayTeam === teamName;
+        const scores = [g.homeScore, g.awayScore];
+        return inScope && g.hasResult !== false && scores.every(value => value != null && value !== '' && Number.isFinite(Number(value)) && Number(value) >= 0)
+          && Number(g.homeScore) !== Number(g.awayScore);
+      });
       
       let wins = 0;
       let losses = 0;
@@ -2757,8 +2761,9 @@
       let lossesMargin = [];
       
       teamGames.forEach(game => {
-        const teamScore = isHome ? game.homeScore : game.awayScore;
-        const oppScore = isHome ? game.awayScore : game.homeScore;
+        const atHome = game.homeTeam === teamName;
+        const teamScore = atHome ? game.homeScore : game.awayScore;
+        const oppScore = atHome ? game.awayScore : game.homeScore;
         const margin = teamScore - oppScore;
         
         if (margin > 0) {
@@ -2772,25 +2777,26 @@
       
       const avgWinsMargin = winsMargin.length > 0 
         ? (winsMargin.reduce((a, b) => a + b, 0) / winsMargin.length).toFixed(1)
-        : '0.0';
+        : null;
       
       const avgLossesMargin = lossesMargin.length > 0 
         ? (lossesMargin.reduce((a, b) => a + b, 0) / lossesMargin.length).toFixed(1)
-        : '0.0';
+        : null;
       
       return {
         record: `${wins}-${losses}`,
+        games: wins + losses,
         wins,
         losses,
-        avgWinsMargin: parseFloat(avgWinsMargin),
-        avgLossesMargin: parseFloat(avgLossesMargin)
+        avgWinsMargin: avgWinsMargin == null ? null : Number(avgWinsMargin),
+        avgLossesMargin: avgLossesMargin == null ? null : Number(avgLossesMargin)
       };
     }
     
     /**
      * Load team averages and rankings
      */
-    function loadTeamAverages(homeTeamName, awayTeamName) {
+    function loadTeamAverages(homeTeamName, awayTeamName, recordGames = allGames) {
       console.log('📈 Loading team averages...');
       
       if (!window.ibbaAnalytics) {
@@ -2809,8 +2815,10 @@
       }
       
       // Get home/away records
-      const homeRecord = getHomeAwayRecord(homeTeamName, true);
-      const awayRecord = getHomeAwayRecord(awayTeamName, false);
+      const homeRecord = getHomeAwayRecord(homeTeamName, true, recordGames);
+      const awayRecord = getHomeAwayRecord(awayTeamName, false, recordGames);
+      const homeSeasonRecord = getHomeAwayRecord(homeTeamName, null, recordGames);
+      const awaySeasonRecord = getHomeAwayRecord(awayTeamName, null, recordGames);
       
       // Calculate rankings
       const getRanking = (teams, field, value) => {
@@ -2839,6 +2847,8 @@
         rankEfficiency: getRanking(allTeamAvgs, 'efficiencyAvg', parseFloat(homeTeam.efficiencyAvg)),
         // Home/Away record
         record: homeRecord.record,
+        recordGames: homeRecord.games,
+        seasonRecord: homeSeasonRecord.record,
         avgWinsMargin: homeRecord.avgWinsMargin,
         avgLossesMargin: homeRecord.avgLossesMargin,
         isHome: true
@@ -2861,6 +2871,8 @@
         rankEfficiency: getRanking(allTeamAvgs, 'efficiencyAvg', parseFloat(awayTeam.efficiencyAvg)),
         // Home/Away record
         record: awayRecord.record,
+        recordGames: awayRecord.games,
+        seasonRecord: awaySeasonRecord.record,
         avgWinsMargin: awayRecord.avgWinsMargin,
         avgLossesMargin: awayRecord.avgLossesMargin,
         isHome: false
@@ -2904,44 +2916,26 @@
       };
       
       const createRecordRow = (homeStats, awayStats) => {
-        const homeLocation = 'בבית';
-        const awayLocation = 'בחוץ';
-        
-        // Calculate wins - losses for background color
-        const homeRecordParts = homeStats.record.split('-');
-        const homeWins = parseInt(homeRecordParts[0]);
-        const homeLosses = parseInt(homeRecordParts[1]);
-        const homeBalance = homeWins - homeLosses;
-        
-        const awayRecordParts = awayStats.record.split('-');
-        const awayWins = parseInt(awayRecordParts[0]);
-        const awayLosses = parseInt(awayRecordParts[1]);
-        const awayBalance = awayWins - awayLosses;
-        
-        // Choose background color based on balance
-        const homeClass = homeBalance > 0 ? 'bg-green-100 text-green-800' : homeBalance < 0 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800';
-        const awayClass = awayBalance > 0 ? 'bg-green-100 text-green-800' : awayBalance < 0 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800';
-        
+        const teamRecord = (stats, location) => {
+          const [wins, losses] = stats.seasonRecord.split('-').map(Number);
+          const color = wins > losses ? 'bg-green-100 text-green-800' : wins < losses ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800';
+          return `<div class="${color} rounded p-3 text-center">
+            <div class="text-sm mb-1">מאזן העונה</div>
+            <bdi class="font-bold text-2xl" dir="ltr">${stats.seasonRecord}</bdi>
+            <div class="text-xs mt-1">ניצחונות–הפסדים</div>
+            <div class="text-sm border-t border-gray-300 mt-3 pt-2">${stats.recordGames
+              ? `${location}: <bdi class="font-bold" dir="ltr">${stats.record}</bdi>`
+              : `טרם שיחקה ${location}`}</div>
+            ${stats.avgWinsMargin == null ? '' : `<div class="text-xs text-green-800 mt-2">הפרש ממוצע בניצחונות ${location}: <bdi dir="ltr">+${stats.avgWinsMargin}</bdi></div>`}
+            ${stats.avgLossesMargin == null ? '' : `<div class="text-xs text-red-800 mt-2">הפרש ממוצע בהפסדים ${location}: <bdi dir="ltr">${stats.avgLossesMargin}</bdi></div>`}
+          </div>`;
+        };
         return `
           <div class="bg-white border border-gray-200 rounded-lg p-3">
             <div class="text-sm font-medium text-gray-600 mb-2 text-center">מאזן משחקים</div>
             <div class="grid grid-cols-2 gap-3">
-              <div class="${homeClass} rounded p-3 text-center">
-                <div class="font-bold text-2xl">${homeStats.record}</div>
-                <div class="text-xs text-gray-600 mt-1 mb-2">${homeLocation}</div>
-                <div class="text-xs text-gray-700 mt-1">
-                  <div class="text-green-700">הפרש ממוצע בניצחונות ${homeLocation}: <span dir="ltr">${homeStats.avgWinsMargin > 0 ? '+' : ''}${homeStats.avgWinsMargin}</span></div>
-                  <div class="text-red-700 mt-1">הפרש ממוצע בהפסדים ${homeLocation}: <span dir="ltr">${homeStats.avgLossesMargin > 0 ? '+' : ''}${homeStats.avgLossesMargin}</span></div>
-                </div>
-              </div>
-              <div class="${awayClass} rounded p-3 text-center">
-                <div class="font-bold text-2xl">${awayStats.record}</div>
-                <div class="text-xs text-gray-600 mt-1 mb-2">${awayLocation}</div>
-                <div class="text-xs text-gray-700 mt-1">
-                  <div class="text-green-700">הפרש ממוצע בניצחונות ${awayLocation}: <span dir="ltr">${awayStats.avgWinsMargin > 0 ? '+' : ''}${awayStats.avgWinsMargin}</span></div>
-                  <div class="text-red-700 mt-1">הפרש ממוצע בהפסדים ${awayLocation}: <span dir="ltr">${awayStats.avgLossesMargin > 0 ? '+' : ''}${awayStats.avgLossesMargin}</span></div>
-                </div>
-              </div>
+              ${teamRecord(homeStats, 'בבית')}
+              ${teamRecord(awayStats, 'בחוץ')}
             </div>
           </div>
         `;
@@ -3888,9 +3882,11 @@
         excelData.push(['חטיפות למשחק', `${homeStats.spg.toFixed(1)} (דירוג: ${homeStats.rankSpg})`, `${awayStats.spg.toFixed(1)} (דירוג: ${awayStats.rankSpg})`]);
         excelData.push(['חסימות למשחק', `${homeStats.bpg.toFixed(1)} (דירוג: ${homeStats.rankBpg})`, `${awayStats.bpg.toFixed(1)} (דירוג: ${awayStats.rankBpg})`]);
         excelData.push(['יעילות למשחק', `${homeStats.efficiency.toFixed(1)} (דירוג: ${homeStats.rankEfficiency})`, `${awayStats.efficiency.toFixed(1)} (דירוג: ${awayStats.rankEfficiency})`]);
-        excelData.push(['מאזן (בית/חוץ)', homeStats.record, awayStats.record]);
-        excelData.push(['הפרש ממוצע בניצחונות', homeStats.avgWinsMargin.toFixed(1), awayStats.avgWinsMargin.toFixed(1)]);
-        excelData.push(['הפרש ממוצע בהפסדים', homeStats.avgLossesMargin.toFixed(1), awayStats.avgLossesMargin.toFixed(1)]);
+        excelData.push(['מאזן העונה (ניצחונות–הפסדים)', homeStats.seasonRecord, awayStats.seasonRecord]);
+        excelData.push(['מאזן (בית/חוץ)', homeStats.recordGames ? homeStats.record : 'טרם שיחקה בבית', awayStats.recordGames ? awayStats.record : 'טרם שיחקה בחוץ']);
+        const marginText = value => value == null ? '—' : Number(value).toFixed(1);
+        excelData.push(['הפרש ממוצע בניצחונות', marginText(homeStats.avgWinsMargin), marginText(awayStats.avgWinsMargin)]);
+        excelData.push(['הפרש ממוצע בהפסדים', marginText(homeStats.avgLossesMargin), marginText(awayStats.avgLossesMargin)]);
       }
       
       // ========================================

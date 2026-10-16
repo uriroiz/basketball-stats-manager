@@ -163,13 +163,15 @@ async function run(){
  c.window.loadUpcomingGames=async()=>{};
  vm.runInContext("currentTab='gamePrep'",c);
  await vm.runInContext('initGamePrep()',c);
- let populated=0;for(const name of ['loadTeamAverages','loadLastFiveGames','loadHeadToHeadHistory','loadPlayersForComparison'])c[name]=()=>populated++;
+ let populated=0,recordGames;for(const name of ['loadTeamAverages','loadLastFiveGames','loadHeadToHeadHistory','loadPlayersForComparison'])c[name]=(...args)=>{populated++;if(name==='loadTeamAverages')recordGames=args[2];};
  c.window.IBBAAnalytics=function(games){this.games=games;};
  c.displayAdvancedAnalysis=()=>{};
- c.window.IBBABroadcastReport.build=async()=>({currentSeason:{insightsV2:{}},context:{currentGames:[{gameId:777}]},historicalInsights:[],topStories:[],sourceStatuses:[]});
+ const resultsWithoutPlayerStats=[{gameId:777},{gameId:778,hasResult:true,hasPlayerStats:false}];
+ c.window.IBBABroadcastReport.build=async()=>({currentSeason:{insightsV2:{}},context:{currentGames:[{gameId:777}],currentResultGames:resultsWithoutPlayerStats},historicalInsights:[],topStories:[],sourceStatuses:[]});
  delete c.window.matchContextService;
  await vm.runInContext("loadBroadcastPreparation({homeTeam:'H',awayTeam:'A'},reportVersion)",c);
  assert.strictEqual(populated,4,'current analysis retains all existing preparation panels');
+ assert.strictEqual(recordGames,resultsWithoutPlayerStats,'live preparation records include completed results without player statistics');
  c.window.IBBAInsightTemplates={getRandomText:()=> 'unsafe comeback wording'};
  const comeback={type:'COMEBACK_KINGS',text:'verified quarter-end qualifier'};
  c.regenerateInsightTexts({TEAM:[comeback]});
