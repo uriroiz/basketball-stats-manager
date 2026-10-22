@@ -174,6 +174,7 @@ async function run(){
  await vm.runInContext("loadBroadcastPreparation({homeTeam:'H',awayTeam:'A'},reportVersion)",c);
  assert.strictEqual(populated,4,'current analysis retains all existing preparation panels');
  assert(!document.getElementById('advancedAnalysis').classList.contains('hidden'),'complete current reports reopen the full advanced analysis after loading');
+ assert(document.getElementById('analysisLoading').classList.contains('hidden'),'a completed current report does not keep showing the loading indicator');
  assert.strictEqual(recordGames,resultsWithoutPlayerStats,'live preparation records include completed results without player statistics');
  populated=0;
  c.window.IBBABroadcastReport.build=async()=>({currentSeason:null,context:{currentGames:[{gameId:777}],currentResultGames:resultsWithoutPlayerStats},historicalInsights:[],topStories:[],sourceStatuses:[]});

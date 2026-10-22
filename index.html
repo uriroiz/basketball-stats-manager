@@ -2697,6 +2697,7 @@
           document.getElementById('gameAnalysis').classList.remove('hidden');
           if(report.currentSeason) {
             document.getElementById('advancedAnalysis').classList.remove('hidden');
+            document.getElementById('analysisLoading').classList.add('hidden');
             displayAdvancedAnalysis(report.currentSeason);
           }
           else document.getElementById('advancedAnalysis').classList.add('hidden');
