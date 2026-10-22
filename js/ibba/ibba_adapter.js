@@ -73,10 +73,8 @@ class IBBAAdapter {
   }
 
   async fetchSeasonGames() {
-    try {
-      const games = await this.fetchEventPages();
-      if (games.length) return {games,complete:true,failedMonths:[]};
-    } catch (error) { console.warn('Season request failed; loading months',error.message); }
+    // The unfiltered endpoint can omit older results while returning a nonempty
+    // schedule. Month-scoped pages are required for complete season coverage.
     const byId = new Map();
     const failedMonths = [];
     for (const month of this.seasonMonths) {

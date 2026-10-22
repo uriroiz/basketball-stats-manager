@@ -9,6 +9,30 @@ function adapter(fetch, seasonKey = null) {
   return new c.window.IBBAAdapter(seasonKey ? c.window.IBBASeasons.getSeason(seasonKey) : {key:'2026-27',leagueId:119894,seasonId:119888,seasonMonths:['2026-10','2026-11']});
 }
 async function run() {
+  // The unfiltered official endpoint currently omits the opening round even
+  // while returning a nonempty, paginated schedule. Monthly queries retain it.
+  const fullStats=Object.fromEntries(['min','pts','fgm','fga','threepm','threepa','ftm','fta','off','def','ast','stl','blk','to','pf','rate'].map(key=>[key,1]));
+  fullStats.min='01:00';
+  const openingRound=[
+    {id:1502010,teams:[166511,168948],date:'2026-10-16T13:00:00',title:{rendered:'אליצור יבנה — הפועל חיפה'},performance:{166511:{0:{pts:63},11:fullStats},168948:{0:{pts:94},22:fullStats}}},
+    {id:1502014,teams:[596011,166345],date:'2026-10-16T13:45:00',title:{rendered:'מגדל העמק — עירוני נהריה'},performance:{596011:{0:{pts:69},33:fullStats},166345:{0:{pts:89},44:fullStats}}}
+  ];
+  const upcoming={id:1502024,teams:[166345,166511],date:'2026-10-22T19:00:00',title:{rendered:'עירוני נהריה — אליצור יבנה'},performance:''};
+  const restored=adapter(async url=>{const month=new URL(url).searchParams.get('month');return {ok:true,json:async()=>month==='2026-10'?[...openingRound,upcoming]:month?[]:[upcoming]};});
+  const completeSchedule=await restored.fetchSeasonGames();
+  assert.deepStrictEqual(Array.from(completeSchedule.games,g=>g.id),[1502010,1502014,1502024],'nonempty general schedule must not hide older completed games');
+  assert.strictEqual(completeSchedule.complete,true);
+  const allNormalized=completeSchedule.games.map(g=>restored.convertToInternalFormat(g));
+  assert.strictEqual(allNormalized.filter(g=>g.hasResult&&g.hasPlayerStats).length,2,'both selected teams retain their opening-round statistics');
+  const monthOnly=adapter(async()=>({ok:true,json:async()=>[]}));
+  monthOnly.fetchEventPages=async month=>{
+    if(month==='2026-10')return [...openingRound,upcoming];
+    throw Error('month offline');
+  };
+  const partialWithResults=await monthOnly.fetchSeasonGames();
+  assert.strictEqual(partialWithResults.games.length,3,'a failed month retains available results');
+  assert.strictEqual(partialWithResults.complete,false);
+  assert.deepStrictEqual(Array.from(partialWithResults.failedMonths),['2026-11']);
   const urls=[];
   const a = adapter(async url => {
     urls.push(url); const u=new URL(url);
