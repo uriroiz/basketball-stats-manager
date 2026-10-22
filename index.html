@@ -43,7 +43,7 @@
     <div class="header-gradient rounded-lg p-3 mb-3 shadow-md">
       <h1 class="text-2xl font-bold mb-1 text-center">הכנה לשידורי כדורסל</h1>
       <p class="text-sm text-center text-blue-100">משחקים, סטטיסטיקות ונקודות לשידור</p>
-      <p class="text-sm text-center text-blue-100 mt-1">גרסה <bdi class="version-display">v2.3.8</bdi></p>
+      <p class="text-sm text-center text-blue-100 mt-1">גרסה <bdi class="version-display">v2.3.9</bdi></p>
     </div>
     <div id="seasonError" role="alert" class="hidden card p-4 mb-4"></div>
     
@@ -708,7 +708,7 @@
 
           <!-- Head-to-Head History -->
           <div class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6">
-            <h3 class="font-semibold text-purple-800 mb-3">מפגשים ישירים בעונה</h3>
+            <h3 class="font-semibold text-purple-800 mb-3">מפגשים ישירים בין הקבוצות</h3>
             <div id="headToHead" class="overflow-x-auto">
               <!-- Will be populated by JavaScript -->
             </div>
@@ -2643,14 +2643,14 @@
       const historyCoverage=priorSeasons.length?(report.context?.match?.teams||[]).filter(team=>team.teamId!=null&&!priorSeasons.some(season=>(season.resultGames||[]).some(game=>game.hasResult&&game.teams?.some(t=>String(t.teamId)===String(team.teamId)))))
         .map(team=>`<p class="broadcast-coverage-note">${view.text(`אין נתוני משחקים זמינים עבור ${team.name} בעונות ${priorSeasons.map(s=>window.IBBASeasons.getSeason(s.seasonKey)?.label||s.seasonKey).join(', ')}.`)}</p>`).join(''):'';
       panel.innerHTML=`<h3 class="font-bold text-lg mb-2">נקודות מומלצות</h3><p class="text-gray-600 mb-3">בחרו את הסיפורים שמתאימים לשידור ושמרו אותם בדף האישי.</p><div class="broadcast-highlights">${(report.topStories||[]).map(storyCard).join('')||'<p class="py-3">עדיין אין נקודות לשידור למשחק זה.</p>'}</div>
-        <h4 class="font-bold mt-4">העונה הנוכחית</h4><p class="my-2">${report.currentSeason?'ניתוח עונתי זמין בהמשך הדוח.':'אין עדיין נתונים מספיקים לניתוח עונתי של שתי הקבוצות. סיפורי העבר זמינים בנפרד.'}</p>
+        <h4 class="font-bold mt-4">העונה הנוכחית</h4><p class="my-2">${report.currentSeason?'ניתוח עונתי זמין בהמשך הדוח.':'הנתונים הזמינים מוצגים בהמשך. כשאין סטטיסטיקה עונתית לקבוצה, הערכים מסומנים כחסרים.'}</p>
         ${view.sourceNotices(report.sourceStatuses).map(message=>`<p role="status" class="text-amber-800 my-2">${safeText(message)}</p>`).join('')}
         <p role="status" aria-live="polite" class="my-2">${['idle','loading'].includes(report.historicalContext?.state)?'סיכומי שחקנים ורקע קבוצתי עדיין נטענים…':''}</p>
         <div class="flex flex-wrap items-center gap-3 mt-5"><h4 class="font-bold">נתונים והשוואות</h4><label>נושא <select id="broadcastFamilyFilter" class="broadcast-family-filter border rounded p-2"><option value="all">כל הנושאים</option>${sections.map(([family,items])=>`<option value="${family}">${familyLabels[family]}</option>`).join('')}</select></label><button type="button" id="broadcastReword" onclick="regenerateInsights()" class="broadcast-reword border rounded px-3 py-2">החלף ניסוח</button></div>${historyCoverage}
         ${sections.map(([family,items])=>{
           const rows=family==='ROUND'&&report.context?.match?.roundVerified?items.filter(s=>s.type!=='HISTORICAL_ROUND_RESULT'):family==='MATCHUP'&&report.context?items.filter(s=>!['LAST_HISTORICAL_MEETING','HISTORICAL_H2H_RECORD'].includes(s.type)):items;
           const grouped=view.renderTeamGroups?view.renderTeamGroups(rows,report.context):view.renderGroups(rows);
-          const content=family==='ROUND'?view.roundTables(report.context)+grouped:family==='MATCHUP'?view.meetingTable(report.context)+grouped:grouped;
+          const content=family==='ROUND'?view.roundTables(report.context)+grouped:grouped;
           return `<details data-broadcast-family="${family}" class="broadcast-family"><summary>${familyLabels[family]}</summary>${content}</details>`;
         }).join('')}
         ${(report.selectedPlayerRefs||[]).length?`<p class="text-sm my-2">שחקנים שנבחרו בידי השדרן — הבחירה אינה מאשרת סגל נוכחי.</p>${report.selectedPlayerRefs.map(ref=>`<button type="button" data-remove-player="${safeText(ref)}" class="border rounded px-3 py-2 m-1">הסר ${safeText(report.context?.playerSummaries?.records?.find(r=>report.context.identity(r.playerRef)===ref)?.name||ref)}</button>`).join('')}`:''}
@@ -2668,6 +2668,7 @@
     }
 
     async function loadBroadcastPreparation(match,version=reportVersion,refresh=false) {
+      for(const id of ['gameAnalysis','advancedAnalysis'])document.getElementById(id)?.classList.add('hidden');
       if(refresh&&window.historyView?.key===match.seasonKey){
         window.historyView.version++;window.historyView.request=null;
         window.historyView.data={seasonKey:match.seasonKey,state:'loading',records:[],statuses:[]};
@@ -2686,14 +2687,19 @@
         }
         currentAdvancedReport={...(report.currentSeason||{}),...report,insightsV2:report.currentSeason?.insightsV2||{}};
         renderBroadcastReport(currentAdvancedReport);syncBroadcastExport();
-        if(report.currentSeason){
+        if(report.context){
           const savedGames=allGames,savedAnalytics=window.ibbaAnalytics;
           try {
-            allGames=report.context.currentGames;window.ibbaAnalytics=new window.IBBAAnalytics(allGames);
+            allGames=report.context.currentResultGames||report.context.currentGames;window.ibbaAnalytics=new window.IBBAAnalytics(report.context.currentGames);
             loadTeamAverages(match.homeTeam,match.awayTeam,report.context.currentResultGames||allGames);loadLastFiveGames(match.homeTeam,match.awayTeam);
-            loadHeadToHeadHistory(match.homeTeam,match.awayTeam);loadPlayersForComparison(match.homeTeam,match.awayTeam);
+            loadHeadToHeadHistory(match.homeTeam,match.awayTeam,report.context);loadPlayersForComparison(match.homeTeam,match.awayTeam);
           }finally{allGames=savedGames;window.ibbaAnalytics=savedAnalytics;}
-          document.getElementById('gameAnalysis').classList.remove('hidden');displayAdvancedAnalysis(report.currentSeason);
+          document.getElementById('gameAnalysis').classList.remove('hidden');
+          if(report.currentSeason) {
+            document.getElementById('advancedAnalysis').classList.remove('hidden');
+            displayAdvancedAnalysis(report.currentSeason);
+          }
+          else document.getElementById('advancedAnalysis').classList.add('hidden');
         }
         else document.getElementById('gameAnalysis').classList.add('hidden');
         return true;
@@ -2809,11 +2815,6 @@
       const homeTeam = allTeamAvgs.find(t => t.teamName === homeTeamName);
       const awayTeam = allTeamAvgs.find(t => t.teamName === awayTeamName);
       
-      if (!homeTeam || !awayTeam) {
-        console.error('❌ Teams not found in averages');
-        return;
-      }
-      
       // Get home/away records
       const homeRecord = getHomeAwayRecord(homeTeamName, true, recordGames);
       const awayRecord = getHomeAwayRecord(awayTeamName, false, recordGames);
@@ -2830,53 +2831,19 @@
         return `${rank}/${sorted.length}`;
       };
       
-      const homeStats = {
-        name: homeTeamName,
-        games: homeTeam.gamesPlayed || 0,
-        ppg: parseFloat(homeTeam.ppg) || 0,
-        rpg: parseFloat(homeTeam.rpg) || 0,
-        apg: parseFloat(homeTeam.apg) || 0,
-        spg: parseFloat(homeTeam.spg) || 0,
-        bpg: parseFloat(homeTeam.bpg) || 0,
-        efficiency: parseFloat(homeTeam.efficiencyAvg) || 0,
-        rankPpg: getRanking(allTeamAvgs, 'ppg', parseFloat(homeTeam.ppg)),
-        rankRpg: getRanking(allTeamAvgs, 'rpg', parseFloat(homeTeam.rpg)),
-        rankApg: getRanking(allTeamAvgs, 'apg', parseFloat(homeTeam.apg)),
-        rankSpg: getRanking(allTeamAvgs, 'spg', parseFloat(homeTeam.spg)),
-        rankBpg: getRanking(allTeamAvgs, 'bpg', parseFloat(homeTeam.bpg)),
-        rankEfficiency: getRanking(allTeamAvgs, 'efficiencyAvg', parseFloat(homeTeam.efficiencyAvg)),
-        // Home/Away record
-        record: homeRecord.record,
-        recordGames: homeRecord.games,
-        seasonRecord: homeSeasonRecord.record,
-        avgWinsMargin: homeRecord.avgWinsMargin,
-        avgLossesMargin: homeRecord.avgLossesMargin,
-        isHome: true
+      const makeStats = (name, team, venue, season, isHome) => {
+        const stats = {name, games:team?.gamesPlayed || 0, hasStatistics:Boolean(team),
+          record:venue.record, recordGames:venue.games, seasonRecord:season.games ? season.record : null,
+          avgWinsMargin:venue.avgWinsMargin, avgLossesMargin:venue.avgLossesMargin, isHome};
+        for (const [field, sourceField] of Object.entries({ppg:'ppg',rpg:'rpg',apg:'apg',spg:'spg',bpg:'bpg',efficiency:'efficiencyAvg'})) {
+          const raw = team?.[sourceField];
+          stats[field] = raw == null || raw === '' || !Number.isFinite(Number(raw)) ? null : Number(raw);
+          stats['rank' + field[0].toUpperCase() + field.slice(1)] = stats[field] == null ? null : getRanking(allTeamAvgs, sourceField, stats[field]);
+        }
+        return stats;
       };
-      
-      const awayStats = {
-        name: awayTeamName,
-        games: awayTeam.gamesPlayed || 0,
-        ppg: parseFloat(awayTeam.ppg) || 0,
-        rpg: parseFloat(awayTeam.rpg) || 0,
-        apg: parseFloat(awayTeam.apg) || 0,
-        spg: parseFloat(awayTeam.spg) || 0,
-        bpg: parseFloat(awayTeam.bpg) || 0,
-        efficiency: parseFloat(awayTeam.efficiencyAvg) || 0,
-        rankPpg: getRanking(allTeamAvgs, 'ppg', parseFloat(awayTeam.ppg)),
-        rankRpg: getRanking(allTeamAvgs, 'rpg', parseFloat(awayTeam.rpg)),
-        rankApg: getRanking(allTeamAvgs, 'apg', parseFloat(awayTeam.apg)),
-        rankSpg: getRanking(allTeamAvgs, 'spg', parseFloat(awayTeam.spg)),
-        rankBpg: getRanking(allTeamAvgs, 'bpg', parseFloat(awayTeam.bpg)),
-        rankEfficiency: getRanking(allTeamAvgs, 'efficiencyAvg', parseFloat(awayTeam.efficiencyAvg)),
-        // Home/Away record
-        record: awayRecord.record,
-        recordGames: awayRecord.games,
-        seasonRecord: awaySeasonRecord.record,
-        avgWinsMargin: awayRecord.avgWinsMargin,
-        avgLossesMargin: awayRecord.avgLossesMargin,
-        isHome: false
-      };
+      const homeStats = makeStats(homeTeamName, homeTeam, homeRecord, homeSeasonRecord, true);
+      const awayStats = makeStats(awayTeamName, awayTeam, awayRecord, awaySeasonRecord, false);
       
       // Save data for Excel export
       gamePrepState.teamAveragesData = {
@@ -2895,20 +2862,21 @@
       if (!container) return;
       
       const createRow = (label, homeVal, homeRank, awayVal, awayRank) => {
-        const homeClass = homeVal > awayVal ? 'bg-green-100 text-green-800 font-bold' : 'bg-red-100 text-red-800';
-        const awayClass = awayVal > homeVal ? 'bg-green-100 text-green-800 font-bold' : 'bg-red-100 text-red-800';
+        const comparable = Number.isFinite(homeVal) && Number.isFinite(awayVal) && homeVal !== awayVal;
+        const homeClass = !comparable ? 'bg-gray-100 text-gray-800' : homeVal > awayVal ? 'bg-green-100 text-green-800 font-bold' : 'bg-red-100 text-red-800';
+        const awayClass = !comparable ? 'bg-gray-100 text-gray-800' : awayVal > homeVal ? 'bg-green-100 text-green-800 font-bold' : 'bg-red-100 text-red-800';
         
         return `
           <div class="bg-white border border-gray-200 rounded-lg p-3">
             <div class="text-sm font-medium text-gray-600 mb-2">${label}</div>
             <div class="grid grid-cols-2 gap-3">
               <div class="${homeClass} rounded p-2 text-center">
-                <div class="font-bold text-lg">${homeVal.toFixed(1)}</div>
-                <div class="text-xs mt-1">דירוג: ${homeRank}</div>
+                <div class="font-bold text-lg">${homeVal == null ? '—' : homeVal.toFixed(1)}</div>
+                ${homeRank == null ? '' : `<div class="text-xs mt-1">דירוג: ${homeRank}</div>`}
               </div>
               <div class="${awayClass} rounded p-2 text-center">
-                <div class="font-bold text-lg">${awayVal.toFixed(1)}</div>
-                <div class="text-xs mt-1">דירוג: ${awayRank}</div>
+                <div class="font-bold text-lg">${awayVal == null ? '—' : awayVal.toFixed(1)}</div>
+                ${awayRank == null ? '' : `<div class="text-xs mt-1">דירוג: ${awayRank}</div>`}
               </div>
             </div>
           </div>
@@ -2917,6 +2885,7 @@
       
       const createRecordRow = (homeStats, awayStats) => {
         const teamRecord = (stats, location) => {
+          if(stats.seasonRecord == null)return '<div class="bg-gray-100 text-gray-700 rounded p-3 text-center">אין עדיין תוצאות בעונה זו</div>';
           const [wins, losses] = stats.seasonRecord.split('-').map(Number);
           const color = wins > losses ? 'bg-green-100 text-green-800' : wins < losses ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800';
           return `<div class="${color} rounded p-3 text-center">
@@ -2943,8 +2912,8 @@
       
       container.innerHTML = `
         <div class="text-center mb-3 grid grid-cols-2 gap-3">
-          <div class="font-bold text-blue-800">${safeText(homeStats.name)}</div>
-          <div class="font-bold text-purple-800">${safeText(awayStats.name)}</div>
+          <div class="font-bold text-blue-800">${safeText(homeStats.name)}${homeStats.hasStatistics?'':'<p class="text-sm font-normal text-gray-600 mt-1">עדיין אין סטטיסטיקה לעונה זו</p>'}</div>
+          <div class="font-bold text-purple-800">${safeText(awayStats.name)}${awayStats.hasStatistics?'':'<p class="text-sm font-normal text-gray-600 mt-1">עדיין אין סטטיסטיקה לעונה זו</p>'}</div>
         </div>
         ${createRow('נקודות למשחק', homeStats.ppg, homeStats.rankPpg, awayStats.ppg, awayStats.rankPpg)}
         ${createRow('ריבאונדים למשחק', homeStats.rpg, homeStats.rankRpg, awayStats.rpg, awayStats.rankRpg)}
@@ -2963,8 +2932,6 @@
      */
     function loadLastFiveGames(homeTeamName, awayTeamName) {
       console.log('📋 Loading last 5 games...');
-      
-      if (!allGames || allGames.length === 0) return;
       
       // Get last 5 games for each team
       const homeGames = allGames
@@ -3039,8 +3006,16 @@
     /**
      * Load head-to-head history
      */
-    function loadHeadToHeadHistory(homeTeamName, awayTeamName) {
+    function loadHeadToHeadHistory(homeTeamName, awayTeamName, context = null) {
       console.log('⚔️ Loading head-to-head history...');
+      if(context && window.IBBABroadcastView) {
+        const view=window.IBBABroadcastView, games=view.meetings(context);
+        gamePrepState.headToHeadData=games;
+        document.getElementById('headToHead').innerHTML=(games.length?`<p class="mb-3">${games.length} מפגשים בעונות הזמינות</p>`:'')+view.meetingTable(context);
+        const details=document.getElementById('headToHead').querySelector?.('details');
+        if(details)details.open=true;
+        return;
+      }
       
       if (!allGames || allGames.length === 0) return;
       
@@ -3137,7 +3112,13 @@
       
       if (player1Select) {
         player1Select.innerHTML = '<option value="">בחר שחקן ראשון...</option>';
-        player1Select.disabled = false;
+        player1Select.disabled = !homePlayers.length;
+        if(!homePlayers.length) {
+          player1Select.innerHTML='<option value="">עדיין אין נתוני שחקנים לעונה זו</option>';
+          gamePrepState.selectedPlayer1=null;
+          document.getElementById('player1Stats')?.classList.add('hidden');
+          document.getElementById('playerComparison')?.classList.add('hidden');
+        }
         
         homePlayers.forEach(player => {
           const option = document.createElement('option');
@@ -3156,7 +3137,13 @@
       
       if (player2Select) {
         player2Select.innerHTML = '<option value="">בחר שחקן שני...</option>';
-        player2Select.disabled = false;
+        player2Select.disabled = !awayPlayers.length;
+        if(!awayPlayers.length) {
+          player2Select.innerHTML='<option value="">עדיין אין נתוני שחקנים לעונה זו</option>';
+          gamePrepState.selectedPlayer2=null;
+          document.getElementById('player2Stats')?.classList.add('hidden');
+          document.getElementById('playerComparison')?.classList.add('hidden');
+        }
         
         awayPlayers.forEach(player => {
           const option = document.createElement('option');
@@ -3876,13 +3863,10 @@
         excelData.push(['']); // Empty row
         excelData.push(['סטטיסטיקה', `${homeTeamName} (בית)`, `${awayTeamName} (חוץ)`]);
         
-        excelData.push(['נקודות למשחק', `${homeStats.ppg.toFixed(1)} (דירוג: ${homeStats.rankPpg})`, `${awayStats.ppg.toFixed(1)} (דירוג: ${awayStats.rankPpg})`]);
-        excelData.push(['ריבאונדים למשחק', `${homeStats.rpg.toFixed(1)} (דירוג: ${homeStats.rankRpg})`, `${awayStats.rpg.toFixed(1)} (דירוג: ${awayStats.rankRpg})`]);
-        excelData.push(['אסיסטים למשחק', `${homeStats.apg.toFixed(1)} (דירוג: ${homeStats.rankApg})`, `${awayStats.apg.toFixed(1)} (דירוג: ${awayStats.rankApg})`]);
-        excelData.push(['חטיפות למשחק', `${homeStats.spg.toFixed(1)} (דירוג: ${homeStats.rankSpg})`, `${awayStats.spg.toFixed(1)} (דירוג: ${awayStats.rankSpg})`]);
-        excelData.push(['חסימות למשחק', `${homeStats.bpg.toFixed(1)} (דירוג: ${homeStats.rankBpg})`, `${awayStats.bpg.toFixed(1)} (דירוג: ${awayStats.rankBpg})`]);
-        excelData.push(['יעילות למשחק', `${homeStats.efficiency.toFixed(1)} (דירוג: ${homeStats.rankEfficiency})`, `${awayStats.efficiency.toFixed(1)} (דירוג: ${awayStats.rankEfficiency})`]);
-        excelData.push(['מאזן העונה (ניצחונות–הפסדים)', homeStats.seasonRecord, awayStats.seasonRecord]);
+        for(const [label,field,rank] of [['נקודות למשחק','ppg','rankPpg'],['ריבאונדים למשחק','rpg','rankRpg'],['אסיסטים למשחק','apg','rankApg'],['חטיפות למשחק','spg','rankSpg'],['חסימות למשחק','bpg','rankBpg'],['יעילות למשחק','efficiency','rankEfficiency']]) {
+          excelData.push([label,...[homeStats,awayStats].map(stats=>stats[field]==null?'—':`${stats[field].toFixed(1)} (דירוג: ${stats[rank]})`)]);
+        }
+        excelData.push(['מאזן העונה (ניצחונות–הפסדים)', homeStats.seasonRecord??'אין עדיין תוצאות בעונה זו', awayStats.seasonRecord??'אין עדיין תוצאות בעונה זו']);
         excelData.push(['מאזן (בית/חוץ)', homeStats.recordGames ? homeStats.record : 'טרם שיחקה בבית', awayStats.recordGames ? awayStats.record : 'טרם שיחקה בחוץ']);
         const marginText = value => value == null ? '—' : Number(value).toFixed(1);
         excelData.push(['הפרש ממוצע בניצחונות', marginText(homeStats.avgWinsMargin), marginText(awayStats.avgWinsMargin)]);
@@ -3946,7 +3930,7 @@
       // ========================================
       excelData.push(['']); // Empty row
       excelData.push(['']); // Empty row
-      excelData.push(['=== מפגשים ישירים בעונה ===']);
+      excelData.push(['=== מפגשים ישירים בין הקבוצות ===']);
       excelData.push(['']); // Empty row
       
       if (prepSnapshot.headToHeadData && prepSnapshot.headToHeadData.length > 0) {
@@ -3955,8 +3939,11 @@
         // Calculate records
         let homeWins = 0, awayWins = 0;
         h2hGames.forEach(game => {
-          const homeScore = game.homeTeam === homeTeamName ? game.homeScore : game.awayScore;
-          const awayScore = game.homeTeam === homeTeamName ? game.awayScore : game.homeScore;
+          const homeId=match?.teams?.[0]?.teamId,awayId=match?.teams?.[1]?.teamId;
+          const home=homeId==null?null:game.teams?.find(t=>String(t.teamId)===String(homeId));
+          const away=awayId==null?null:game.teams?.find(t=>String(t.teamId)===String(awayId));
+          const homeScore = home?.score ?? (game.homeTeam === homeTeamName ? game.homeScore : game.awayScore);
+          const awayScore = away?.score ?? (game.homeTeam === homeTeamName ? game.awayScore : game.homeScore);
           if (homeScore > awayScore) homeWins++;
           else if (awayScore > homeScore) awayWins++;
         });
@@ -3964,14 +3951,14 @@
         excelData.push([`מאזן ניצחונות: ${homeTeamName} ${homeWins}-${awayWins} ${awayTeamName}`]);
         excelData.push(['']); // Empty row
         
-        excelData.push(['תאריך', 'קבוצת בית', 'ניקוד', 'קבוצת חוץ', 'ניקוד', 'מנצחת']);
+        excelData.push(['עונה', 'תאריך', 'קבוצת בית', 'ניקוד', 'קבוצת חוץ', 'ניקוד', 'מנצחת']);
         h2hGames.forEach(game => {
           const date = new Date(game.date).toLocaleDateString('he-IL');
           const winner = game.homeScore > game.awayScore ? game.homeTeam : game.awayTeam;
-          excelData.push([date, game.homeTeam, game.homeScore, game.awayTeam, game.awayScore, winner]);
+          excelData.push([window.IBBASeasons.getSeason(game.seasonKey)?.label||game.seasonKey||seasonLabel, date, game.homeTeam, game.homeScore, game.awayTeam, game.awayScore, winner]);
         });
       } else {
-        excelData.push(['אין מפגשים ישירים בעונה זו']);
+        excelData.push(['לא נמצאו מפגשים ישירים בעונות הזמינות']);
       }
       
       // ========================================

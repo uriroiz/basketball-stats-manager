@@ -1,7 +1,7 @@
 const assert=require('assert');const fs=require('fs');const vm=require('vm');
 const nodes=new Map();
-const element=()=>({value:'',innerHTML:'',textContent:'',disabled:false,style:{},options:[],events:{},dataset:{},
-  classList:{add(){},remove(){},toggle(){},contains(){return false;}},addEventListener(name,fn){this.events[name]=fn;},setAttribute(){},getAttribute(){return null;},removeAttribute(){},scrollIntoView(){this.scrolled=true;},closest(){return null;},querySelectorAll(){return[];},querySelector(){return null;}});
+const element=()=>{const classes=new Set();return {value:'',innerHTML:'',textContent:'',disabled:false,style:{},options:[],events:{},dataset:{},
+  classList:{add(v){classes.add(v);},remove(v){classes.delete(v);},toggle(v,on){const enabled=on??!classes.has(v);enabled?classes.add(v):classes.delete(v);},contains(v){return classes.has(v);}},addEventListener(name,fn){this.events[name]=fn;},setAttribute(){},getAttribute(){return null;},removeAttribute(){},scrollIntoView(){this.scrolled=true;},closest(){return null;},querySelectorAll(){return[];},querySelector(){return null;}};};
 const document={readyState:'loading',addEventListener(){},querySelectorAll:()=>[],getElementById:id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);}};
 const c=vm.createContext({window:{appConfig:{seasonKey:'2026-27'}},document,URL,URLSearchParams,console:{log(){},warn(){},error(){}},setTimeout:()=>1,clearTimeout(){},Map,Promise});
 vm.runInContext(fs.readFileSync('js/ibba/ibba_seasons.js','utf8'),c);
@@ -152,7 +152,9 @@ async function run(){
  c.window.IBBABroadcastReport={build:()=>new Promise(resolve=>completeBroadcast=resolve)};
  c.window.IBBAMatchContext=function(){};
  c.window.appConfig.seasonKey='2026-27';
+ document.getElementById('gameAnalysis').classList.remove('hidden');
  const pendingBroadcast=vm.runInContext("loadBroadcastPreparation({gameId:44,seasonKey:'2026-27',date:'2099-01-01',teams:[]},reportVersion)",c);
+ assert(document.getElementById('gameAnalysis').classList.contains('hidden'),'previous comparison stays hidden while the selected match loads');
  vm.runInContext('resetPreparationReport()',c);
  completeBroadcast({historicalInsights:[],topStories:[],sourceStatuses:[]});await pendingBroadcast;
  assert.strictEqual(vm.runInContext('currentAdvancedReport',c),null,'late historical report cannot restore cleared prep');
@@ -171,7 +173,15 @@ async function run(){
  delete c.window.matchContextService;
  await vm.runInContext("loadBroadcastPreparation({homeTeam:'H',awayTeam:'A'},reportVersion)",c);
  assert.strictEqual(populated,4,'current analysis retains all existing preparation panels');
+ assert(!document.getElementById('advancedAnalysis').classList.contains('hidden'),'complete current reports reopen the full advanced analysis after loading');
  assert.strictEqual(recordGames,resultsWithoutPlayerStats,'live preparation records include completed results without player statistics');
+ populated=0;
+ c.window.IBBABroadcastReport.build=async()=>({currentSeason:null,context:{currentGames:[{gameId:777}],currentResultGames:resultsWithoutPlayerStats},historicalInsights:[],topStories:[],sourceStatuses:[]});
+ c.displayAdvancedAnalysis=()=>{throw Error('partial data must not generate a full matchup analysis');};
+ await vm.runInContext("loadBroadcastPreparation({homeTeam:'H',awayTeam:'A'},reportVersion)",c);
+ assert.strictEqual(populated,4,'one team without stats must not hide available comparison, recent games, meetings or player controls');
+ assert(!document.getElementById('gameAnalysis').classList.contains('hidden'),'partial preparation remains visible');
+ assert(document.getElementById('advancedAnalysis').classList.contains('hidden'),'partial preparation does not expose a stale full advanced report');
  c.window.IBBAInsightTemplates={getRandomText:()=> 'unsafe comeback wording'};
  const comeback={type:'COMEBACK_KINGS',text:'verified quarter-end qualifier'};
  c.regenerateInsightTexts({TEAM:[comeback]});

@@ -1,7 +1,7 @@
 const assert=require('assert'),fs=require('fs'),vm=require('vm');
 const nodes=new Map();
 const document={readyState:'loading',addEventListener(){},getElementById(id){if(!nodes.has(id))nodes.set(id,{innerHTML:''});return nodes.get(id);}};
-const c=vm.createContext({window:{},document,URL,console:{log(){}},setTimeout:()=>1});
+const c=vm.createContext({window:{},document,URL,console:{log(){},error(){}},setTimeout:()=>1});
 vm.runInContext(fs.readFileSync('js/ibba/ibba_seasons.js','utf8'),c);
 const script=Array.from(fs.readFileSync('index.html','utf8').matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)).find(m=>m[1].includes('async function selectSeason'))[1];
 vm.runInContext(script,c);
@@ -55,17 +55,49 @@ const multi=[
 const record=c.getHomeAwayRecord(home,true,multi);
 assert.strictEqual(record.record,'2-1');assert.strictEqual(record.games,3);
 assert.strictEqual(record.avgWinsMargin,12);assert.strictEqual(record.avgLossesMargin,-10);
+const fullAverages=c.window.ibbaAnalytics.getTeamAverages;
+const onlyAway=[{homeTeam:away,awayTeam:'יריבה',homeScore:86,awayScore:78,hasResult:true}];
+c.window.ibbaAnalytics.getTeamAverages=()=>fullAverages().filter(t=>t.teamName===away);
+c.loadTeamAverages(home,away,onlyAway);
+stored=vm.runInContext('gamePrepState.teamAveragesData',c);
+assert.strictEqual(stored.homeStats.ppg,null,'missing team averages remain missing rather than fabricated zero');
+assert.strictEqual(stored.awayStats.ppg,80,'available opposing-team statistics remain visible');
+assert.strictEqual(stored.homeStats.seasonRecord,null,'no current results must not imply a played 0-0 season record');
+rendered=document.getElementById('teamAverages').innerHTML;
+assert(rendered.includes('עדיין אין סטטיסטיקה לעונה זו')&&rendered.includes('—'));
+assert(!rendered.includes('bg-red-100')&&!rendered.includes('bg-green-100 text-green-800 font-bold'),'a missing metric cannot give either team a comparative advantage');
+vm.runInContext(fs.readFileSync('js/ibba/ibba_broadcast_view.js','utf8'),c);
+const historic={gameId:4,seasonKey:'2025-26',date:'2026-03-27',hasResult:true,homeTeam:'old home sponsor',awayTeam:'old away sponsor',homeScore:89,awayScore:95,teams:[{teamId:1,name:'old home sponsor',score:89},{teamId:2,name:'old away sponsor',score:95}]};
+const context={match:{teams:[{teamId:1,name:home},{teamId:2,name:away}]},currentResultGames:[],priorSeasons:[{resultGames:[historic,historic,{...historic,gameId:5,teams:[{teamId:99,name:away,score:95},{teamId:1,name:home,score:89}]}]}]};
+c.loadHeadToHeadHistory(home,away,context);
+assert.strictEqual(vm.runInContext('gamePrepState.headToHeadData.length',c),1,'historical meetings use official IDs and appear once without current-season meetings');
+assert(document.getElementById('headToHead').innerHTML.includes('2025/26'),'historical meeting season is visible independently of current team stats');
+c.fixtures=[];vm.runInContext('allGames=fixtures',c);c.loadLastFiveGames(home,away);
+assert.strictEqual(vm.runInContext('gamePrepState.lastFiveGamesData.homeTeam.length',c),0,'empty current results clear old recent-game rows');
+assert(document.getElementById('lastFiveGames').innerHTML.includes('אין משחקים'));
+document.createElement=()=>({dataset:{}});
+for(const id of ['player1Stats','player2Stats','playerComparison']) {
+  const node=document.getElementById(id);node.classList={add:()=>{node.hidden=true;}};
+}
+for(const id of ['player1Select','player2Select'])document.getElementById(id).appendChild=()=>{};
+c.window.ibbaAnalytics.getPlayerAverages=()=>[{playerId:7,teamName:away,jersey:1}];
+c.loadPlayersForComparison(home,away);
+assert(document.getElementById('player1Select').disabled,'missing current player stats cannot offer an empty selectable roster');
+assert(!document.getElementById('player2Select').disabled,'available current player stats remain selectable');
+assert(document.getElementById('player1Stats').hidden&&document.getElementById('playerComparison').hidden,'a missing roster clears previous player comparison displays');
+c.window.ibbaAnalytics.getTeamAverages=fullAverages;
 let rows,downloaded=false;
 c.window.IBBABroadcastReport={exportRows:()=>[]};
 c.XLSX={utils:{book_new:()=>({SheetNames:['הכנה למשחק']}),aoa_to_sheet:value=>{rows=value;return{};},book_append_sheet(){}},write:()=>[]};
 c.JSZip={loadAsync:async()=>({file:()=>null,generateAsync:async()=>({})})};
 c.URL={createObjectURL:()=> 'blob:qa',revokeObjectURL(){}};
 document.createElement=()=>({click(){downloaded=true;}});c.alert=message=>{throw Error(message);};
-vm.runInContext(`currentAdvancedReport={seasonKey:'2026-27',gameInfo:{homeTeam:${JSON.stringify(home)},awayTeam:${JSON.stringify(away)},date:'2026-10-23'}}`,c);
+vm.runInContext(`gamePrepState.homeTeamName=${JSON.stringify(home)};gamePrepState.awayTeamName=${JSON.stringify(away)};currentAdvancedReport={seasonKey:'2026-27',gameInfo:{homeTeam:${JSON.stringify(home)},awayTeam:${JSON.stringify(away)},date:'2026-10-23',teams:[{teamId:1},{teamId:2}]}}`,c);
 async function checkExport(){
   c.loadTeamAverages(home,away,firstRound);
   await c.exportInsightsToExcel({mode:'full'});
   assert(downloaded,'full report exports despite missing venue margins');
+  assert(rows.find(r=>String(r[0]).startsWith('מאזן ניצחונות:'))[0].includes('0-1'),'historical win totals follow official IDs even after a sponsor name changes');
   assert.deepStrictEqual(Array.from(rows.find(r=>r[0]==='מאזן העונה (ניצחונות–הפסדים)')),['מאזן העונה (ניצחונות–הפסדים)','0-1','1-0']);
   assert.deepStrictEqual(Array.from(rows.find(r=>r[0]==='מאזן (בית/חוץ)')),['מאזן (בית/חוץ)','טרם שיחקה בבית','טרם שיחקה בחוץ']);
   assert.deepStrictEqual(Array.from(rows.find(r=>r[0]==='הפרש ממוצע בניצחונות')),['הפרש ממוצע בניצחונות','—','—']);
@@ -73,6 +105,12 @@ async function checkExport(){
   await c.exportInsightsToExcel({mode:'full'});
   assert.deepStrictEqual(Array.from(rows.find(r=>r[0]==='הפרש ממוצע בניצחונות')),['הפרש ממוצע בניצחונות','10.0','4.0']);
   assert.deepStrictEqual(Array.from(rows.find(r=>r[0]==='הפרש ממוצע בהפסדים')),['הפרש ממוצע בהפסדים','—','—']);
+  c.window.ibbaAnalytics.getTeamAverages=()=>fullAverages().filter(t=>t.teamName===away);
+  c.loadTeamAverages(home,away,onlyAway);
+  await c.exportInsightsToExcel({mode:'full'});
+  const points=rows.find(r=>r[0]==='נקודות למשחק');
+  assert.strictEqual(points[1],'—');assert(points[2].includes('80.0'),'partial comparison exports the same available values');
+  assert(rows.some(r=>r.includes('2025/26')&&r.includes(95)&&r.includes(89)),'full export retains season-labelled historical meetings');
   console.log('home/away record tests passed');
 }
 checkExport().catch(error=>{console.error(error);process.exit(1);});
